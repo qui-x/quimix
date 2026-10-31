@@ -20,6 +20,21 @@
    decide. Fora do escopo, o motivo (com dois grupos, a estrutura fica fora).
 
    Tudo o que o módulo diz sai de Q3.Nomenclatura (núcleo).
+
+   ONDE CADA COISA APARECE (a cena fica só com o desenho)
+     cena (canvas) .... a doca, só com as miniaturas e os sinais de cada
+                        espaço (✓ certo, ↺ a rever, ⊘ fora do escopo, •
+                        previsão feita), e a estrutura do espaço
+                        escolhido, numerada quando o nome está certo
+     card Nome ........ as peças do nome e a previsão, ao vivo
+     Resultados ....... a conferência (retorno), o próximo passo
+                        (proximoPasso) e a ficha do espaço escolhido:
+                        situação, fórmula, nome nas formas que tiver
+                        (resultados)
+   Antes, o número, a fórmula e o nome certo eram escritos nos cartões da
+   doca (o nome descia a 6,5 px), e "Faltam previsões" aparecia no card
+   Bancada, longe do botão Conferir. No computador, o card Nome abre com
+   os Resultados logo abaixo (data-rail-junto, em index.html).
 ═══════════════════════════════════════════════════════════════ */
 
 'use strict';
@@ -48,7 +63,7 @@ class NomeadorCadeias {
   /* a troca de módulo LIMPA o que sai */
   reiniciar(inicio) {
     this.espacos = []; for (var i = 0; i < NM_ESPACOS; i++) this.espacos.push(null);
-    this.sel = 0; this.nota = null; this.erro = null; this._ciclo = null; this.contador = '';
+    this.sel = 0; this.nota = null; this.erro = null; this._ciclo = null; this.contador = ''; this._ret = null;
     this.fonte = 'bancada'; this.foco = null;
     if (!inicio) {
       this.editor.reiniciar(); this.editor.desativar();
@@ -138,8 +153,8 @@ class NomeadorCadeias {
       if (c.nVistos === N) fechou = true;                      // a volta se fechou dentro desta leva
     });
     for (var i = 0; i < NM_ESPACOS; i++) this.espacos[i] = i < leva.length ? this._espaco(c.lista[leva[i]].g, 'gerada') : null;
-    this.sel = 0; this._novoAlvo();
-    // na tela, só o CONTADOR (pedido do professor); o leitor de tela recebe a frase completa
+    this.sel = 0; this._novoAlvo(); this._ret = null;   // leva nova: a conferência anterior não vale mais
+    // na tela, só o CONTADOR (pedido do professor, agora nos Resultados); o leitor de tela recebe a frase completa
     var vistosAte = Object.keys(c.todos).length;
     this.nota = '';
     this.contador = !N ? 'Nenhum isômero no escopo.' : N <= NM_ESPACOS ? N + (N === 1 ? ' isômero' : ' isômeros') : vistosAte + ' de ' + N + ' isômeros';
@@ -253,8 +268,8 @@ class NomeadorCadeias {
     cheios.forEach(function (i) { var e = self.espacos[i]; if (!e.r) e.r = Q3.Nomenclatura.nomear(e.g); if (!e.r.ok) e.estado = 'fora'; });
     var faltam = cheios.filter(function (i) { var e = self.espacos[i]; return e.estado !== 'fora' && e.estado !== 'certo' && !self._completa(e.prev); });
     if (faltam.length) {
-      this.nota = 'Faltam previsões: ' + faltam.map(function (i) { return i + 1; }).join(', ') + '.';
-      announce('A conferência vem depois da previsão de todas as estruturas. ' + this.nota); this._sincronizarPainel(); return true;
+      this._ret = NomeadorCadeias.prototype._faltam(faltam.map(function (i) { return i + 1; }));
+      announce(this._ret.texto); this._sincronizarPainel(); return true;
     }
     var certos = [], rever = [];
     cheios.forEach(function (i) {
@@ -264,11 +279,25 @@ class NomeadorCadeias {
       (e.estado === 'certo' ? certos : rever).push(i + 1);
     });
     playTone(660, .08, .04);
-    this.nota = '';   // o resultado está nos cartões: nome e ✓, ou ↺
-    announce((certos.length ? 'Nome certo ' + (certos.length === 1 ? 'no espaço ' : 'nos espaços ') + certos.join(', ') + '.' : '') +
-      (rever.length ? (certos.length ? ' ' : '') + 'A rever: ' + rever.join(', ') + '.' : ''));
+    this.nota = '';   // nos cartões, ✓ ou ↺; a frase, nos Resultados
+    this._ret = this._frasesConferencia(certos, rever);
+    announce(this._ret.texto);
     this._novoAlvo(); this._sincronizarPainel();
     return true;
+  }
+
+  /* a conferência pedida antes da hora (serve também ao Módulo 4, por NomeadorCadeias.prototype) */
+  _faltam(nums) {
+    var t = nums.length === 1 ? 'Falta a previsão do espaço ' + nums[0]
+      : 'Faltam as previsões dos espaços ' + nums.slice(0, -1).join(', ') + ' e ' + nums[nums.length - 1];
+    return { tipo: 'info', texto: 'A conferência vem depois da previsão de todas as estruturas. ' + t + '.' };
+  }
+  /* a frase da conferência: só certo ou a rever, espaço por espaço — sem dizer o que está errado */
+  _frasesConferencia(certos, rever) {
+    var lista = function (n) { return n.length === 1 ? 'no espaço ' + n[0] : 'nos espaços ' + n.slice(0, -1).join(', ') + ' e ' + n[n.length - 1]; };
+    var t = (certos.length ? 'Nome certo ' + lista(certos) + '.' : '') +
+            (rever.length ? (certos.length ? ' ' : '') + 'A rever ' + lista(rever) + ': mexa nas peças e confira de novo.' : '');
+    return { tipo: rever.length ? 'info' : 'ok', texto: t || 'Nenhuma estrutura dentro do escopo para conferir.' };
   }
   _completa(p) { return p.anel && p.anel !== 'ciclo' ? true : !!(p.prefixo && p.infixo && p.sufixo); }   // fenol, piridina…: o nome do anel basta
 
@@ -334,35 +363,44 @@ class NomeadorCadeias {
 
   /* ══ DESENHO ═══════════════════════════════════════════════════ */
 
+  /* A CENA: a doca no alto (só miniaturas e sinais) e, no resto da área, a estrutura do espaço escolhido.
+     Nenhum texto de interface: o número do espaço, a fórmula, o nome e o "vazio" moram nos Resultados. */
   desenhar(ctx, W, H) {
-    var P = Q3.Desenho.paleta(), self = this;
+    var P = Q3.Desenho.paleta();
     if (this.fonte === 'desenhar') { this.editor.desenhar(ctx, W, H); return; }
-    var pad = 8, fimDoca = this._desenharDoca(ctx, W, P, NM_ESPACOS, H);
-    // a estrutura do espaço selecionado, grande, numa faixa CENTRAL (longe das laterais)
-    var e = this.espacos[this.sel], areaW = Math.min(W - 56, 720), ax = (W - areaW) / 2;
-    var areaTopo = fimDoca + pad + 28, areaBase = H - 40;   // sem a faixa embaixo, a estrutura ganha a altura
-    if (H < 430) { areaTopo = fimDoca + pad + 12; areaBase = H - 16; }   // cena baixa (celular deitado): menos folga em cima e embaixo
-    if (e) this._estrutura(ctx, e, ax, areaTopo, areaW, areaBase - areaTopo, P);
-    else { ctx.save(); ctx.fillStyle = P.suave; ctx.textAlign = 'center'; Q3.Desenho.textoQueCabe(ctx, 'Espaço ' + (this.sel + 1) + ' vazio.', W / 2, (areaTopo + areaBase) / 2, areaW, { tam: 14, min: 11 }); ctx.restore(); }
-    // a faixa do nome: a previsão ao vivo; depois de revelar, o nome calculado
-    /* sem faixa de texto no canvas (pedido do professor): o nome vai para o painel Nome (#nm-nome) */
+    var A = this._docaEArea(ctx, W, H, P, NM_ESPACOS), e = this.espacos[this.sel];
+    if (e) this._estrutura(ctx, e, A.x, A.y, A.w, A.h, P);
   }
 
-  /* A DOCA: os espaços em MINIATURA, flutuando no alto, ao centro, logo abaixo do selo de modo ativo.
-     Os cards do trilho abrem nas LATERAIS; uma faixa de ponta a ponta ficava coberta por eles. No centro,
-     nada a encobre, e o canvas não precisa mudar de tamanho a cada card. Numa TELA ESTREITA (celular),
-     onde os oito não cabem numa fileira, vão em duas fileiras de quatro — nenhum espaço fica fora da tela.
-     Serve aos Módulos 2 e 4 (n espaços). Devolve a altura em que a doca termina. */
+  /* desenha a doca e devolve o retângulo que sobra para a estrutura: embaixo da doca ou, no celular deitado
+     (doca ao lado), à direita dela. Serve aos Módulos 2 e 4 (chamada com .call). */
+  _docaEArea(ctx, W, H, P, n) {
+    var D = NomeadorCadeias.prototype._desenharDoca.call(this, ctx, W, P, n, H), M = Q3.Moldura.livre(W, H, false);
+    if (D.lado) { var x = D.x1 + 16; return { x: x, y: M.y, w: M.x + M.w - x, h: M.h }; }
+    var y = D.y1 + (H < 430 ? 8 : 14);
+    return { x: M.x, y: y, w: M.w, h: M.y + M.h - y };
+  }
+
+  /* A DOCA: os espaços em MINIATURA, no alto e ao centro, logo abaixo da pílula do modo. Numa TELA ESTREITA
+     (celular), onde os oito não cabem numa fileira, vão em duas fileiras de quatro. Cada cartão tem só a
+     miniatura e, no canto, o SINAL do espaço (desenhado, não escrito): ✓ nome certo, ↺ a rever, ⊘ fora do
+     escopo, • previsão feita e ainda não conferida; vazio, um contorno tracejado com um +.
+     CELULAR DEITADO (cena larga e baixa, menos de 340 px): no alto, a doca levava metade da altura e a
+     estrutura ficava minúscula; ali ela vai para a esquerda, em duas fileiras de quatro, e a estrutura fica
+     à direita com a altura toda.
+     Serve aos Módulos 2 e 4 (n espaços). Devolve a caixa da doca { x0, y0, x1, y1, lado }. */
   _desenharDoca(ctx, W, P, n, H) {
-    /* os cartões estreitam até 60 px antes de a doca virar duas fileiras (no celular deitado, por 2 px,
-       os oito iam para duas fileiras e roubavam 78 px de altura); numa cena baixa, ficam mais baixos */
     // os ajudantes vêm do protótipo, não de this: o Módulo 4 (outra classe) desenha esta mesma doca com .call
     var M2 = NomeadorCadeias.prototype;
-    var gap = 6, pad = 8, margem = 10, alto = !H || H >= 430 ? 72 : H < 300 ? 54 : 60, topo = 60, larg0 = 70, largMin = 60;
+    var gap = 6, pad = 8, margem = 10, alto = !H || H >= 430 ? 64 : H < 300 ? 46 : 54, larg0 = 72, largMin = 56;
+    var topo = Q3.Moldura.pilula(W).y1 + pad + 2;   // logo abaixo da pílula do modo
+    var lado = !!H && H < 340 && W >= 560;
     var cabe = function (c) { return c * largMin + (c - 1) * gap + 2 * (pad + margem) <= W; };
-    var cols = cabe(n) ? n : Math.ceil(n / 2), linhas = Math.ceil(n / cols);
-    var larg = Math.max(48, Math.min(larg0, Math.floor((W - 2 * (pad + margem) - (cols - 1) * gap) / cols)));
-    var total = cols * larg + (cols - 1) * gap, altoT = linhas * alto + (linhas - 1) * gap, x0 = Math.round((W - total) / 2);
+    var cols = !lado && cabe(n) ? n : Math.ceil(n / 2), linhas = Math.ceil(n / cols);
+    var larg = lado ? largMin : Math.max(44, Math.min(larg0, Math.floor((W - 2 * (pad + margem) - (cols - 1) * gap) / cols)));
+    if (lado) alto = Math.max(38, Math.min(alto, Math.floor((H - topo - 14 - gap) / 2)));   // as duas fileiras cabem na altura
+    var total = cols * larg + (cols - 1) * gap, altoT = linhas * alto + (linhas - 1) * gap;
+    var x0 = lado ? Q3.Moldura.livre(W, H, false).x + pad : Math.round((W - total) / 2);
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,' + (P.claro ? 0.16 : 0.45) + ')'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 4;
     ctx.fillStyle = nmRgba(P.painel, 0.94);
@@ -374,39 +412,54 @@ class NomeadorCadeias {
       var x = x0 + (i % cols) * (larg + gap), y = topo + Math.floor(i / cols) * (alto + gap), e = this.espacos[i], ativo = i === this.sel;
       this._espacosTela.push({ x: x, y: y, w: larg, h: alto });
       ctx.save();
-      ctx.fillStyle = nmRgba(P.fundo, ativo ? 0.9 : 0.55); ctx.strokeStyle = ativo ? P.acento : nmRgba(P.suave, 0.4); ctx.lineWidth = ativo ? 2.5 : 1;
+      ctx.fillStyle = nmRgba(P.fundo, ativo ? 0.9 : e ? 0.55 : 0.3);
+      ctx.strokeStyle = ativo ? P.acento : nmRgba(P.suave, e ? 0.4 : 0.55); ctx.lineWidth = ativo ? 2.5 : 1;
+      if (!e) ctx.setLineDash([4, 3]);
       ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, larg, alto, 7); else ctx.rect(x, y, larg, alto); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = P.suave; ctx.font = '600 9.5px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillText(String(i + 1), x + 5, y + 11);
-      if (e && e.estado === 'certo') M2._nomeNoCartao.call(this, ctx, e.r.nome, x + 14, y + 10, larg - 18, P);
-      else if (e && e.estado === 'rever') { ctx.fillStyle = P.claro ? '#8a4b00' : '#ffb454'; ctx.font = '700 10px system-ui, sans-serif'; ctx.textAlign = 'right'; ctx.fillText('↺', x + larg - 5, y + 11); }
-      else if (e && e.estado === 'fora') { ctx.fillStyle = P.suave; ctx.font = '600 8.5px system-ui, sans-serif'; ctx.textAlign = 'right'; ctx.fillText('fora', x + larg - 5, y + 11); }
-      var dy = e && e.estado === 'certo' ? 12 : 0;   // o nome ocupa o alto do cartão
-      if (e) { M2._miniatura.call(this, ctx, e, x + 4, y + 12 + dy, larg - 8, alto - 26 - dy, P); ctx.fillStyle = P.texto; ctx.textAlign = 'center'; ctx.font = '500 9.5px system-ui, sans-serif'; ctx.fillText(e.formula, x + larg / 2, y + alto - 5); }
-      else { ctx.fillStyle = P.suave; ctx.textAlign = 'center'; ctx.font = '500 10px system-ui, sans-serif'; ctx.fillText('vazio', x + larg / 2, y + alto / 2 + 4); }
+      ctx.setLineDash([]);
+      if (e) {
+        M2._miniatura.call(this, ctx, e, x + 4, y + 6, larg - 8, alto - 10, P);
+        M2._sinal(ctx, M2._sinalDe.call(this, e), x + larg - 9, y + 9, P);
+      } else {
+        // um + bem claro: espaço livre para uma estrutura
+        ctx.strokeStyle = nmRgba(P.suave, 0.55); ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+        var cx = x + larg / 2, cy = y + alto / 2;
+        ctx.beginPath(); ctx.moveTo(cx - 6, cy); ctx.lineTo(cx + 6, cy); ctx.moveTo(cx, cy - 6); ctx.lineTo(cx, cy + 6); ctx.stroke();
+      }
       ctx.restore();
     }
-    return topo + altoT;
+    return { x0: x0 - pad, y0: topo - pad, x1: x0 + total + pad, y1: topo + altoT + pad, lado: lado };
   }
 
-  /* o nome certo no alto do cartão, ao lado do número: quebra nos hifens
-     e nos espaços, em até duas linhas */
-  /* o nome certo no alto do cartão, ao lado do número: quebra nos hifens e
-     nos espaços, em até duas linhas; um pedaço largo demais ("metiletanamina")
-     encolhe a fonte e, no limite, ganha "…" — o nome inteiro está na faixa e
-     nos Resultados. */
-  _nomeNoCartao(ctx, nome, x, y, w, P) {
-    ctx.save(); ctx.textAlign = 'left'; ctx.fillStyle = P.texto;
-    var partes = nome.match(/[^-\s]+[-\s]?/g) || [nome], tam = 8.5, linhas;
-    var quebrar = function () {
-      var ls = [], atual = '';
-      partes.forEach(function (pt) { var t = atual + pt; if (ctx.measureText(t.trim()).width > w && atual) { ls.push(atual); atual = pt; } else atual = t; });
-      if (atual) ls.push(atual);
-      return ls;
-    };
-    for (; tam >= 6.5; tam -= 0.5) { ctx.font = '600 ' + tam + 'px system-ui, sans-serif'; linhas = quebrar(); if (linhas.length <= 2 && linhas.every(function (l) { return ctx.measureText(l.trim()).width <= w; })) break; }
-    linhas = linhas.slice(0, 2).map(function (l) { l = l.trim(); while (l.length > 1 && ctx.measureText(l).width > w) l = l.slice(0, -2) + '…'; return l; });
-    linhas.forEach(function (l, k) { ctx.fillText(l, x, y + 1 + k * (tam + 1.5)); });
-    ctx.fillStyle = P.ok; ctx.textAlign = 'right'; ctx.font = '700 9px system-ui, sans-serif'; ctx.fillText('✓', x + w + 3, y + 1);
+  /* o sinal de um espaço: certo, rever, fora, previsto (previsão completa, ainda não conferida) ou nenhum */
+  _sinalDe(e) {
+    if (e.estado === 'certo' || e.estado === 'rever' || e.estado === 'fora') return e.estado;
+    return this._completa(e.prev) ? 'previsto' : '';
+  }
+
+  /* os sinais, desenhados com traços (não são letras): o ✓, a seta que volta (↺), o círculo cortado (⊘) e o ponto */
+  _sinal(ctx, tipo, cx, cy, P) {
+    if (!tipo) return;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // um fundo claro atrás do sinal: ele fica legível mesmo por cima de um traço da miniatura
+    ctx.fillStyle = nmRgba(P.painel, 0.92); ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
+    if (tipo === 'certo') {
+      ctx.strokeStyle = P.ok; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.moveTo(cx - 4, cy + 0.2); ctx.lineTo(cx - 1.2, cy + 3); ctx.lineTo(cx + 4.2, cy - 3.4); ctx.stroke();
+    } else if (tipo === 'rever') {
+      var cor = P.claro ? '#8a4b00' : '#ffb454', r = 4.2, a0 = -0.35 * Math.PI, a1 = 1.2 * Math.PI;
+      ctx.strokeStyle = cor; ctx.fillStyle = cor; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1, false); ctx.stroke();
+      // a ponta da seta, no começo do arco, apontando para trás (o sentido de "voltar")
+      var px = cx + Math.cos(a0) * r, py = cy + Math.sin(a0) * r;
+      ctx.beginPath(); ctx.moveTo(px + 3.2, py - 0.4); ctx.lineTo(px - 0.6, py - 2.6); ctx.lineTo(px - 0.2, py + 1.8); ctx.closePath(); ctx.fill();
+    } else if (tipo === 'fora') {
+      ctx.strokeStyle = P.suave; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(cx, cy, 4.5, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - 3.1, cy + 3.1); ctx.lineTo(cx + 3.1, cy - 3.1); ctx.stroke();
+    } else if (tipo === 'previsto') {
+      ctx.fillStyle = P.acento; ctx.beginPath(); ctx.arc(cx, cy, 3.2, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -424,17 +477,15 @@ class NomeadorCadeias {
     ctx.textBaseline = 'alphabetic';
   }
 
+  /* A ESTRUTURA do espaço escolhido, enquadrada no retângulo (x, y, w, h): a maior escala em que cabem os átomos
+     com o rótulo e a bolinha do número de cada carbono da cadeia (o lugar das bolinhas fica reservado desde o
+     começo: o desenho não muda de tamanho quando o nome fica certo). A cadeia numerada aparece quando o nome
+     desta estrutura está certo. Serve também ao Módulo 4 (chamada com .call). */
   _estrutura(ctx, e, x, y, w, h, P) {
-    // a cadeia numerada aparece quando o nome desta estrutura já está certo
     var g = e.g, D = Q3.Desenho, r = e.estado === 'certo' && e.r && e.r.ok ? e.r : null;
-    var ids = Object.keys(e.pos), xs = ids.map(function (id) { return e.pos[id].x; }), ys = ids.map(function (id) { return e.pos[id].y; });
-    var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs), minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
-    // numa área baixa (celular deitado), menos margem em cima e embaixo: a estrutura não vira miniatura
-    var s = Math.min(84, (w - 90) / Math.max(1, maxX - minX), (h - (h < 140 ? 34 : 50)) / Math.max(1, maxY - minY));
-    var cx = x + w / 2 - (minX + maxX) / 2 * s, cy = y + h / 2 - (minY + maxY) / 2 * s;
-    var T = {}; ids.forEach(function (id) { T[id] = { x: cx + e.pos[id].x * s, y: cy + e.pos[id].y * s }; });
-    var fonte = Math.max(12, Math.min(17, s * 0.3)), margem = {};
-    ids.forEach(function (id) { margem[id] = D.medirRotulo(ctx, D.rotulo(g, id), fonte); });
+    var E = NomeadorCadeias.prototype._enquadrar.call(this, ctx, e, x, y, w, h);
+    var T = {}, ids = Object.keys(e.pos), fonte = E.fonte, margem = E.margem;
+    ids.forEach(function (id) { T[id] = { x: E.cx + e.pos[id].x * E.s, y: E.cy + e.pos[id].y * E.s }; });
     ctx.save();
     // a cadeia principal, revelada: um traço largo por baixo
     if (r) {
@@ -447,7 +498,7 @@ class NomeadorCadeias {
     ids.forEach(function (id) { var el = g.atomos[id].el; D.atomo(ctx, T[id], D.rotulo(g, id), fonte, P, { corTexto: P.elementos[el] || P.texto }); });
     // a numeração, carbono a carbono
     if (r) {
-      ctx.font = '700 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '700 ' + E.num + 'px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       r.cadeia.forEach(function (id) {
         /* o número vai no meio da MAIOR abertura entre as ligações ("oposto à
            soma dos vizinhos" punha o 2 do butan-2-ol em cima da ligação C–OH) */
@@ -455,14 +506,45 @@ class NomeadorCadeias {
         var dirA = -Math.PI / 2;
         if (angs.length === 1) dirA = angs[0] + Math.PI;
         else if (angs.length > 1) { var maior = -1; angs.forEach(function (an, k) { var prox = k + 1 < angs.length ? angs[k + 1] : angs[0] + 2 * Math.PI, vao = prox - an; if (vao > maior) { maior = vao; dirA = an + vao / 2; } }); }
-        var d = Math.max(margem[id].mx, margem[id].my, 10) + 14, nx = p.x + Math.cos(dirA) * d, ny = p.y + Math.sin(dirA) * d;
-        ctx.fillStyle = P.acento; ctx.beginPath(); ctx.arc(nx, ny, 10, 0, Math.PI * 2); ctx.fill();
+        var d = Math.max(margem[id].mx, margem[id].my, 10) + 4 + E.raio, nx = p.x + Math.cos(dirA) * d, ny = p.y + Math.sin(dirA) * d;
+        ctx.fillStyle = P.acento; ctx.beginPath(); ctx.arc(nx, ny, E.raio, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = P.fundo; ctx.fillText(String(r.numeracao[id]), nx, ny + 0.5);
       });
     }
     ctx.restore();
   }
 
+  /* O ENQUADRAMENTO: a escala cresce (busca binária) até o desenho, com a folga de cada átomo — o rótulo e a
+     bolinha do número (até máx(mx, my, 10) + 4 + 2 × raio do centro) —, encostar no retângulo. A letra
+     acompanha a escala: de 12 a 17 px e, numa tela grande como a do projetor, até 20 px. Guardado por espaço
+     e por retângulo: a conta só se refaz quando um dos dois muda. */
+  _enquadrar(ctx, e, x, y, w, h) {
+    var chave = [x, y, w, h].map(Math.round).join(',');
+    if (this._enqE && this._enqE.e === e && this._enqE.chave === chave) return this._enqE;
+    var g = e.g, D = Q3.Desenho, ids = Object.keys(e.pos), textos = {};
+    ids.forEach(function (id) { textos[id] = D.rotulo(g, id); });
+    var fonteDe = function (s) { return Math.max(12, Math.min(s > 96 ? 17 + (s - 96) * 0.09 : 17, s * 0.3)); };
+    var medir = function (s) {
+      var f = fonteDe(s), num = Math.max(12, Math.round(f * 0.7)), raio = Math.max(10, num * 0.85), m = {}, ext = {};
+      ids.forEach(function (id) { m[id] = D.medirRotulo(ctx, textos[id], f); ext[id] = Math.max(m[id].mx, m[id].my, 10) + 4 + 2 * raio + 2; });
+      return { fonte: f, num: num, raio: raio, m: m, ext: ext };
+    };
+    var lados = function (s, eixo, me) {
+      var mais = -Infinity, menos = -Infinity;
+      ids.forEach(function (id) { var v = e.pos[id][eixo] * s; mais = Math.max(mais, v + me.ext[id]); menos = Math.max(menos, me.ext[id] - v); });
+      return { mais: mais, menos: menos };
+    };
+    // o teto da escala cresce com a área: a cena agora é só a estrutura, e ela pode ocupar o espaço que sobra
+    var sMax = Math.max(84, Math.min(120, Math.min(w, h) / 6)), lo = 4, hi = sMax;
+    for (var k = 0; k < 26; k++) {
+      var s = (lo + hi) / 2, me = medir(s), lx = lados(s, 'x', me), ly = lados(s, 'y', me);
+      if (lx.mais + lx.menos <= w && ly.mais + ly.menos <= h) lo = s; else hi = s;
+    }
+    var mf = medir(lo), fx = lados(lo, 'x', mf), fy = lados(lo, 'y', mf);
+    this._enqE = { e: e, chave: chave, s: lo, fonte: mf.fonte, num: mf.num, raio: mf.raio, margem: mf.m,
+                   cx: x + (fx.menos + w - fx.mais) / 2, cy: y + (fy.menos + h - fy.mais) / 2 };
+    return this._enqE;
+  }
 
   /* ══ PAINEL ════════════════════════════════════════════════════ */
 
@@ -500,14 +582,11 @@ class NomeadorCadeias {
   _sincronizarPainel() {
     var self = this, e = this.espacos[this.sel];
     var rot = document.getElementById('nm-rotulo-espaco'); if (rot) rot.textContent = 'Fórmula estrutural do espaço ' + (this.sel + 1);
-    var nota = document.getElementById('nm-nota'); if (nota) nota.textContent = this.erro || this.nota || this.contador || '';
+    // no card Bancada, só o erro de digitação (fica junto do campo); o contador e a conferência vão para os Resultados
+    var nota = document.getElementById('nm-nota'); if (nota) nota.textContent = this.erro || '';
     var prev = document.getElementById('nm-previsao'); if (prev) prev.textContent = this.nomePrevisto() ? 'Previsão: ' + this.nomePrevisto() : '';
-    var nomeEl = document.getElementById('nm-nome');
-    if (nomeEl) {
-      var r = e && e.r;
-      nomeEl.textContent = !e ? '' : e.estado === 'certo' ? r.nome + (r.curto ? ' · também ' + r.curto : '') + (r.antigo ? ' · antigo: ' + r.antigo : '') + (r.nota2013 ? ' · IUPAC 2013: outro nome' : '')
-        : e.estado === 'fora' ? r.motivo : e.estado === 'rever' ? 'A rever.' : '';
-    }
+    // a ordem dos cards na gaveta do celular depende de a bancada estar vazia ou cheia (ver stylefuncoes.css)
+    if (this.ativo) document.body.dataset.bancada = this.fonte === 'desenhar' ? 'desenho' : this.espacos.some(Boolean) ? 'cheia' : 'vazia';
     var anelNomeado = !!(e && e.prev.anel && e.prev.anel !== 'ciclo');
     document.querySelectorAll('#body-nome [data-cadeia]').forEach(function (l) { l.hidden = anelNomeado; });
     var sufEsc = e ? e.prev.sufixo : '';
@@ -521,13 +600,49 @@ class NomeadorCadeias {
 
   /* ══ RESULTADOS E SOBREPOSIÇÃO ═════════════════════════════════ */
 
+  /* a conferência (ou o pedido de prever tudo antes), no alto dos Resultados; nada antes da primeira */
+  retorno() { return this.fonte === 'desenhar' ? null : this._ret; }
+
+  /* o que fazer agora, para o espaço escolhido */
+  proximoPasso() {
+    if (this.fonte === 'desenhar') return this.editor.proximoPasso() + ' Para terminar, toque em Levar o desenho para o espaço, na Bancada.';   // a dica do editor, antes no pé da cena
+    var self = this, e = this.espacos[this.sel], cheios = this.espacos.filter(Boolean);
+    if (!cheios.length) return 'Comece pela Bancada: digite uma fórmula molecular e gere os isômeros, ou ponha uma estrutura no espaço.';
+    if (!e) return 'Este espaço está vazio: toque noutro cartão da doca, ou ponha uma estrutura nele pela Bancada.';
+    var abertos = this.espacos.filter(function (x) { return x && x.estado !== 'certo' && x.estado !== 'fora'; });
+    if (!abertos.length) return 'Toda a bancada conferida. Gere outra leva na Bancada.';
+    if (e.estado === 'fora') return 'Esta estrutura está fora do escopo do módulo (o motivo está abaixo). Toque noutro cartão da doca.';
+    if (e.estado === 'certo') return 'Nome certo. Toque noutro cartão da doca.';
+    if (e.estado === 'rever') return 'A rever: mexa nas peças do nome em Nome e confira de novo.';
+    if (!this._completa(e.prev)) return 'Monte o nome desta estrutura com as peças em Nome.';
+    var faltam = abertos.filter(function (x) { return !self._completa(x.prev); }).length;
+    return faltam ? 'Previsão feita. Toque noutro cartão da doca (falta' + (faltam > 1 ? 'm ' + faltam : ' 1') + ').' : 'Todas as previsões feitas: toque em Conferir as previsões, em Nome.';
+  }
+
+  /* A FICHA do espaço escolhido: o sinal do cartão em palavras, a fórmula e, depois de conferido, o nome */
   resultados() {
-    var e = this.espacos[this.sel];
-    var linhas = [{ l: 'Espaço', v: String(this.sel + 1) }, { l: 'Fórmula molecular', v: e ? e.formula : '—' }];
-    if (e && e.estado === 'certo') { linhas.push({ l: 'Nome', v: e.r.nome }); if (e.r.antigo) linhas.push({ l: 'Formato antigo', v: e.r.antigo }); }
-    if (e && e.estado === 'fora') linhas.push({ l: 'Nome', v: 'fora do escopo' });
+    if (this.fonte === 'desenhar') return this.editor.resultados();   // desenhando: a ficha do desenho (a fórmula, a cadeia)
+    var e = this.espacos[this.sel], r = e && e.r;
+    var sit = { certo: 'nome certo ✓', rever: 'a rever ↺', fora: 'fora do escopo ⊘', previsto: 'previsão feita •', '': 'sem previsão' };
+    var linhas = [{ l: 'Espaço', v: (this.sel + 1) + ' de ' + NM_ESPACOS }];
+    if (this.contador) linhas.push({ l: 'Isômeros', v: this.contador });
+    if (!e) { linhas.push({ l: 'Situação', v: 'vazio' }); return linhas; }
+    linhas.push({ l: 'Situação', v: sit[this._sinalDe(e)], cls: e.estado === 'certo' ? 'val-ok' : e.estado === 'rever' ? 'val-warn' : '' });
+    linhas.push({ l: 'Fórmula molecular', v: e.formula });
+    if (e.estado === 'certo') {
+      linhas.push({ l: 'Nome', v: r.nome });
+      if (r.curto) linhas.push({ l: 'Também', v: r.curto });
+      if (r.antigo) linhas.push({ l: 'Formato antigo', v: r.antigo });
+      if (r.nota2013) linhas.push({ l: 'IUPAC 2013', v: 'recomenda outro nome', cls: 'val-texto' });
+    }
+    if (e.estado === 'fora' && r && r.motivo) linhas.push({ l: 'Motivo', v: r.motivo, cls: 'val-texto' });
     return linhas;
   }
 
-  overlay() { return this.fonte === 'desenhar' ? 'Nomenclatura · desenho' : 'Nomenclatura · espaço ' + (this.sel + 1); }
+  overlay() {
+    if (this.fonte === 'desenhar') return 'desenho livre';
+    var e = this.espacos[this.sel], sit = { certo: 'nome certo', rever: 'a rever', fora: 'fora do escopo', previsto: 'previsão feita', '': '' };
+    var t = e ? sit[this._sinalDe(e)] : 'vazio';
+    return 'espaço ' + (this.sel + 1) + (t ? ' · ' + t : '');
+  }
 }

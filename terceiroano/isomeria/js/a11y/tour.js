@@ -5,10 +5,11 @@
    Tour guiado — boas-vindas na primeira visita e um tour curto na
    primeira vez que cada módulo é ativado. Mesmo padrão do 2º ano.
 
-   O que o aluno precisa descobrir aqui: que o canvas se PINTA —
-   escolhe-se o pincel de uma função e arrasta-se sobre os átomos do
-   grupo — e que a resposta sai do motor, calculada, nunca de uma
-   tabela por composto.
+   O que o aluno precisa descobrir aqui: que a bancada muda com a
+   SELEÇÃO (um cartão cresce; dois ficam lado a lado, A e B), que a
+   cena fica só com os desenhos — a explicação, os nomes e a
+   conferência moram em Resultados — e que a resposta sai do motor,
+   calculada, nunca de uma tabela por composto.
 
    Os cards de modo são gerados em tempo de execução (_buildModes), com
    cabeçalho hdr-mode-<id>. A ativação é detectada pelo aria-pressed do
@@ -26,8 +27,7 @@
 
 document.addEventListener('DOMContentLoaded', function () {
   if (typeof Coachmark === 'undefined') return;
-  var LARGURA_MOBILE = 1100;
-  function ehMobile() { return window.innerWidth <= LARGURA_MOBILE; }
+  function ehMobile() { return typeof ehCelular === 'function' ? ehCelular() : window.innerWidth <= 900; }   // a regra do celular mora em init/app.js
 
   function abrirPainel(headerId) {
     var h = document.getElementById(headerId);
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function () {
         {
           alvo: ehMobile() ? '#mode-tabs-mobile' : '#sidebar-left',
           titulo: 'Isomeria: mesma fórmula, compostos diferentes',
-          texto: 'Na Isomeria Constitucional você enche uma bancada de dez espaços com estruturas de mesma fórmula e compara duas a duas. Os outros módulos entram nesta lista conforme ficam prontos.'
+          texto: 'Três módulos. Na Constitucional, uma bancada de dez espaços com estruturas de mesma fórmula, comparadas duas a duas; na Geométrica, E/Z, cis/trans e R/S, previstos e revelados; na Óptica, a molécula diante do espelho.'
         },
         {
           alvo: '#hdr-result',
@@ -70,19 +70,23 @@ document.addEventListener('DOMContentLoaded', function () {
   var MODULOS = {
     constitucional: [
       { alvo: '#sim-canvas', titulo: 'A bancada muda com a seleção',
-        texto: 'Toque num espaço: ele cresce no centro, e os outros viram uma doca no alto. Toque em outro: os dois ficam lado a lado. Toque de novo para soltar.' },
+        texto: 'Toque num cartão: ele cresce no centro (é a A), e os outros viram uma doca no alto. Toque em outro: ele vira a B, ao lado. Toque de novo para soltar. Nos cartões pequenos aparece o esqueleto; no grande, a representação escolhida.' },
       { hdr: 'hdr-bi-banc', titulo: 'Três jeitos de pôr estruturas',
         texto: 'Digite uma fórmula molecular, como C4H8O: os isômeros vêm em remessas, e cada toque em Gerar traz os próximos, sem repetir até todos aparecerem. Digite também uma fórmula estrutural (a tripla: -= vira ≡), ou desenhe no editor: as estruturas suas ficam na bancada.' },
       { hdr: 'hdr-bi-comp', titulo: 'Compare dois',
-        texto: 'Com dois espaços selecionados, compare: fórmulas diferentes, a mesma molécula desenhada de outro jeito, ou isômeros — de cadeia, posição, função, metameria ou tautomeria. O veredito aparece no mesmo painel.' }
+        texto: 'Com A e B escolhidos, compare: fórmulas diferentes, a mesma molécula desenhada de outro jeito, ou isômeros — de cadeia, posição, função, metameria ou tautomeria.' },
+      { hdr: 'hdr-result', titulo: 'A explicação e o próximo passo',
+        texto: 'Em Resultados: no alto, a explicação do veredito e o que fazer agora; abaixo, a fórmula molecular da bancada, quantos isômeros ela tem e a fórmula e o nome de A e de B. A cena fica só com os desenhos.' }
     ],
     geometrica: [
       { alvo: '#sim-canvas', titulo: 'Estude uma estrutura',
-        texto: 'Toque num espaço: ele cresce. Toque numa dupla ou num carbono para investigá-los. Arraste a ponta de uma dupla para girar aquela metade: antes de 90° ela volta; depois, a configuração troca — ou dá a mesma molécula.' },
+        texto: 'Toque num cartão: ele cresce. Toque numa dupla ou num carbono (os contornos tracejados) para investigá-los. Arraste a ponta de uma dupla para girar aquela metade: antes de 90° ela volta; depois, a configuração troca — ou dá a mesma molécula.' },
       { hdr: 'hdr-bg-prio', titulo: 'Preveja e revele',
-        texto: 'Em passos: diga se há isomeria, qual ligante tem prioridade e a configuração (E/Z, cis/trans, R/S). Ao revelar, a regra se abre esfera por esfera na estrutura. No painel Laboratório, troque ligantes sem mexer na geometria e veja a configuração mudar.' },
+        texto: 'Em passos: diga se há isomeria, qual ligante tem prioridade e a configuração (E/Z, cis/trans, R/S). Ao revelar, a estrutura acende os átomos de cada esfera, em cores. No Laboratório, troque ligantes sem mexer na geometria e veja a configuração mudar.' },
+      { hdr: 'hdr-result', titulo: 'A conferência, em cores',
+        texto: 'Em Resultados: a explicação da revelação, a sua previsão conferida item por item e a árvore esfera por esfera, com um ponto na cor de cada ligante — a mesma do realce na estrutura e das bolas da vista 3D.' },
       { hdr: 'hdr-bi-comp', titulo: 'Compare dois',
-        texto: 'Com dois espaços selecionados: mesma molécula, enantiômeros, isômeros geométricos ou diastereoisômeros.' }
+        texto: 'Com A e B escolhidos: mesma molécula, enantiômeros, isômeros geométricos ou diastereoisômeros.' }
     ],
     optica: [
       { alvo: '#sim-canvas', titulo: 'A molécula e o espelho',

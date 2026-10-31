@@ -331,6 +331,10 @@ body.wide-spacing * {
 .app-main{ flex:1; display:flex; overflow:hidden; height:calc(100vh - var(--header-h)); height:calc(100dvh - var(--header-h)); }
 
 .sidebar {
+  /* relativa: ancora a alça de redimensionar (absoluta). No celular, a gaveta de baixo troca isto por
+     position: fixed (bloco do celular, mais abaixo). Antes era um position:relative INLINE gravado pelo
+     script ao abrir no computador — e o inline vencia o CSS do celular (ver ui/offcanvas-mobile.js). */
+  position: relative;
   background:var(--bg-panel);
   overflow-y:auto;
   overflow-x: hidden;
@@ -523,6 +527,8 @@ input[type="range"]:focus-visible{ outline:3px solid var(--accent-main); outline
 }
 .action-btn:hover{ background:rgba(189,242,164,.26); box-shadow:0 0 10px rgba(189,242,164,.3); }
 .action-row{ display:flex; gap:.4rem; flex-wrap:wrap; }
+/* o display:flex acima venceria o [hidden] do navegador (o mesmo cuidado do SIQC) */
+.action-row[hidden]{ display:none; }
 .action-row .action-btn{ flex:1; min-width:120px; }
 
 .status-badge{
@@ -552,6 +558,8 @@ body.light-mode .data-row{ border-bottom-color:rgba(155,173,196,.5); }
 .data-value.val-warn{ color:var(--accent-warn); }
 .data-value.val-alt { color:var(--accent-alt); }
 .data-value.val-ok  { color:var(--accent-ok); }
+/* valor que é uma frase (ex.: onde a substância aparece, o motivo de ficar fora do escopo): letra comum, para ler */
+.data-value.val-texto { font-family:inherit; font-weight:500; color:var(--text-secondary); font-size:.68rem; line-height:1.4; }
 
 /* ═══════════════ ÁREA DO CANVAS ═══════════════ */
 .canvas-wrap{
@@ -584,7 +592,10 @@ body.light-mode .overlay-label{ background:rgba(255,255,255,.85); }
 /* ═══════════════ RESPONSIVO ═══════════════ */
 @media (max-width: 1160px) { .sidebar { min-width: 240px; max-width: 330px; } }
 .mode-tabs-mobile, .mode-summary-mobile { display: none; }
-@media (max-width: 1100px) {
+/* ONDE O CELULAR COMEÇA: até 900 px de largura, como no SIMA e no SIQC — um tablet deitado (1024 px) fica com a
+   tela de computador, com os cards ao lado da cena. A segunda parte segura no layout de celular os celulares
+   grandes deitados (até 1100 × 500 px), que passariam de 900 px. O JS usa a mesma regra: MQ_CELULAR (init/app.js). */
+@media (max-width: 900px), (max-width: 1100px) and (max-height: 500px) {
   .mobile-menu-btn { display:flex !important; align-items:center; justify-content:center; }
   .sidebar--left { display: none; }
   .sidebar--right {
@@ -602,6 +613,7 @@ body.light-mode .overlay-label{ background:rgba(255,255,255,.85); }
   }
   .sidebar--right.mobile-open { transform: translateY(0); }
   .sidebar--right::before {
+    order: -10;   /* a alça fica no topo mesmo quando um modo reordena os painéis da gaveta */
     content: ''; display: block; width: 36px; height: 4px; border-radius: 2px;
     background: var(--border); margin: .5rem auto .25rem;
   }
@@ -703,7 +715,7 @@ body.light-mode .overlay-label{ background:rgba(255,255,255,.85); }
 .sidebar-resizer--right{ left:-3px; }
 .sidebar-resizer:hover,
 .sidebar-resizer.dragging{ background:rgba(189,242,164,.45); }
-@media(max-width:1100px){ .sidebar-resizer{ display:none; } }
+@media (max-width: 900px), (max-width: 1100px) and (max-height: 500px) { .sidebar-resizer{ display:none; } }
 
 /* ══════════════════════════════════════════════════════════════════
    GRADES DE OPÇÃO MONTADAS POR JS (.opt-grid / .opt-btn)
@@ -785,6 +797,55 @@ body.high-contrast .opt-btn.active .opt-c { color: var(--hc-fg); }
 }
 .result-chart[hidden] { display: none; }
 
+/* ── O QUE SAIU DA CENA E MORA NOS RESULTADOS (o mesmo arranjo do SIQC) ──
+   O retorno (a conferência dos nomes), o próximo passo e, no M4, a escada das funções. A cena fica só com o
+   desenho: a doca de miniaturas e a estrutura do espaço escolhido. */
+.result-next {
+  margin: 0 0 .55rem; padding: .4rem .55rem;
+  border-radius: var(--radius-sm); border: 1px solid color-mix(in srgb, var(--accent-main) 45%, transparent);
+  background: color-mix(in srgb, var(--accent-main) 10%, transparent);
+  color: var(--text-primary); font-size: .7rem; line-height: 1.45;
+}
+.result-retorno {
+  margin: 0 0 .55rem; padding: .45rem .6rem .45rem .7rem;
+  border-radius: var(--radius-sm); border: 1px solid var(--border); border-left: 4px solid var(--accent-main);
+  background: var(--bg-void, transparent);
+  color: var(--text-primary); font-size: .72rem; line-height: 1.5;
+}
+.result-retorno[data-tipo="ok"] { border-left-color: var(--accent-ok); }
+.result-retorno[data-tipo="erro"] { border-left-color: var(--accent-warn); }
+.result-next[hidden], .result-retorno[hidden], .result-escada-box[hidden] { display: none; }
+body.high-contrast .result-next, body.high-contrast .result-retorno { background: transparent !important; border: 2px solid var(--hc-fg) !important; color: var(--hc-fg) !important; }
+body.high-contrast .result-retorno { border-left-width: 6px !important; }
+.result-diagram-title { font-size: .64rem; color: var(--text-muted); margin: 0 0 .3rem; }
+
+/* A ESCADA DAS 14 FUNÇÕES (M4): duas colunas de sete, a prioridade mais alta no alto da primeira. Com o nome
+   certo, os degraus das funções do composto se acendem com a cor da função, e um ponto sobe do pé da escada
+   até o degrau (--sobe: a distância, calculada no módulo); ao lado, o papel no nome: sufixo ou o prefixo. */
+.result-escada-box { margin: 0 0 .55rem; }
+.result-escada {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(7, auto); grid-auto-flow: column; gap: 2px 6px;
+}
+.result-escada li {
+  position: relative; display: flex; align-items: center; gap: .35rem; min-width: 0;
+  padding: .1rem .3rem; border-radius: 5px; border: 1px solid var(--border);
+  background: var(--bg-void, transparent); font-size: .6rem; line-height: 1.15; color: var(--text-secondary);
+}
+.result-escada .esc-n { font-family: var(--font-mono); font-size: .58rem; color: var(--text-muted); min-width: 1.3em; text-align: right; }
+.result-escada .esc-nome { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.result-escada .esc-papel { display: none; font-weight: 700; color: var(--text-primary); font-size: .6rem; }
+.result-escada li.esc-marcado { border-color: var(--cor, var(--accent-main)); border-width: 2px; padding: calc(.1rem - 1px) calc(.3rem - 1px); color: var(--text-primary); }
+.result-escada li.esc-marcado .esc-papel { display: inline; }
+.result-escada li.esc-marcado::after {
+  content: ''; position: absolute; right: -4px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%;
+  background: var(--cor, var(--accent-main)); animation: esc-sobe 1.4s cubic-bezier(.2,.7,.3,1) both;
+}
+@keyframes esc-sobe { from { transform: translateY(var(--sobe, 0px)); opacity: .2; } to { transform: translateY(0); opacity: 1; } }
+body.reduce-motion .result-escada li.esc-marcado::after { animation: none; }
+@media (prefers-reduced-motion: reduce) { .result-escada li.esc-marcado::after { animation: none; } }
+body.high-contrast .result-escada li { background: transparent !important; border-color: var(--hc-fg) !important; color: var(--hc-fg) !important; }
+
 /* ═══════════════ Botão do VLibras (widget de terceiros) ═══════════════
    O script do VLibras injeta seu próprio posicionamento, que às vezes
    cai por cima do painel de Resultados. Fixamos ele sempre no canto
@@ -800,7 +861,7 @@ body.high-contrast .opt-btn.active .opt-c { color: var(--hc-fg); }
   top: auto !important;
   z-index: 45 !important;
 }
-@media (max-width: 1100px) {
+@media (max-width: 900px), (max-width: 1100px) and (max-height: 500px) {
   [vw-access-button] {
     right: 16px !important;
   }
@@ -1086,10 +1147,10 @@ body.high-contrast .sidebar-lock-hint{ border:2px solid var(--hc-fg) !important;
 
 
 /* ════════════════════════════════════════════════════════════════
-   TRILHO RECOLHÍVEL DAS SIDEBARS  ·  somente desktop (> 1100px)
+   TRILHO RECOLHÍVEL DAS SIDEBARS  ·  somente computador (acima de 900 px, como no SIMA)
    ────────────────────────────────────────────────────────────────
    Bloco acrescentado por ferramenta; nenhuma regra acima foi tocada.
-   Tudo aqui vive dentro de @media (min-width: 1101px). Abaixo
+   Tudo aqui vive dentro de @media (min-width: 1101px), (min-width: 901px) and (min-height: 501px). Abaixo
    disso vale o layout mobile que já existia — bottom sheet para os
    controles, barra de modos rolável no lugar da sidebar esquerda —
    e nada daqui chega a ser aplicado.
@@ -1109,7 +1170,7 @@ body.high-contrast .sidebar-lock-hint{ border:2px solid var(--hc-fg) !important;
    regra extra. As exceções de alto contraste vêm no fim, no mesmo
    padrão do resto da folha.
    ════════════════════════════════════════════════════════════════ */
-@media (min-width: 1101px) {
+@media (min-width: 1101px), (min-width: 901px) and (min-height: 501px) {
 
   /* Âncora do flutuante: a classe é posta pelo JS no pai REAL de cada
      sidebar. Não dá para fixar em .app-main — em parte dos simuladores
@@ -1192,7 +1253,7 @@ body.high-contrast .sidebar-lock-hint{ border:2px solid var(--hc-fg) !important;
   .sidebar.is-collapsed .rail-toggle { display: none; }
 
   /* ── recolhida: fora do fluxo, canvas cresce ──────────────────
-     O !important NÃO é enfeite. O sidebar-resizer.js grava
+     O !important NÃO é enfeite (e fica, por garantia, mesmo depois de o redimensionador deixar de gravar o inline: a posição relativa agora vem da regra .sidebar). O sidebar-resizer.js grava
      `style="position:relative"` INLINE em cada sidebar, para ancorar a
      alça de arrastar (só quando o CSS base deixa a sidebar static — é o
      caso de todo o 2º e 3º ano). Inline vence qualquer regra de folha,
@@ -1437,8 +1498,8 @@ body.high-contrast .nav3d-btn{ background:#000 !important; color:var(--hc-fg, #f
    que venceria o [hidden] padrão do navegador */
 .nm-grade [hidden] { display: none !important; }
 /* o retorno do Módulo 1 e o nome do Módulo 2 moram no painel, não no canvas */
-.gf-retorno:empty, .nm-nome:empty { display: none; }
-.gf-retorno, .nm-nome { font-size: .85rem; line-height: 1.45; margin-top: .5rem; }
+.nm-nome:empty { display: none; }
+.nm-nome { font-size: .85rem; line-height: 1.45; margin-top: .5rem; }
 .nm-nome { font-weight: 600; }
 .nm-grade .nm-largo { grid-column: 1 / -1; }
 /* ═══ SIFO — MÓDULO 3 (ponto de ebulição) ═══════════════════════ */
@@ -1493,14 +1554,14 @@ body.high-contrast .nav3d-btn{ background:#000 !important; color:var(--hc-fg, #f
 body.reduce-motion .canvas-wrap .canvas-overlay, body.reduce-motion .canvas-wrap .canvas-hint,
 body.reduce-motion .canvas-wrap .fps-counter, body.reduce-motion .canvas-wrap .nav3d { transition: none; }
 
-/* ═══ CELULAR E TABLET (até 1100 px): o que atrapalhava ou ficava inacessível ═══════════
+/* ═══ CELULAR (até 900 px, ou deitado até 1100 px): o que atrapalhava ou ficava inacessível ═══════════
    · com um modo ativo, saem a dica do rodapé (atalhos de teclado, inúteis no toque) e o
      contador de quadros: no celular eles cobriam as legendas da própria cena. O "como
      mexer" de cada modo está no resumo da gaveta (Sobre este modo) e no aviso da 1ª ativação;
    · campos de texto com 16 px: abaixo disso o iPhone dá zoom na página ao tocar no campo,
      e ela fica ampliada;
    · itens de lista e botões de opção com altura de dedo (40 px), no toque. */
-@media (max-width: 1100px) {
+@media (max-width: 900px), (max-width: 1100px) and (max-height: 500px) {
   body:has(.canvas-overlay.mode-on) .canvas-hint,
   .fps-counter { display: none; }
   input[type="text"], input[type="search"], input[type="number"], input:not([type]), select, textarea { font-size: 16px; }
@@ -1510,14 +1571,46 @@ body.reduce-motion .canvas-wrap .fps-counter, body.reduce-motion .canvas-wrap .n
   .mode-summary-body .recommended { margin-top: .6rem; }
   .mode-summary-body .hint-text { margin-top: .6rem; }
 }
-@media (max-width: 1100px) and (pointer: coarse) {
+@media (max-width: 900px) and (pointer: coarse), (max-width: 1100px) and (max-height: 500px) and (pointer: coarse) {
   .op-item, .gf-item, .opt-btn { min-height: 40px; }
 }
 /* a etiqueta à direita de um botão de opção ("C, H, O (P e N nos fosfolipídios)") quebra em linhas em vez
    de vazar pela borda da gaveta numa tela estreita */
-@media (max-width: 1100px) {
+@media (max-width: 900px), (max-width: 1100px) and (max-height: 500px) {
   .opt-nome { min-width: 0; }
   .opt-c { white-space: normal; text-align: right; max-width: 58%; overflow-wrap: anywhere; }
+}
+/* NOMENCLATURA E PRIORIDADE NA GAVETA: com a bancada cheia, o card do nome vem primeiro e os Resultados logo
+   abaixo (a conferência e o próximo passo) — o par que flutua junto no computador —, e a Bancada vai para o fim.
+   Com a bancada vazia, a Bancada vem primeiro: é por ela que se começa. O módulo põe no body
+   data-bancada = vazia | cheia (no desenho livre do M2, "desenho": a ordem de sempre). */
+@media (max-width: 900px), (max-width: 1100px) and (max-height: 500px) {
+  body[data-modo="nomenclatura"] #sidebar-right > .mode-summary-mobile,
+  body[data-modo="prioridade"] #sidebar-right > .mode-summary-mobile { order: -4; }
+  body[data-modo="nomenclatura"][data-bancada="cheia"] #panel-nome,
+  body[data-modo="prioridade"][data-bancada="cheia"] #panel-nc-nome,
+  body[data-modo="nomenclatura"][data-bancada="vazia"] #panel-bancada,
+  body[data-modo="prioridade"][data-bancada="vazia"] #panel-nc-bancada { order: -3; }
+  body[data-modo="nomenclatura"]:not([data-bancada="desenho"]) #panel-result,
+  body[data-modo="prioridade"] #panel-result { order: -2; }
+}
+/* GRUPOS FUNCIONAIS NA GAVETA: o card com que se trabalha vem primeiro (Investigar, com os pincéis; na construção
+   livre, a Construção) e os Resultados logo abaixo — o composto, a explicação e o próximo passo, que antes eram
+   escritos no alto da cena. A Biblioteca (a lista longa de compostos, com a troca para Construir) vem depois.
+   O módulo põe no body data-fonte = biblioteca | construir. */
+@media (max-width: 900px), (max-width: 1100px) and (max-height: 500px) {
+  body[data-modo="grupos"] #sidebar-right > .mode-summary-mobile { order: -4; }
+  body[data-modo="grupos"]:not([data-fonte="construir"]) #panel-investigar,
+  body[data-modo="grupos"][data-fonte="construir"] #panel-construcao { order: -3; }
+  body[data-modo="grupos"] #panel-result { order: -2; }
+}
+/* PONTO DE EBULIÇÃO NA GAVETA: a Trilha (o conjunto e Conferir) e logo abaixo os Resultados — a ficha da peça tocada
+   (o nome e os dados, que antes eram escritos no cartão), o retorno da conferência e o próximo passo. Os Dados de
+   todos os compostos vêm depois. */
+@media (max-width: 900px), (max-width: 1100px) and (max-height: 500px) {
+  body[data-modo="ebulicao"] #sidebar-right > .mode-summary-mobile { order: -4; }
+  body[data-modo="ebulicao"] #panel-trilha { order: -3; }
+  body[data-modo="ebulicao"] #panel-result { order: -2; }
 }
 /* CELULAR DEITADO (altura até 500 px): o cabeçalho e a barra de abas encolhem e a cena passa a caber na
    altura que sobra. Antes, o mínimo de 300 px da cena a empurrava para além da tela: o pé do desenho

@@ -422,8 +422,10 @@
     if (!mol.atomos.length) return { proj: [] };
     var maxN = mol.atomos.reduce(function (m, a) { return Math.max(m, Math.hypot(a.x, a.y, a.z)); }, 0.3);
     var k = 1 / maxN;                                   // Å → unidade da câmera (raio 1)
-    var BASE = 96, area = Math.min(d.W, d.H - 72 - BASE);
-    var cx = d.W / 2, cy = 72 + (d.H - 72 - BASE) / 2;
+    /* as faixas que a cena reserva em cima e embaixo: d.topo e d.base (o padrão, 72 e 96, guardava lugar para o
+       texto do HUD no rodapé; o editor do Módulo 1 passa só a faixa da pílula e a da dica de teclado) */
+    var TOPO = d.topo != null ? d.topo : 72, BASE = d.base != null ? d.base : 96, area = Math.min(d.W, d.H - TOPO - BASE);
+    var cx = d.W / 2, cy = TOPO + (d.H - TOPO - BASE) / 2;
     /* O SILQ enquadra a MAIOR COORDENADA em 27% da menor dimensão; aqui o
        enquadramento é pela maior DISTÂNCIA ao centro (para a molécula nunca
        sair da tela ao girar), e isso numa cadeia comprida encolhia tudo.
@@ -510,12 +512,17 @@
     });
 
     // ângulos em volta do centro escolhido (só esfera e bastão)
-    var angulos = [], rotulos = [];
+    var angulos = [], rotulos = [], caixasRot = [];
     if (!compacto && d.centro && byId[d.centro]) {
       var c = byId[d.centro];
       var viz = mol.ligacoes.filter(function (l) { return l.a === c.id || l.b === c.id; }).map(function (l) { return byId[l.a === c.id ? l.b : l.a]; });
       var ambar = claro ? '#b45309' : '#fbbf24', verde = claro ? '#065f46' : '#34d399', fundo = d.contraste ? '#000000' : claro ? '#f0f4f8' : '#080c14';
-      var usados = [];
+      /* OS ARCOS: um por par de ligações, como sempre. OS RÓTULOS: um por VALOR. Um carbono com quatro
+         ligações tem seis ângulos; antes eram seis caixinhas de 109,5° num anel colado ao átomo, por cima
+         dos H (o estudo da área livre mediu os rótulos encostando nos H no computador e no tablet). Agora
+         ângulos iguais dividem um rótulo, com quantos são (109,5° × 6), e cada rótulo vai para o ponto mais
+         livre ao longo do meio de um dos seus arcos. */
+      var grupos = [], porTexto = {};
       for (var i = 0; i < viz.length; i++) for (var j = i + 1; j < viz.length; j++) {
         var A = viz[i], B = viz[j];
         var u = [A.x - c.x, A.y - c.y, A.z - c.z], v = [B.x - c.x, B.y - c.y, B.z - c.z];
@@ -526,44 +533,80 @@
         var rArc = atomR * 1.55 + 4 + (i + j) * 1.5;
         ctx.beginPath(); ctx.arc(c.sx, c.sy, rArc, a1, a1 + dif, dif < 0);
         ctx.strokeStyle = rgba(ambar, 0.80); ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.stroke();
-        var am = a1 + dif / 2, txt = (Math.round(graus * 10) / 10).toFixed(1).replace('.', ',') + '°';
+        var txt = (Math.round(graus * 10) / 10).toFixed(1).replace('.', ',') + '°';
         /* com a tensão ligada, o DESVIO do ideal da hibridização ao lado —
            é o que torna visível até uma mudança de 2° */
         var desvio = d.tensao && d.idealCentro ? graus - d.idealCentro : 0, txtD = '';
         if (Math.abs(desvio) >= 0.45) txtD = (desvio > 0 ? '+' : '−') + (Math.round(Math.abs(desvio) * 10) / 10).toFixed(1).replace('.', ',');
+        var chave = txt + '|' + txtD;
+        if (!porTexto[chave]) { porTexto[chave] = { txt: txt, txtD: txtD, desvio: desvio, arcos: [] }; grupos.push(porTexto[chave]); }
+        porTexto[chave].arcos.push({ am: a1 + dif / 2, rArc: rArc });
+      }
+      /* O LUGAR DE CADA RÓTULO: ao longo do meio de um dos arcos do seu valor, afastando-se do átomo de 6 em 6 px,
+         fica o primeiro ponto em que a caixinha não cobre nenhum átomo (a esfera, com 3 px de folga), nenhum
+         rótulo já posto nem o HTML sobre a cena (a pílula do modo e os botões de zoom, Q3.Moldura), e cabe na
+         cena. Sem ponto livre, o de menor sobreposição. */
+      var obstAtomos = proj.map(function (a) { return { x: a.sx, y: a.sy, r: raioDe(a) + 3 }; });
+      var zonas = [];
+      if (typeof Q3 !== 'undefined' && Q3.Moldura) { zonas.push(Q3.Moldura.pilula(d.W)); var zz = Q3.Moldura.zoom(d.W, d.H); if (zz) zonas.push(zz); }
+      var postos = [];
+      var cobre = function (x0, y0, x1, y1) {
+        var s = 0;
+        obstAtomos.forEach(function (o) {
+          var px = Math.max(x0, Math.min(o.x, x1)), py = Math.max(y0, Math.min(o.y, y1)), dd = Math.hypot(o.x - px, o.y - py);
+          if (dd < o.r) s += o.r - dd + 1;
+        });
+        zonas.concat(postos).forEach(function (z) {
+          var w = Math.min(x1, z.x1 + 2) - Math.max(x0, z.x0 - 2), h = Math.min(y1, z.y1 + 2) - Math.max(y0, z.y0 - 2);
+          if (w > 0 && h > 0) s += w * h / 10 + 1;
+        });
+        return s;
+      };
+      grupos.forEach(function (gr) {
+        var mult = gr.arcos.length > 1 ? ' × ' + gr.arcos.length : '';
         ctx.font = 'bold 11px ' + FONTE_3D;
-        var wPrin = ctx.measureText(txt).width;
+        var wPrin = ctx.measureText(gr.txt + (gr.txtD ? '' : mult)).width;
         ctx.font = 'bold 10px ' + FONTE_3D;
-        var wDes = txtD ? ctx.measureText(' ' + txtD).width : 0;
-        ctx.font = 'bold 11px ' + FONTE_3D;
-        var pw = wPrin + wDes + 10, ph = 17;
-        var lx = c.sx + Math.cos(am) * (rArc + 16), ly = c.sy + Math.sin(am) * (rArc + 16);
-        var bate = usados.some(function (q) { return Math.abs(q.x - lx) < (pw + q.w) / 2 && Math.abs(q.y - ly) < ph; });
-        if (bate) continue;
-        usados.push({ x: lx, y: ly, w: pw });
-        rotulos.push(txt + (txtD ? ' ' + txtD : ''));
+        var wDes = gr.txtD ? ctx.measureText(' ' + gr.txtD + mult).width : 0;
+        var pw = wPrin + wDes + 10, ph = 17, melhor = null;
+        for (var passo = 0; passo <= 14 && !(melhor && melhor.s === 0); passo++) {
+          for (var k = 0; k < gr.arcos.length; k++) {
+            var ar = gr.arcos[k], R = ar.rArc + 16 + passo * 6;
+            var lx = c.sx + Math.cos(ar.am) * R, ly = c.sy + Math.sin(ar.am) * R;
+            var cx2 = Math.max(4 + pw / 2, Math.min(d.W - 4 - pw / 2, lx)), cy2 = Math.max(4 + ph / 2, Math.min(d.H - 4 - ph / 2, ly));
+            var s = cobre(cx2 - pw / 2, cy2 - ph / 2, cx2 + pw / 2, cy2 + ph / 2) + (cx2 !== lx || cy2 !== ly ? 0.5 : 0);
+            if (!melhor || s < melhor.s) melhor = { x: cx2, y: cy2, ar: ar, s: s };
+            if (s === 0) break;
+          }
+        }
+        var lx2 = melhor.x, ly2 = melhor.y, am = melhor.ar.am, rA = melhor.ar.rArc;
+        postos.push({ x0: lx2 - pw / 2, y0: ly2 - ph / 2, x1: lx2 + pw / 2, y1: ly2 + ph / 2 });
+        caixasRot.push(postos[postos.length - 1]);
+        rotulos.push(gr.txt + (gr.txtD ? ' ' + gr.txtD : '') + mult);
         ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = rgba(ambar, 0.30); ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(c.sx + Math.cos(am) * rArc, c.sy + Math.sin(am) * rArc); ctx.lineTo(lx, ly); ctx.stroke(); ctx.restore();
+        ctx.beginPath(); ctx.moveTo(c.sx + Math.cos(am) * rA, c.sy + Math.sin(am) * rA); ctx.lineTo(lx2, ly2); ctx.stroke(); ctx.restore();
         ctx.fillStyle = rgba(fundo, 0.93); ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(lx - pw / 2, ly - ph / 2, pw, ph, 4); else ctx.rect(lx - pw / 2, ly - ph / 2, pw, ph);
+        if (ctx.roundRect) ctx.roundRect(lx2 - pw / 2, ly2 - ph / 2, pw, ph, 4); else ctx.rect(lx2 - pw / 2, ly2 - ph / 2, pw, ph);
         ctx.fill();
         ctx.strokeStyle = rgba(ambar, 0.70); ctx.lineWidth = 1; ctx.stroke();
         ctx.textBaseline = 'middle';
-        if (!txtD) { ctx.fillStyle = verde; ctx.textAlign = 'center'; ctx.fillText(txt, lx, ly + 0.5); }
+        ctx.font = 'bold 11px ' + FONTE_3D;
+        if (!gr.txtD) { ctx.fillStyle = verde; ctx.textAlign = 'center'; ctx.fillText(gr.txt + mult, lx2, ly2 + 0.5); }
         else {
-          // o ângulo à esquerda; o desvio ao lado, na cor do sentido (fecha: rosa-violeta; abre: ciano)
-          var x0 = lx - pw / 2 + 5;
-          ctx.textAlign = 'left'; ctx.fillStyle = verde; ctx.fillText(txt, x0, ly + 0.5);
+          // o ângulo à esquerda; o desvio ao lado, na cor do sentido (fecha: rosa-violeta; abre: ciano), e quantos são
+          var x0 = lx2 - pw / 2 + 5;
+          ctx.textAlign = 'left'; ctx.fillStyle = verde; ctx.fillText(gr.txt, x0, ly2 + 0.5);
           ctx.font = 'bold 10px ' + FONTE_3D;
-          ctx.fillStyle = d.contraste ? '#ffffff' : desvio < 0 ? (claro ? '#a21caf' : '#f0abfc') : (claro ? '#0e7490' : '#67e8f9');
-          ctx.fillText(' ' + txtD, x0 + wPrin, ly + 0.5);
+          ctx.fillStyle = d.contraste ? '#ffffff' : gr.desvio < 0 ? (claro ? '#a21caf' : '#f0abfc') : (claro ? '#0e7490' : '#67e8f9');
+          ctx.fillText(' ' + gr.txtD + mult, x0 + wPrin, ly2 + 0.5);
         }
-      }
+      });
     }
     return {
       proj: proj.map(function (a) { return { id: a.id, el: a.el, h: a.h, sx: a.sx, sy: a.sy, depth: a.depth, r: raioDe(a), x: a.x, y: a.y, z: a.z }; }),
       angulos: angulos,
-      rotulos: rotulos,        // o texto de cada rótulo de ângulo desenhado (com o desvio, se houver)
+      rotulos: rotulos,        // o texto de cada rótulo de ângulo desenhado (com o desvio e a contagem, se houver)
+      caixasRotulos: caixasRot,   // onde cada rótulo ficou, na tela ({ x0, y0, x1, y1 }, na ordem de rotulos)
       nuvens: cen && d.nuvens ? d.nuvens.length : 0,   // nuvens desenhadas no átomo escolhido
       k: k,                 // Å → unidade da câmera (para levar o alvo a um átomo)
       escala: baseScale     // px por unidade com zoom 1 (para o pan andar junto com o dedo)

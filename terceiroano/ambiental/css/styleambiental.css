@@ -331,6 +331,10 @@ body.wide-spacing * {
 .app-main{ flex:1; display:flex; overflow:hidden; height:calc(100vh - var(--header-h)); height:calc(100dvh - var(--header-h)); }
 
 .sidebar {
+  /* relativa: ancora a alça de redimensionar (absoluta). No celular, a gaveta de baixo troca isto por
+     position: fixed (bloco do celular, mais abaixo). Antes era um position:relative INLINE gravado pelo
+     script ao abrir no computador — e o inline vencia o CSS do celular (ver ui/offcanvas-mobile.js). */
+  position: relative;
   background:var(--bg-panel);
   overflow-y:auto;
   overflow-x: hidden;
@@ -547,11 +551,15 @@ input[type="range"]:focus-visible{ outline:3px solid var(--accent-main); outline
 .data-row{ display:flex; justify-content:space-between; align-items:baseline; gap:.6rem; padding:.23rem 0; border-bottom:1px solid rgba(28,46,68,.6); }
 body.light-mode .data-row{ border-bottom-color:rgba(155,173,196,.5); }
 .data-row:last-child{ border-bottom:none; }
-.data-label{ font-size:.64rem; color:var(--text-muted); }
+.data-label{ font-size:.64rem; color:var(--text-muted); flex-shrink:0; max-width:42%; }   /* o rótulo não se espreme ao lado de uma frase longa ("Sobre o cloro" em três linhas); o valor é que quebra */
 .data-value{ font-family:var(--font-mono); font-size:.69rem; color:var(--accent-amber); font-weight:600; text-align:right; }
 .data-value.val-warn{ color:var(--accent-warn); }
 .data-value.val-alt { color:var(--accent-alt); }
 .data-value.val-ok  { color:var(--accent-ok); }
+/* um valor que é frase (o que a cena mostra, a reação em curso, a nota sobre o gás): letra de texto, quebra de linha */
+.data-value.val-texto { font-family:inherit; font-weight:500; color:var(--text-secondary); font-size:.68rem; line-height:1.4; }
+.data-value.val-texto.val-warn { color:var(--accent-warn); }
+.data-value.val-texto.val-ok { color:var(--accent-ok); }
 
 /* ═══════════════ ÁREA DO CANVAS ═══════════════ */
 .canvas-wrap{
@@ -602,6 +610,7 @@ body.light-mode .overlay-label{ background:rgba(255,255,255,.85); }
   }
   .sidebar--right.mobile-open { transform: translateY(0); }
   .sidebar--right::before {
+    order: -10;   /* a alça fica no topo mesmo quando um modo reordena os painéis da gaveta */
     content: ''; display: block; width: 36px; height: 4px; border-radius: 2px;
     background: var(--border); margin: .5rem auto .25rem;
   }
@@ -1153,7 +1162,7 @@ body.high-contrast .sidebar-lock-hint{ border:2px solid var(--hc-fg) !important;
   .sidebar.is-collapsed .rail-toggle { display: none; }
 
   /* ── recolhida: fora do fluxo, canvas cresce ──────────────────
-     O !important NÃO é enfeite. O sidebar-resizer.js grava
+     O !important NÃO é enfeite (e fica, por garantia, mesmo depois de o redimensionador deixar de gravar o inline: a posição relativa agora vem da regra .sidebar). O sidebar-resizer.js grava
      `style="position:relative"` INLINE em cada sidebar, para ancorar a
      alça de arrastar (só quando o CSS base deixa a sidebar static — é o
      caso de todo o 2º e 3º ano). Inline vence qualquer regra de folha,

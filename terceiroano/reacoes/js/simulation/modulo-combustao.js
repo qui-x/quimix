@@ -36,9 +36,21 @@ class ModuloCombustao extends ModuloMecanismo {
     this.k = 0; this.setas = []; this.fonteToque = null; this.msg = ''; this.nota = ''; this.faisca = false; this._flash = 0;
     this.estado = this.mod.ok ? 'lab' : 'vazio';
     if (!this.mod.ok) { this.hist = []; this.pos = []; return; }
-    this.pos = [DM.posicoesIniciais(this.mod.inicio, r.substrato)];
-    this.mod.passos.forEach(function (p, i) { self.pos.push(DM.posicoesDepois(p.antes, p.depois, self.pos[i])); });
+    this._posicoes();                                                 // o começo e a literatura, na disposição da área (modulo-mecanismo.js)
     this.hist = [{ S: this.mod.inicio, pos: this.pos[0], desc: null }]; this.lit = null; this.anim = null;
+  }
+  /* o lugar do sinal da chama: no canto de cima, à esquerda; quando a pílula chega até o canto (tela estreita),
+     logo abaixo da faixa dela (ui/moldura-cena.js) */
+  _lugarSelo(W) {
+    var lado = 30, x = 14, y = 12, pil = Q3.Moldura ? Q3.Moldura.pilula(W) : { x0: W / 2 - Math.min(W * 0.47, 300), y1: 46 };
+    if (pil.x0 < x + lado + 8) y = pil.y1 + 6;
+    return { x: x, y: y, w: lado, h: lado };
+  }
+  /* na área mais alta que larga, a folga das bordas é a justa: o desenho começa abaixo do sinal da chama */
+  _area(W, H) {
+    var a = super._area(W, H);
+    if (a.retrato) { var s = this._lugarSelo(W), d = s.y + s.h + 6 - a.y; if (d > 0) { a.y += d; a.h -= d; } }
+    return a;
   }
   _chamaAcesa() { return this.lit ? (this.lit.k > 0 || this.lit.visto || !!this.anim) : (this.faisca || this.hist.length > 1); }   // na literatura, o 1º passo já é com a faísca
 
@@ -218,13 +230,20 @@ class ModuloCombustao extends ModuloMecanismo {
     } else b = '<p class="hint-text">Sem ΔfH deste combustível.</p>';
     set(pre + '-balanco', b);
   }
+  /* a energia dos passos que estão na cena: os do experimento ou, na literatura, os já mostrados */
+  _somaVista() {
+    if (!this.lit) return this._somaDH().v;
+    var soma = 0; this.mod.passos.slice(0, this.lit.k + (this.lit.visto ? 1 : 0)).forEach(function (p) { soma += Math.round(p.dH || 0); });
+    return soma;
+  }
   resultados() {
     var r = this.reacao, out = [{ l: 'Combustível', v: r ? (r.nomeSubstrato || r.nome) : '—' }]; if (!this.mod || !this.mod.ok) return out;
-    var topo = this.hist[this.hist.length - 1];
+    var topo = this.hist[this.hist.length - 1], aceso = this._chamaAcesa(), soma = this._somaVista();
     out.push({ l: 'Ar', v: this.ar === 'pouco' ? 'pouco (incompleta)' : 'suficiente (completa)' });
-    out.push({ l: 'Chama', v: this._chamaAcesa() ? 'acesa' : 'apagada' });
+    // o que o sinal da chama mostra na cena, em palavras (a cor dele: azul com ar suficiente, amarela com pouco ar)
+    out.push({ l: 'Chama', v: aceso ? 'acesa · ' + (this.ar === 'pouco' ? 'amarela (pouco ar)' : 'azul (ar suficiente)') : 'apagada: sem a faísca, nada reage', cls: aceso ? '' : 'val-texto' });
     out.push({ l: 'Passos aplicados', v: String(this.hist.length - 1) });
-    if (this.hist.length > 1) out.push({ l: 'ΔH dos passos', v: '≈ ' + Q3.Combustao.fmtKJ(this._somaDH().v) + ' kJ/mol' });
+    if (soma) out.push({ l: this.lit ? 'ΔH dos passos mostrados' : 'ΔH dos passos', v: '≈ ' + Q3.Combustao.fmtKJ(soma) + ' kJ/mol' });
     if (topo.desc && topo.desc.estavel) { var pr = this._produto(topo.S); out.push({ l: 'Produtos', v: pr.nome }); out.push({ l: 'Classificação', v: pr.classe.tipo }); }
     else if (this.hist.length > 1) out.push({ l: 'Estado', v: 'radicais na cena: a cadeia continua' });
     return out;
@@ -236,40 +255,26 @@ class ModuloCombustao extends ModuloMecanismo {
       ? 'Arraste de um elétron (⊙) ou de uma ligação até o destino · ou toque na fonte e depois no destino' : null;
   }
 
-  /* a pílula do modo (HTML sobre o canvas), nas coordenadas da cena (a área livre começa em canvas.cenaX) */
-  _pilulaModo() {
-    var el = document.getElementById('overlay-label'), cv = document.getElementById('sim-canvas');
-    if (!el || !cv || !el.offsetParent) return null;   // escondida: sem modo ativo
-    var r = el.getBoundingClientRect(), c = cv.getBoundingClientRect();
-    if (!r.width) return null;
-    return { x: r.left - c.left - (cv.cenaX || 0), y: r.top - c.top, w: r.width, h: r.height };
-  }
-
-  /* ══ A CENA: o selo da chama no canto e o clarão da faísca ═════ */
+  /* ══ A CENA: o sinal da chama no canto e o clarão da faísca ════
+     O SINAL DA CHAMA é só desenho: a gota azul (ar suficiente) ou amarela (pouco ar), acesa, ou o contorno,
+     apagada. O que ele diz em palavras (a chama, o ar, a energia dos passos) mora em Resultados — antes era um
+     selo com texto, que no celular em pé ficava por baixo da pílula do modo. Fica no canto de cima, à esquerda;
+     quando a pílula chega até o canto (tela estreita), desce para logo abaixo da faixa dela (ui/moldura-cena.js). */
   desenhar(ctx, W, H) {
     super.desenhar(ctx, W, H);
     if (!this.mod || !this.mod.ok) return;
-    var P = Q3.Desenho.paleta(), aceso = this._chamaAcesa(), azul = this.ar !== 'pouco', CB = Q3.Combustao;
-    var soma = 0;
-    if (this.lit) this.mod.passos.slice(0, this.lit.k + (this.lit.visto ? 1 : 0)).forEach(function (p) { soma += Math.round(p.dH || 0); });
-    else soma = this._somaDH().v;
-    var x = 14, y = 12, txt = aceso ? 'chama acesa' + (soma ? ' · ΔH ≈ ' + CB.fmtKJ(soma) + ' kJ/mol' : '') : 'sem chama: nada reage';
+    var P = Q3.Desenho.paleta(), aceso = this._chamaAcesa(), azul = this.ar !== 'pouco';
+    var sl = this._lugarSelo(W), lado = sl.w, x = sl.x, y = sl.y;
+    this._selo = sl;                                 // onde o sinal ficou (nas coordenadas da cena)
+    var cor = aceso ? (azul ? '#3b82f6' : '#f59e0b') : P.texto;
     ctx.save();
-    ctx.font = '600 12px system-ui, sans-serif'; ctx.textBaseline = 'middle';
-    var tw = ctx.measureText(txt).width, bw = tw + 40, bh = 26;
-    // o selo nunca fica embaixo da pílula do modo ("Combustão ativo", centralizada no topo da área
-    // livre): se os dois se cruzam (tela estreita, card aberto), o selo desce para baixo dela
-    var pil = this._pilulaModo();
-    if (pil && x < pil.x + pil.w + 8 && x + bw + 8 > pil.x && y < pil.y + pil.h + 6) y = Math.round(pil.y + pil.h + 8);
-    this._selo = { x: x, y: y, w: bw, h: bh };   // onde o selo ficou (nas coordenadas da cena)
-    ctx.fillStyle = P.fundo; ctx.globalAlpha = 0.92; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, bw, bh, 13); else ctx.rect(x, y, bw, bh); ctx.fill();
-    ctx.globalAlpha = 1; ctx.strokeStyle = aceso ? (azul ? '#3b82f6' : '#f59e0b') : P.texto; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.fillStyle = P.fundo; ctx.globalAlpha = 0.92; ctx.beginPath(); ctx.arc(x + lado / 2, y + lado / 2, lado / 2, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1; ctx.strokeStyle = cor; ctx.lineWidth = 1.2; ctx.stroke();
     // a chama (uma gota com ponta), azul ou amarela; apagada: só o contorno
-    var fx = x + 15, fy = y + bh / 2 + 1, t = performance.now() / 1000, osc = aceso ? 1 + 0.06 * Math.sin(t * 9) : 1;
+    var fx = x + lado / 2, fy = y + lado / 2 + 1, t = performance.now() / 1000, osc = aceso ? 1 + 0.06 * Math.sin(t * 9) : 1;
     ctx.beginPath(); ctx.moveTo(fx, fy - 9 * osc); ctx.bezierCurveTo(fx + 6, fy - 2, fx + 6, fy + 6, fx, fy + 7); ctx.bezierCurveTo(fx - 6, fy + 6, fx - 6, fy - 2, fx, fy - 9 * osc); ctx.closePath();
-    if (aceso) { ctx.fillStyle = azul ? '#3b82f6' : '#f59e0b'; ctx.fill(); ctx.fillStyle = azul ? '#bfdbfe' : '#fde68a'; ctx.beginPath(); ctx.ellipse(fx, fy + 3, 2.2, 3.4, 0, 0, Math.PI * 2); ctx.fill(); }
+    if (aceso) { ctx.fillStyle = cor; ctx.fill(); ctx.fillStyle = azul ? '#bfdbfe' : '#fde68a'; ctx.beginPath(); ctx.ellipse(fx, fy + 3, 2.2, 3.4, 0, 0, Math.PI * 2); ctx.fill(); }
     else { ctx.strokeStyle = P.texto; ctx.lineWidth = 1.4; ctx.stroke(); }
-    ctx.fillStyle = P.texto; ctx.fillText(txt, x + 30, y + bh / 2 + 0.5);
     ctx.restore();
     // o clarão da faísca: raios curtos que se abrem e somem (no meio da cena)
     var dt = (performance.now() - this._flash) / 1000;

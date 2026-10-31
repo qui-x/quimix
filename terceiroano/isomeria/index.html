@@ -196,7 +196,9 @@
         </div>
       </section>
 
-      <section class="panel" id="panel-bg-prioridades" data-owner hidden aria-labelledby="hdr-bg-prio">
+      <!-- Prioridades e Laboratório: os controles do estudo. A conferência da previsão, a prioridade com as cores
+           da cena e as esferas ficam em Resultados (#bg-resultado), que flutua junto no computador. -->
+      <section class="panel" id="panel-bg-prioridades" data-owner hidden aria-labelledby="hdr-bg-prio" data-rail-junto="panel-result">
         <button type="button" class="panel-header" id="hdr-bg-prio" aria-expanded="true" aria-controls="body-bg-prio">
           <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h6"/></svg></span>
           <span class="panel-label">Prioridades</span>
@@ -207,7 +209,7 @@
         </div>
       </section>
 
-      <section class="panel" id="panel-bg-laboratorio" data-owner hidden aria-labelledby="hdr-bg-lab">
+      <section class="panel" id="panel-bg-laboratorio" data-owner hidden aria-labelledby="hdr-bg-lab" data-rail-junto="panel-result">
         <button type="button" class="panel-header" id="hdr-bg-lab" aria-expanded="true" aria-controls="body-bg-lab">
           <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/><path d="M7.5 15h9"/></svg></span>
           <span class="panel-label">Laboratório</span>
@@ -218,16 +220,16 @@
         </div>
       </section>
 
-      <section class="panel" id="panel-bi-comparar" data-owner hidden aria-labelledby="hdr-bi-comp">
+      <!-- Comparar: só o botão. A e B (fórmula e nome), o veredito e a explicação ficam em Resultados, que no
+           computador flutua junto, logo abaixo deste card (data-rail-junto). -->
+      <section class="panel" id="panel-bi-comparar" data-owner hidden aria-labelledby="hdr-bi-comp" data-rail-junto="panel-result">
         <button type="button" class="panel-header" id="hdr-bi-comp" aria-expanded="true" aria-controls="body-bi-comp">
           <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v18M16 3v18"/><path d="M3 8h5M16 16h5"/></svg></span>
           <span class="panel-label">Comparar</span>
           <span class="chevron" aria-hidden="true">▾</span>
         </button>
         <div class="panel-body" id="body-bi-comp" role="region" aria-labelledby="hdr-bi-comp">
-          <p class="hint-text" id="bi-selecao" aria-live="polite">A: — · B: —</p>
-          <div class="action-row"><button type="button" class="action-btn is-primario" data-action="bi-comparar" disabled>Comparar</button></div>
-          <div id="bi-dados" hidden aria-live="polite"></div>
+          <div class="action-row"><button type="button" class="action-btn is-primario" data-action="bi-comparar" disabled>Comparar A e B</button></div>
         </div>
       </section>
 
@@ -361,13 +363,20 @@
 
 
       <!-- ════════ RESULTADOS (sempre visível, independe do modo) ════════ -->
-      <section class="panel" aria-labelledby="hdr-result">
+      <section class="panel" id="panel-result" aria-labelledby="hdr-result">
         <button type="button" class="panel-header" id="hdr-result" aria-expanded="true" aria-controls="body-result">
           <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
           <span class="panel-label">Resultados</span>
           <span class="chevron" aria-hidden="true">▾</span>
         </button>
         <div class="panel-body" id="body-result" role="region" aria-labelledby="hdr-result">
+          <!-- o retorno do modo ativo: a resposta ao último passo do aluno (o veredito do Comparar; no M2, a revelação) -->
+          <p class="result-retorno" id="result-retorno" hidden></p>
+          <!-- o próximo passo do modo ativo -->
+          <p class="result-next" id="result-next" hidden></p>
+          <!-- Isomeria Geométrica: a conferência da previsão e a árvore esfera por esfera (antes, os conjuntos eram
+               escritos na cena, ao lado de cada ligante). Montado por bancada-geometrica.js. -->
+          <div class="result-estudo" id="bg-resultado" hidden></div>
           <dl class="data-grid" id="result-grid" aria-live="polite" aria-atomic="true"></dl>
           <canvas id="result-chart" class="result-chart" hidden aria-label="Gráfico auxiliar do modo atual"></canvas>
         </div>
@@ -419,6 +428,7 @@
   <script src="js/render/desenho-molecula.js"></script>
   <script src="js/render/representacoes.js"></script>
   <script src="js/ui/kit-desenho.js"></script>
+  <script src="js/ui/moldura-cena.js"></script>
   <script src="js/view3d/camera-orbital.js"></script>
   <script src="js/view3d/navegacao-3d.js"></script>
   <script src="js/simulation/editor-cadeias.js"></script>
@@ -442,7 +452,7 @@
        registram em DOMContentLoaded, e o navegador dispara os
        ouvintes na ordem de registro — então quando o trilho monta,
        os painéis da app já existem no DOM. -->
-  <script>window.RAIL_CFG = { id: 'isomeria', bp: 1100 };</script>
+  <script>window.RAIL_CFG = { id: 'isomeria', bp: 900, mq: window.MQ_CELULAR };</script>
   <script src="js/ui/sidebar-rail.js"></script>
 <script>
 // Registra o service worker do PWA (cache/offline + instalação como app).
@@ -450,7 +460,7 @@
 // instala de verdade uma vez, então repetir isso em cada página é seguro.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('../sw.js')
+    navigator.serviceWorker.register('../../sw.js')
       .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
   });
 }

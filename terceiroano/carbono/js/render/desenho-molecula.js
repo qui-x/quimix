@@ -217,10 +217,11 @@
   };
 
   /* Selo da classe do carbono (1°, 2°...), fora da pílula, no lado com
-     mais espaço — calculado por quem chama. */
-  D.seloClasse = function (ctx, p, n, cor, dirX, dirY, dist) {
+     mais espaço — calculado por quem chama. `tam` (opcional): a letra, em
+     px (11 se omitido); cresce com o desenho numa tela grande. */
+  D.seloClasse = function (ctx, p, n, cor, dirX, dirY, dist, tam) {
     var x = p.x + dirX * dist, y = p.y + dirY * dist;
-    ctx.font = '700 11px system-ui, -apple-system, "Segoe UI", sans-serif';
+    ctx.font = '700 ' + (tam || 11) + 'px system-ui, -apple-system, "Segoe UI", sans-serif';
     ctx.fillStyle = cor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(n + '°', x, y);
   };

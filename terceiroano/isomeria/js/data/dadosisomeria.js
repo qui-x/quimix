@@ -28,7 +28,7 @@ window.SIM_DATA = {
       info: 'Isômeros constitucionais têm a mesma fórmula molecular, mas os átomos ligados de outro jeito. Quando há mais de uma diferença, vale a HIERARQUIA: 1º função (ou tautomeria, se um H passa do carbono para o oxigênio, em equilíbrio); 2º cadeia — o tipo de cadeia muda (aberta × fechada, normal × ramificada, homogênea × heterogênea, tipo de insaturação) ou o esqueleto é outro; 3º posição — mesma função e mesma cadeia, mudando só o lugar do grupo, da insaturação ou do ramo (metameria, quando o que muda de lugar é o heteroátomo). O critério mais alto anula os seguintes.',
       formula: 'mesma fórmula molecular  +  ligações diferentes  =  isômeros',
       formulaNote: 'O gerador trabalha com até 8 átomos além do H e até dois anéis; o que não existe como composto estável fica de fora.',
-      hintCanvas: 'Setas: espaço · Enter: seleciona',
+      hintCanvas: 'Setas: cartão · Enter: seleciona',
       def: 'Isomeria é o fenômeno de compostos diferentes terem a mesma fórmula molecular.',
       fatos: [
         { l: 'Hierarquia', v: 'função > cadeia > posição' },
@@ -36,7 +36,7 @@ window.SIM_DATA = {
         { l: 'Cadeia', v: 'tipo de cadeia ou esqueleto diferente' },
         { l: 'Posição', v: 'só o lugar muda (metameria: o heteroátomo)' },
       ],
-      canvasInteracao: 'Toque num espaço para selecioná-lo: com um selecionado, ele cresce no centro; com dois, os dois ficam lado a lado para comparar. Toque de novo para soltar.',
+      canvasInteracao: 'Toque num cartão para selecioná-lo: com um selecionado, ele cresce no centro (a A); com dois, A e B ficam lado a lado para comparar. Toque de novo para soltar. A explicação, a fórmula e os nomes ficam em Resultados.',
       overlay: 'Constitucional', panels: ['panel-bi-bancada', 'panel-bi-representacao', 'panel-bi-comparar'], primary: 'bi-acao',
     },
     {
@@ -54,7 +54,7 @@ window.SIM_DATA = {
         { l: 'R', v: '1→2→3 horário, com o 4 atrás' },
         { l: 'Regra', v: 'número atômico; no empate, a esfera seguinte' },
       ],
-      canvasInteracao: 'Toque num espaço para estudá-lo. Na estrutura grande, toque numa dupla ou num carbono; arraste uma ponta da dupla para girar aquela metade; gire a vista 3D do carbono.',
+      canvasInteracao: 'Toque num cartão para estudá-lo. Na estrutura grande, toque numa dupla ou num carbono; arraste uma ponta da dupla para girar aquela metade; gire a vista 3D do carbono. A conferência e as esferas ficam em Resultados.',
       overlay: 'Geométrica', panels: ['panel-bi-bancada', 'panel-bi-representacao', 'panel-bg-prioridades', 'panel-bg-laboratorio', 'panel-bi-comparar'], primary: 'bg-acao',
     },
     {

@@ -380,13 +380,22 @@ class App {
     if (icon) icon.innerHTML = m.icon || '';
     if (title) title.textContent = m.nome;
     if (body) body.innerHTML = this._modeSummaryHTML(m);
+    this._modalVolta = document.activeElement;   // para devolver o foco a quem abriu o aviso
     overlay.classList.add('aberto');
     overlay.setAttribute('aria-hidden', 'false');
-    if (closeBtn) setTimeout(() => closeBtn.focus(), 220);
+    if (closeBtn) setTimeout(() => { if (overlay.classList.contains('aberto')) closeBtn.focus(); }, 220);
   }
   _hideModeInfoModal() {
     const overlay = document.getElementById('modeInfoOverlay');
     if (!overlay) return;
+    /* o foco sai do aviso ANTES de ele ganhar aria-hidden: com o foco dentro, o navegador bloqueia o
+       aria-hidden (aviso no console) e o leitor de tela ficaria preso num elemento escondido. O foco volta
+       para quem abriu o aviso (a aba do modo, em geral). */
+    if (overlay.contains(document.activeElement)) {
+      const volta = [this._modalVolta, document.querySelector('.mode-tab[aria-selected="true"]'), this.canvas]
+        .find(el => el && el.isConnected && !overlay.contains(el) && el.offsetParent !== null && typeof el.focus === 'function');
+      if (volta) volta.focus({ preventScroll: true }); else document.activeElement.blur();
+    }
     overlay.classList.remove('aberto');
     overlay.setAttribute('aria-hidden', 'true');
   }

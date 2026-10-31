@@ -51,9 +51,88 @@ class ModuloMecanismo {
     if (this.mod.naoAvanca) {                                       // o ácido fraco: só o substrato, parado
       var S = M.vazio(); M.substrato(S, r.substrato, 'a'); this.mod.inicio = S; this.estado = 'naoAvanca';
     } else this.estado = this.mod.semSetas ? 'semSetas' : 'lab';
-    this.pos = [DM.posicoesIniciais(this.mod.inicio, r.substrato)];
-    var self = this; (this.mod.passos || []).forEach(function (p, i) { self.pos.push(DM.posicoesDepois(p.antes, p.depois, self.pos[i])); });   // as posições da literatura
+    this._posicoes();                                                // o começo e as posições da literatura
     this.hist = [{ S: this.mod.inicio, pos: this.pos[0], desc: null }]; this.lit = null; this.anim = null;   // o experimento começa nos reagentes
+  }
+
+  /* ══ A DISPOSIÇÃO NA CENA ══════════════════════════════════════
+     Os reagentes começam à DIREITA do substrato, como nos livros. Numa área MAIS ALTA QUE LARGA (o celular em pé,
+     o computador com os dois cards abertos), lado a lado eles alargam o desenho, e a escala é a que cabe na
+     largura: o desenho vira uma faixa no meio da tela. EMBAIXO do substrato, numa fileira, eles usam a altura que
+     sobra, e o substrato fica com o que o primeiro reagente ataca virado para eles. Fica a disposição que deixa a
+     ligação maior na tela; a de sempre só perde se a outra crescer pelo menos 8% (a água, o H₃O⁺ e o haleto juntos
+     são largos demais numa fileira: ficam à direita). Nessa área a folga das bordas também é a justa
+     (DM.FOLGA_JUSTA): só o que se desenha além dos átomos. Fora dela (computador, projetor, celular deitado),
+     tudo como sempre. */
+  _area(W, H) {
+    var L = Q3.Moldura ? Q3.Moldura.livre(W, H, false) : null;     // abaixo da pílula do modo
+    if (L && L.h > L.w) { L.retrato = true; L.folga = Q3.DesenhoMecanismo.FOLGA_JUSTA; return L; }
+    return { x: W * 0.04, y: H * 0.08, w: W * 0.92, h: H * 0.84 };
+  }
+  /* as disposições possíveis: à direita (false) ou embaixo ('embaixo'), quando há reagentes */
+  _formas() {
+    var n = this.mod && this.mod.inicio ? Q3.Mecanismo.componentes(this.mod.inicio).filter(function (c) { return c.indexOf('a1') < 0; }).length : 0;
+    return n ? [false, 'embaixo'] : [false];
+  }
+  /* quem reage primeiro, pela literatura: a primeira seta que liga um átomo do substrato a um de reagente —
+     { alvo: o lado do substrato, reagente: o lado do reagente } (cada um { at } ou { lig }). Na halogenação por
+     luz, o 1º passo só quebra o Cl–Cl: vale o 2º, o Cl• que tira o H. */
+  _alvoLit() {
+    var m = this.mod, M = Q3.Mecanismo; if (!m || !m.inicio || !m.passos) return {};
+    var sub = M.componentes(m.inicio).filter(function (c) { return c.indexOf('a1') >= 0; })[0] || [], doSub = function (id) { return sub.indexOf(id) >= 0; };
+    var copia = function (l) { return l.at ? { at: l.at } : { lig: l.lig.slice() }; };
+    for (var k = 0; k < m.passos.length; k++) {
+      var s = (m.passos[k].setas || []).filter(function (x) {
+        var a = (x.de.at ? [x.de.at] : x.de.lig).concat(x.para.at ? [x.para.at] : x.para.lig);
+        return a.some(doSub) && !a.every(doSub);
+      })[0];
+      if (s) { var deSub = s.de.at ? doSub(s.de.at) : s.de.lig.some(doSub); return { alvo: copia(deSub ? s.de : s.para), reagente: copia(deSub ? s.para : s.de) }; }
+    }
+    return {};
+  }
+  /* as posições do começo numa disposição (guardadas até a reação mudar) */
+  _iniciais(forma) {
+    var c = this._ini || (this._ini = {}), k = String(forma);
+    return c[k] || (c[k] = Q3.DesenhoMecanismo.posicoesIniciais(this.mod.inicio, this.reacao.substrato, forma ? Object.assign(this._alvoLit(), this._embaixo(forma)) : false));
+  }
+  /* o jeito embaixo, com a forma da área: o arrumar põe o que sai onde a cena fica mais compacta nela */
+  _embaixo(forma) { var a = this._areaUlt; return forma ? { aspecto: a && a.retrato ? a.w / a.h : 0.7 } : false; }
+  _escolherForma(area) {
+    if (!area || !area.retrato || !this.mod || !this.mod.inicio) return false;
+    var chave = this._versao + '|' + Math.round(area.w) + 'x' + Math.round(area.h);
+    if (this._formaCache && this._formaCache.chave === chave) return this._formaCache.forma;
+    var DM = Q3.DesenhoMecanismo, self = this, esc = function (f) { return DM.transformar([self._iniciais(f)], area, 120, area.folga).esc; };
+    var melhor = false, eM = esc(false) * 1.08;
+    this._formas().slice(1).forEach(function (f) { var e = esc(f); if (e > eM) { eM = e; melhor = f; } });
+    this._formaCache = { chave: chave, forma: melhor };
+    return melhor;
+  }
+  /* as posições da reação: o começo na disposição escolhida e, a partir dele, os passos da literatura */
+  _posicoes() {
+    this._versao = (this._versao || 0) + 1; this._ini = null; this._formaCache = null;
+    this._dispor(this._escolherForma(this._areaUlt));
+  }
+  _dispor(forma) {
+    var DM = Q3.DesenhoMecanismo, self = this, ini = this._iniciais(forma), copia = {}, a = this._areaUlt;
+    for (var id in ini) copia[id] = { x: ini[id].x, y: ini[id].y };   // a atração dos íons mexe nas posições da cena; as guardadas ficam intactas
+    this.forma = forma; this._tf = null; this._aspDisp = forma && a && a.retrato ? a.w / a.h : null;   // a forma da área para a qual a cena foi arrumada
+    this.pos = [copia];
+    (this.mod.passos || []).forEach(function (p, i) { self.pos.push(DM.posicoesDepois(p.antes, p.depois, self.pos[i], self._embaixo(forma))); });
+  }
+  /* a área mudou de forma (o aparelho girou): a reação é redisposta inteira — a literatura e os passos já aplicados
+     (as setas desenhadas e não aplicadas continuam: elas apontam para átomos, não para lugares). Embaixo, também
+     quando a proporção da área muda mais de 15% (outra tela em pé): o que sai é arrumado para a forma dela. */
+  _orientar(area) {
+    this._areaUlt = area;
+    if (!this.mod || !this.pos || !this.pos.length) return;
+    var f = this._escolherForma(area), asp = area.retrato ? area.w / area.h : null;
+    var outraProporcao = !!(f && f === this.forma && this._aspDisp && asp && Math.abs(asp - this._aspDisp) > 0.15 * this._aspDisp);
+    if ((f === this.forma && !outraProporcao) || this.anim || this.mov || this.arr) return;   // no meio da animação ou de um gesto, depois
+    if (outraProporcao && this._ini) delete this._ini[String(f)];
+    var DM = Q3.DesenhoMecanismo, h = this.hist;
+    this._dispor(f);
+    if (h && h.length) { h[0].pos = this.pos[0]; for (var i = 1; i < h.length; i++) h[i].pos = DM.posicoesDepois(h[i - 1].S, h[i].S, h[i - 1].pos, this._embaixo(f)); }
+    this.fonteToque = null;
   }
   _passo() { return this.mod && this.mod.passos ? this.mod.passos[this.k] : null; }
   /* o que está na cena agora: o estado e as posições */
@@ -182,7 +261,7 @@ class ModuloMecanismo {
     return at ? this._maisPerto(enc.pares.filter(function (p) { return p.at === at.at; }), x, y, 999) : null;
   }
   _alvos() { var enc = this._geo ? this._geo.encaixes : { atomos: [], ligacoes: [], pares: [] }; return enc.atomos.concat(enc.ligacoes.filter(function (l) { return !l.lado; })).concat((enc.pares || []).filter(function (p) { return p.radical; }).map(function (p) { return { at: p.at, x: p.x, y: p.y, r: 0, radical: true }; })); }   // o ⊙ de um radical também é destino
-  _podeDesenhar() { return this.ativo && this.estado === 'lab' && !this.lit && this._geo; }
+  _podeDesenhar() { return this.ativo && this.estado === 'lab' && !this.lit && !this.anim && this._geo; }   // na animação (e na espera dela), não
   _ligar() {
     if (this._ligado) return; this._ligado = true;
     var self = this, cv = document.getElementById('sim-canvas'); if (!cv) return;
@@ -305,12 +384,13 @@ class ModuloMecanismo {
   desenhar(ctx, W, H) {
     this.atualizar();                                               // a física dos íons a CADA QUADRO (o relógio é dela)
     if (!this.mod) return;
-    var P = Q3.Desenho.paleta(), c = this._cena(), self = this, area = { x: W * 0.04, y: H * 0.08, w: W * 0.92, h: H * 0.84 };
+    var area = this._area(W, H); this._orientar(area);               // a disposição segue a forma da área
+    var P = Q3.Desenho.paleta(), c = this._cena(), self = this;
     var DM0 = Q3.DesenhoMecanismo;
-    if (this.anim) { this._desenharAnimacao(ctx, P, DM0.transformar([this.anim.posA, this.anim.posB, this.hist[0].pos], area, 120)); return; }
+    if (this.anim) { this._desenharAnimacao(ctx, P, DM0.transformar([this.anim.posA, this.anim.posB, this.hist[0].pos], area, 120, area.folga)); return; }
     var chaveTf = this.hist.length + '|' + (this.lit ? 'lit' + this.lit.k : '') + '|' + Math.round(area.w) + 'x' + Math.round(area.h);
     if (this._tf && this._tf.chave !== chaveTf) this._tf = null;
-    var tf = this.estado === 'lab' || this.lit ? (this._tf ? this._tf.tf : (this._tf = { chave: chaveTf, tf: DM0.transformar([this.hist[0].pos, c.pos], area, 120) }).tf) : null;   // FIXO por passo: os íons se movem sem a cena respirar
+    var tf = this.estado === 'lab' || this.lit ? (this._tf ? this._tf.tf : (this._tf = { chave: chaveTf, tf: DM0.transformar([this.hist[0].pos, c.pos], area, 120, area.folga) }).tf) : null;   // FIXO por passo: os íons se movem sem a cena respirar
     // primeiro o desenho (para os encaixes), depois as setas sobre ele
     var geo = DM0.desenhar(ctx, c.S, c.pos, area, P, { transform: tf });
     this._geo = geo;
@@ -353,10 +433,17 @@ class ModuloMecanismo {
      fase A: as setas aparecem sobre o "antes", uma de cada vez (ao revelar) ou já inteiras (ao acertar);
      fase B: os elétrons andam pelas setas (dois pontos: um par; um ponto: a farpa), as ligações se desfazem
      e se formam, os átomos que mudam de molécula se deslocam, e chega-se ao intermediário. */
-  _animar(o) {                                                     // o: { antes, depois, posA, posB, setas, uma (uma seta por vez), aoFim }
+  _animar(o) {                                                     // o: { antes, depois, posA, posB, setas, uma (uma seta por vez), espera (ms parados antes), aoFim }
     var menos = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.anim = Object.assign({}, o, { setas: o.setas.map(function (x) { return Object.assign({}, x); }), t0: performance.now(), lento: menos ? 0.3 : 1 });
+    // durante a espera, o relógio da animação ainda não começou: a cena mostra o "antes" com as setas, parada
+    this.anim = Object.assign({}, o, { setas: o.setas.map(function (x) { return Object.assign({}, x); }), t0: performance.now() + (o.espera || 0), lento: menos ? 0.3 : 1 });
     this._sync();
+  }
+  /* a gaveta de baixo do celular (bottom sheet), se estiver aberta: recolhe e devolve true (ui/offcanvas-mobile.js) */
+  _recolherGaveta() {
+    if (typeof document === 'undefined' || typeof window._closeSidebar !== 'function') return false;
+    if (!document.querySelector('#sidebar-right.mobile-open, #sidebar-left.mobile-open')) return false;
+    window._closeSidebar(); return true;
   }
   _duracoes() { var a = this.anim, A = (a.uma ? a.setas.length * 0.5 + 0.25 : 0.35) * a.lento, B = 2.0 * a.lento; return { A: A, B: B }; }
   _desenharAnimacao(ctx, P, tf) {
@@ -461,10 +548,15 @@ class ModuloMecanismo {
     if (!r.ok) { this.msg = 'Não acontece: ' + r.erro + '.'; announce(this.msg); this._sync(); return false; }
     if (M.iguais(r.S, topo.S)) { this.msg = 'Nada muda na estrutura.'; this._sync(); return false; }
     var veto = this._veto(topo, r); if (veto) { this.msg = veto; announce(this.msg); this._sync(); return false; }   // o que a química permite, mas as condições não (a faísca)
-    var posB = DM.posicoesDepois(topo.S, r.S, topo.pos), desc = this._descrever(topo.S, r.S), setas = comp.setas; this.nota = '';
+    var posB = DM.posicoesDepois(topo.S, r.S, topo.pos, this._embaixo(this.forma)), desc = this._descrever(topo.S, r.S), setas = comp.setas; this.nota = '';
     if (comp.adicionadas.length) { var tf = comp.adicionadas.length === 1 ? '1 farpa completada' : comp.adicionadas.length + ' farpas completadas'; desc.linhas.unshift([tf]); desc.itens.unshift(tf); }   // as tracejadas
     this.msg = ''; this.setas = [];
-    this._animar({ antes: topo.S, depois: r.S, posA: topo.pos, posB: posB, setas: setas, uma: false, aoFim: function () {
+    /* NO CELULAR o botão mora na gaveta de baixo, que cobre a cena: ela se recolhe, e as setas começam 2 s depois —
+       o tempo de a gaveta descer e de o aluno ver as setas que desenhou antes de os elétrons andarem (o mesmo
+       intervalo da largada de um modo). No computador a cena está à vista: começa na hora. */
+    var espera = this._recolherGaveta() ? 2000 : 0;
+    if (espera) announce('A gaveta se recolheu. As setas começam em 2 segundos.');
+    this._animar({ antes: topo.S, depois: r.S, posA: topo.pos, posB: posB, setas: setas, uma: false, espera: espera, aoFim: function () {
       this.hist.push({ S: r.S, pos: posB, desc: desc });
       announce('Passo ' + (this.hist.length - 1) + ': ' + desc.itens.join('; ') + '.' + (desc.estavel ? ' Estado estável.' : ''));
     } });

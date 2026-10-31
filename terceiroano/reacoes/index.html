@@ -399,6 +399,7 @@
   <script src="js/render/desenho-molecula.js"></script>
   <script src="js/render/desenho-mecanismo.js"></script>
   <script src="js/ui/kit-desenho.js"></script>
+  <script src="js/ui/moldura-cena.js"></script>
   <script src="js/simulation/modulo-mecanismo.js"></script>
   <script src="js/simulation/modulo-combustao.js"></script>
   <script src="js/simulation/mecanica.js"></script>
@@ -424,7 +425,7 @@
 // instala de verdade uma vez, então repetir isso em cada página é seguro.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('../sw.js')
+    navigator.serviceWorker.register('../../sw.js')
       .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
   });
 }

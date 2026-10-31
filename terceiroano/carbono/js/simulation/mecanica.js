@@ -115,7 +115,9 @@ class Mech {
   getOverlay() { return this._ativo().overlay(); }
 
   /* O que mora no painel Resultados além da lista (cada módulo implementa se tiver):
-     o próximo passo, em texto, e um gráfico no canvas auxiliar #result-chart. */
+     o retorno (a explicação do último passo, { tipo, texto }), o próximo passo, em texto,
+     e um gráfico no canvas auxiliar #result-chart. */
+  getFeedback() { const m = this._ativo(); return typeof m.retorno === 'function' ? m.retorno() : null; }
   getNext() { const m = this._ativo(); return typeof m.proximoPasso === 'function' ? m.proximoPasso() : ''; }
   drawResultChart(ctx, w, h) { const m = this._ativo(); return typeof m.graficoResultado === 'function' ? m.graficoResultado(ctx, w, h) : false; }
 }

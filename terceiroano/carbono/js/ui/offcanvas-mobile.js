@@ -91,7 +91,10 @@ document.addEventListener('DOMContentLoaded', function () {
   targets.forEach(function (cfg) {
     var el = document.getElementById(cfg.id);
     if (!el) return;
-    if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+    /* A alça (absoluta) precisa de um pai posicionado — isso agora vem do CSS (.sidebar { position: relative }).
+       Antes o script gravava position:relative INLINE quando a página abria no computador, e o inline vencia o
+       CSS do celular: ao virar celular sem recarregar (tablet girado, modo dispositivo do DevTools), a gaveta
+       de baixo deixava de ser fixa, entrava no fluxo ao lado do canvas, ficava mais larga que a tela e subia. */
 
     var storeKey = 'carbono-w-' + cfg.cssVar.replace(/^--/, '');
     try {

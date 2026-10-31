@@ -12,9 +12,11 @@
 
    PREVER → REVELAR (painel Prioridades): numa dupla, "tem isomeria?",
    a prioridade em cada carbono, E/Z e cis/trans; num carbono, "é quiral?",
-   a ordem 1→4 e R/S. A revelação marca cada item (igual/diferente) e abre
-   a árvore ESFERA POR ESFERA: os átomos da esfera se acendem na estrutura,
-   com os conjuntos — (O,C,H) × (C,C,H) — ao lado de cada ligante.
+   a ordem 1→4 e R/S. A revelação vai para RESULTADOS (a cena fica só com
+   o desenho): no retorno, a explicação; logo abaixo, a conferência item
+   por item (igual/diferente), a prioridade com um ponto na cor de cada
+   ligante e a árvore ESFERA POR ESFERA, com os conjuntos — (O,C,H) ×
+   (C,C,H). Na estrutura, os átomos da esfera se acendem nessas cores.
 
    O GIRO DA DUPLA: arrastar uma ponta gira aquela metade contra uma
    resistência crescente (a ligação π — a 2ª linha — some com cos²θ).
@@ -22,7 +24,11 @@
    troca dá a MESMA molécula, a dupla não tem isomeria geométrica.
 
    A VISTA 3D do carbono quiral: o aluno gira até o ligante 4 ficar atrás;
-   revelado, a seta 1→2→3 aparece.
+   revelado, cada ligante ganha a cor da sua prioridade e a seta 1→2→3
+   aparece (os números estão na linha Ordem dos Resultados, com as cores).
+
+   O GIRO E O LABORATÓRIO respondem no retorno dos Resultados ("a mesma
+   molécula", "E virou Z"), até o aluno escolher outra coisa.
 
    O LABORATÓRIO: trocar um ligante sem mexer na geometria (o E pode virar
    Z) e trocar dois ligantes de lugar num carbono quiral (R vira S).
@@ -63,7 +69,7 @@ var BG_PALETA = [['H', 'H'], ['CH₃', 'C'], ['C₂H₅', 'CC'], ['OH', 'O'], ['
 class BancadaGeometrica extends BancadaIsomeria {
   reiniciar(inicio) {
     this.unid = null; this.esfera = 0; this.arr = null; this.rot3d = { M: R3.mul(R3.rx(0.35), R3.ry(0.5)), vx: 0, vy: 0, anim: null }; this.arr3d = null;
-    this.lab = null; this._estudo = null; this._arrastou = false;
+    this.lab = null; this._estudo = null; this._arrastou = false; this._evento = null;
     super.reiniciar(inicio);
     if (!inicio) this._montarPrioridades();
   }
@@ -118,11 +124,11 @@ class BancadaGeometrica extends BancadaIsomeria {
   static chave(u) { return u.tipo === 'dupla' ? 'd:' + [u.a, u.b].sort().join('-') : 'c:' + u.c; }
   _estudoEspaco() { return this.sel.length === 1 ? this.espacos[this.sel[0]] : null; }
   _unidade() { var e = this._estudoEspaco(); if (!e || !this.unid) return null; return e.und.filter(function (u) { return BancadaGeometrica.chave(u) === this.unid; }, this)[0] || null; }
-  _mudouSelecao() { this.unid = null; this.lab = null; this.esfera = 0; super._mudouSelecao(); this._montarPrioridades(); }
+  _mudouSelecao() { this.unid = null; this.lab = null; this.esfera = 0; this._evento = null; super._mudouSelecao(); this._montarPrioridades(); }
 
   selecionarUnidade(k) {
     var e = this._estudoEspaco(); if (!e) return false;
-    this.unid = k; this.esfera = 0; this.lab = null;
+    this.unid = k; this.esfera = 0; this.lab = null; this._evento = null;
     var u = this._unidade();
     if (!e.prev[k]) e.prev[k] = { tem: null, ordem: [], topo: [null, null], desc: null, ct: null };
     announce(u.tipo === 'dupla' ? 'Dupla escolhida. Preveja: tem isomeria geométrica?' : 'Carbono escolhido. Preveja: ele é quiral?');
@@ -140,7 +146,7 @@ class BancadaGeometrica extends BancadaIsomeria {
     var e = this._estudoEspaco(), u = this._unidade(); if (!e || !u) return false;
     var k = this.unid, p = e.prev[k];
     if (!this._completa(u, p)) { announce('Complete a previsão antes de revelar.'); return false; }
-    e.revelado[k] = true; this.esfera = 0;
+    e.revelado[k] = true; this.esfera = 0; this._evento = null;
     this._recalcular(e);
     playTone(660, .08, .04);
     announce(this._textoRevelacao(e, u).replace(/<[^>]+>/g, ''));
@@ -175,8 +181,9 @@ class BancadaGeometrica extends BancadaIsomeria {
     Q3.Estereo.refletirLado(e.g, e.pos, a.fixo, a.gira);
     this._recalcular(e);
     var u2 = e.und.filter(function (x) { return BancadaGeometrica.chave(x) === BancadaGeometrica.chave(a.u); })[0];
-    if (e.canonica === antes) announce('A mesma molécula: girar esta ponta não muda nada — um dos carbonos da dupla tem dois ligantes iguais.');
-    else announce('A outra configuração' + (e.revelado[BancadaGeometrica.chave(a.u)] && u2 ? ': ' + dAntes + ' virou ' + (this._descDe(e, u2) || {}).d + '.' : '.') + ' Para voltar, a ligação π teria de se romper de novo.');
+    var txt = e.canonica === antes ? 'A mesma molécula: girar esta ponta não muda nada — um dos carbonos da dupla tem dois ligantes iguais.'
+      : 'A outra configuração' + (e.revelado[BancadaGeometrica.chave(a.u)] && u2 ? ': ' + dAntes + ' virou ' + (this._descDe(e, u2) || {}).d + '.' : '.') + ' Para voltar, a ligação π teria de se romper de novo.';
+    this._evento = { tipo: 'info', texto: 'Giro da dupla. ' + txt }; announce(txt);
     this._montarPrioridades();
   }
   _ligarArrasto() {
@@ -222,7 +229,7 @@ class BancadaGeometrica extends BancadaIsomeria {
           self.rot3d.vx = self.rot3d.vy = 0;
         } else if (performance.now() - a3.t > 90) { self.rot3d.vx = self.rot3d.vy = 0; }   // parou antes de soltar: sem inércia
         return;
-      } if (self.arr && !self.arr.solto) { self.arr.solto = true; if (self.arr.theta < 90 && self.arr.theta > 5) announce('Voltou: antes de 90°, a ligação π puxa a estrutura de volta.'); } };
+      } if (self.arr && !self.arr.solto) { self.arr.solto = true; if (self.arr.theta < 90 && self.arr.theta > 5) { var v = 'Voltou: antes de 90°, a ligação π puxa a estrutura de volta.'; self._evento = { tipo: 'info', texto: 'Giro da dupla. ' + v }; announce(v); } } };
     cv.addEventListener('pointerup', soltar); cv.addEventListener('pointercancel', soltar);
   }
 
@@ -266,7 +273,9 @@ class BancadaGeometrica extends BancadaIsomeria {
     var u2 = e.und.filter(function (x) { return BancadaGeometrica.chave(x) === this.unid; }, this)[0];
     this.lab.lig = null;
     if (u2) this.lab.ligs = this._ligantesLab(e, u2); else { this.lab = null; this.unid = null; }   // a lista antiga apontava para o ligante trocado
-    announce('Ligante trocado. ' + (u2 && u2.estereogenica ? 'Agora: ' + (this._descDe(e, u2) || {}).d + (dAntes && dAntes !== (this._descDe(e, u2) || {}).d ? ' (antes: ' + dAntes + '), sem mexer na geometria.' : '.') : 'Esta unidade deixou de ser estereogênica.'));
+    var dDepois = u2 ? (this._descDe(e, u2) || {}).d : null;
+    var txt = 'Ligante trocado. ' + (u2 && u2.estereogenica ? 'Agora: ' + dDepois + (dAntes && dAntes !== dDepois ? ' (antes: ' + dAntes + '), sem mexer na geometria: mudou a prioridade, não a posição.' : '.') : 'Esta unidade deixou de ser estereogênica.');
+    this._evento = { tipo: 'info', texto: 'Laboratório. ' + txt }; announce(txt);
     this._montarPrioridades();
     return true;
   }
@@ -284,7 +293,8 @@ class BancadaGeometrica extends BancadaIsomeria {
     this._recalcular(e);
     this.lab.par = [];
     var u3 = e.und.filter(function (x) { return BancadaGeometrica.chave(x) === this.unid; }, this)[0]; if (u3) this.lab.ligs = this._ligantesLab(e, u3);
-    announce('Dois ligantes trocaram de lugar: ' + dAntes + ' virou ' + (this._descDe(e, u) || {}).d + '. Trocar dois ligantes quaisquer sempre inverte a configuração.');
+    var txt = 'Dois ligantes trocaram de lugar: ' + dAntes + ' virou ' + (this._descDe(e, u) || {}).d + '. Trocar dois ligantes quaisquer sempre inverte a configuração.';
+    this._evento = { tipo: 'info', texto: 'Laboratório. ' + txt }; announce(txt);
     this._montarPrioridades();
     return true;
   }
@@ -314,8 +324,8 @@ class BancadaGeometrica extends BancadaIsomeria {
     if (nome === 'bg-revelar') return this.revelar();
     if (nome === 'bg-padrao3d') return u && u.tipo === 'centro' ? this._mandarParaTras(3, 0) : false;
     if (nome === 'bg-soltar') { this.sel = []; this._mudouSelecao(); return true; }
-    if (nome === 'bg-outra') { this.unid = null; this.lab = null; this._montarPrioridades(); return true; }
-    if (nome === 'bg-esfera+' || nome === 'bg-esfera-') { var max = u ? Q3.Estereo.rastro(this._ligs(u)[0]).esferas.length - 1 : 0; this.esfera = Math.max(0, Math.min(max, this.esfera + (nome === 'bg-esfera+' ? 1 : -1))); this._montarPrioridades(); return true; }
+    if (nome === 'bg-outra') { this.unid = null; this.lab = null; this._evento = null; this._montarPrioridades(); return true; }
+    if (nome === 'bg-esfera+' || nome === 'bg-esfera-') { var max = u ? this._nEsferas(u) - 1 : 0; this.esfera = Math.max(0, Math.min(max, this.esfera + (nome === 'bg-esfera+' ? 1 : -1))); this._montarPrioridades(); announce('Esfera ' + (this.esfera + 1) + ' de ' + (max + 1) + '.'); return true; }
     if (nome === 'bg-lab' || nome === 'bg-lugar') {
       if (!u) return false;
       if (this.lab && this.lab.modo === (nome === 'bg-lab' ? 'trocar' : 'lugar')) { this.lab = null; this._montarPrioridades(); return true; }
@@ -340,9 +350,10 @@ class BancadaGeometrica extends BancadaIsomeria {
       var inv = function (e) { return Q3.Estereo.assinatura(e.g, e.desc.map(function (d) { return { u: d.u, tipo: d.tipo, d: d.d === 'R' ? 'S' : d.d === 'S' ? 'R' : d.d }; })); };
       var soDuplas = A.desc.every(function (d, i) { return d.tipo !== 'centro'; }) && B.desc.every(function (d) { return d.tipo !== 'centro'; });
       var anelCT = A.ct.some(function (c) { return c.anel; });
-      if (inv(A) === B.canonica) r = { veredito: 'isomeros', subtipo: 'enantiômeros', titulo: 'Enantiômeros', texto: 'Um é a imagem especular do outro, e não se sobrepõem: todos os carbonos quirais têm a configuração invertida (R ⇄ S).' };
-      else if (soDuplas || anelCT) r = { veredito: 'isomeros', subtipo: 'geométrica', titulo: 'Isômeros geométricos', texto: 'Mesmas ligações, com os ligantes ' + (soDuplas ? 'da dupla' : 'do anel') + ' em lados diferentes (cis × trans; E × Z). Um não vira o outro sem romper a ligação π' + (soDuplas ? '' : ' ou o anel') + '.' };
-      else r = { veredito: 'isomeros', subtipo: 'diastereoisômeros', titulo: 'Diastereoisômeros', texto: 'Estereoisômeros que não são imagens especulares: só parte das unidades tem a configuração invertida.' };
+      // o texto começa pelo nome do veredito, como os do Módulo 1 ("Isômeros de cadeia: …"): ele é o retorno dos Resultados
+      if (inv(A) === B.canonica) r = { veredito: 'isomeros', subtipo: 'enantiômeros', titulo: 'Enantiômeros', texto: 'Enantiômeros: um é a imagem especular do outro, e eles não se sobrepõem. Todos os carbonos quirais têm a configuração invertida (R ⇄ S).' };
+      else if (soDuplas || anelCT) r = { veredito: 'isomeros', subtipo: 'geométrica', titulo: 'Isômeros geométricos', texto: 'Isômeros geométricos: mesmas ligações, com os ligantes ' + (soDuplas ? 'da dupla' : 'do anel') + ' em lados diferentes (cis × trans; E × Z). Um não vira o outro sem romper a ligação π' + (soDuplas ? '' : ' ou o anel') + '.' };
+      else r = { veredito: 'isomeros', subtipo: 'diastereoisômeros', titulo: 'Diastereoisômeros', texto: 'Diastereoisômeros: estereoisômeros que não são imagens especulares; só parte das unidades tem a configuração invertida.' };
     }
     this.veredito = { r: r, a: this.sel[0], b: this.sel[1] };
     playTone(660, .08, .04); announce(r.texto);
@@ -373,9 +384,12 @@ class BancadaGeometrica extends BancadaIsomeria {
     var g = e.g, self = this, idx = this._cartaoAtual ? this._cartaoAtual.i : -1;
     var estudo = this.sel.length === 1 && this.sel[0] === idx;
     if (this._ehTres()) { this._desenhar3DCartao(ctx, e, a, P, this.vista); return; }     // espacial: só para ver (o arrasto gira)
-    // no carbono quiral, a vista 3D divide o espaço: ao lado (tela larga) ou embaixo (tela estreita)
-    var com3d = estudo && this._unidade() && this._unidade().tipo === 'centro', estreito = a.w < 520;
-    var area = !com3d ? a : estreito ? { x: a.x, y: a.y, w: a.w, h: a.h * 0.58 } : { x: a.x, y: a.y, w: a.w * 0.62, h: a.h };
+    /* no carbono quiral, a vista 3D divide o cartão: AO LADO quando ele é largo (a tela do computador, o celular
+       deitado — antes, num cartão largo e baixo ela ia para baixo e a estrutura ficava com meia altura), EMBAIXO
+       quando ele é alto (o celular em pé). A vista é um quadrado: ao lado, com a altura toda do cartão. */
+    var com3d = estudo && this._unidade() && this._unidade().tipo === 'centro', aoLado = a.w >= 520 || a.w >= a.h * 1.25;
+    var lado3 = aoLado ? Math.min(a.h, a.w * 0.36) : Math.min(a.w * 0.7, a.h * 0.38);
+    var area = !com3d ? a : aoLado ? { x: a.x, y: a.y, w: a.w - lado3 - 12, h: a.h } : { x: a.x, y: a.y, w: a.w, h: a.h - lado3 - 10 };
     // no estudo, a dupla escolhida fica na HORIZONTAL (girar no plano não muda E/Z nem R/S)
     var u0 = estudo ? this._unidade() : null, ang = u0 && u0.tipo === 'dupla' ? Math.atan2(e.pos[u0.b].y - e.pos[u0.a].y, e.pos[u0.b].x - e.pos[u0.a].x) : 0;
     var ca = Math.cos(-ang), sa = Math.sin(-ang);
@@ -388,7 +402,7 @@ class BancadaGeometrica extends BancadaIsomeria {
     };
     var u = estudo ? this._unidade() : null, rev = u && e.revelado[this.unid];
     var ehGiro = function (l) { return ar && ((l.a === ar.fixo && l.b === ar.gira) || (l.b === ar.fixo && l.a === ar.gira)); };
-    var r = this._desenharVista(ctx, e, area, P, { mini: false, cap: estudo ? 120 : 84, tf: tf, comEstereo: true, precisaH: true,
+    var r = this._desenharVista(ctx, e, area, P, { cap: estudo ? 120 : 84, tf: tf, comEstereo: true, precisaH: true,
       antes: function (T, HT, fonte) {                          // o realce da esfera (revelado), por baixo da molécula
         if (!(rev && (u.estereogenica || u.tipo === 'centro'))) return;
         self._ligs(u).forEach(function (ls) {
@@ -434,25 +448,11 @@ class BancadaGeometrica extends BancadaIsomeria {
         ctx.save(); ctx.strokeStyle = marc ? P.acento : biRgba(P.acento, 0.5); ctx.lineWidth = marc ? 3 : 1.5; ctx.beginPath(); ctx.arc(p.x, p.y, fonte * 1.2, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
       });
     }
-    // os conjuntos da esfera, ao lado de cada ligante (revelado)
-    if (rev && u.estereogenica) {
-      this._ligs(u).forEach(function (ls, kk) {
-        var rs = Q3.Estereo.rastro(ls), k = Math.min(self.esfera, rs.esferas.length - 1), centro = u.tipo === 'dupla' ? (kk ? u.b : u.a) : u.c, kH = 0;
-        ls.forEach(function (l, i) {
-          var p = posLig(centro, l, l.id ? 0 : kH++), c0 = T(centro);
-          var txt = (rs.esferas[k][i] || []).map(function (st) { return '(' + (st.length ? st.join(',') : '–') + ')'; }).join(' ');
-          var dx = p.x - c0.x, dy = p.y - c0.y, n = Math.hypot(dx, dy) || 1, lx = p.x + dx / n * 52, ly = p.y + dy / n * 34;
-          ctx.save(); ctx.font = '700 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          var w = ctx.measureText(txt).width + 12, cor = BG_CORES[u.tipo === 'dupla' ? i * 2 : i];
-          ctx.fillStyle = biRgba(P.fundo, 0.94); ctx.strokeStyle = cor; ctx.lineWidth = 1.5; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(lx - w / 2, ly - 11, w, 22, 7); else ctx.rect(lx - w / 2, ly - 11, w, 22); ctx.fill(); ctx.stroke();
-          ctx.fillStyle = P.texto; ctx.fillText(txt, lx, ly); ctx.restore();
-        });
-      });
-    }
-    if (u && u.tipo === 'centro') {                             // números e seta só num carbono QUIRAL revelado (sem ordem 1→4 com ligantes iguais)
+    /* os conjuntos de cada esfera — (O,C,H) × (C,C,H) — saíram da cena: estão em Resultados, cada um com um
+       ponto na cor do realce destes átomos (o realce, por baixo da molécula, é desenhado em antes()). */
+    if (u && u.tipo === 'centro') {                             // as cores e a seta só num carbono QUIRAL revelado (sem ordem 1→4 com ligantes iguais)
       rev = rev && u.estereogenica;
-      var lado3 = estreito ? Math.min(a.w * 0.7, a.h * 0.38) : Math.min(a.h * 0.72, a.w * 0.34);
-      this._vista3d(ctx, e, u, estreito ? { x: a.x + (a.w - lado3) / 2, y: a.y + a.h * 0.58, w: lado3, h: lado3 } : { x: a.x + a.w * 0.64, y: a.y + (a.h - lado3) / 2, w: lado3, h: lado3 }, P, rev);
+      this._vista3d(ctx, e, u, aoLado ? { x: a.x + a.w - lado3, y: a.y + (a.h - lado3) / 2, w: lado3, h: lado3 } : { x: a.x + (a.w - lado3) / 2, y: a.y + a.h - lado3, w: lado3, h: lado3 }, P, rev);
     }
   }
   _hImplicito(ctx, c, h, P, fonte, z) {
@@ -489,12 +489,14 @@ class BancadaGeometrica extends BancadaIsomeria {
     announce(Q3.Estereo.rotuloLigante(e.g, u.c, u.ligs[i], e.numeracao) + ' para trás' + (cima !== undefined ? ', ' + Q3.Estereo.rotuloLigante(e.g, u.c, u.ligs[cima], e.numeracao) + ' em cima.' : '.'));
     return true;
   }
-  /* a vista 3D do carbono: o centro e os 4 ligantes; gira com o arrasto. Revelado: os números e a seta 1→2→3 com o 4 atrás */
+  /* a vista 3D do carbono: o centro e os 4 ligantes (cada bola com o rótulo do ligante, como na estrutura); gira
+     com o arrasto. Revelado: a cor da prioridade em cada bola (a legenda, 1 a 4, está na linha Ordem dos
+     Resultados) e, com o 4 atrás, a seta 1→2→3 */
   _vista3d(ctx, e, u, r, P, rev) {
     var vs = Q3.Estereo.tetraedroIdeal(Q3.Estereo.vetores(e.g, e.pos, e.cunhas, u.c, u.ligs)), M3 = this.rot3d.M;   // o tetraedro regular (só para mostrar)
     this._estudo.w3d = r;
     var rot = function (v) { return R3.ap(M3, R3.un(v)); };
-    var cx = r.x + r.w / 2, cy = r.y + r.h / 2, R = Math.min(r.w, r.h) * 0.36;
+    var cx = r.x + r.w / 2, cy = r.y + r.h / 2, R = Math.min(r.w, r.h) * 0.36, fonte3 = Math.max(8.5, Math.min(11, R * 0.24));   // a letra acompanha a vista
     ctx.save(); ctx.fillStyle = biRgba(P.fundo, 0.7); ctx.strokeStyle = biRgba(P.suave, 0.45); ctx.lineWidth = 1; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(r.x, r.y, r.w, r.h, 10); else ctx.rect(r.x, r.y, r.w, r.h); ctx.fill(); ctx.stroke();
     var pts = vs.map(function (v, i) { var q = rot(v); return { i: i, x: cx + q[0] * R, y: cy - q[1] * R, z: q[2], rot: Q3.Estereo.rotuloLigante(e.g, u.c, u.ligs[i], e.numeracao, true) }; });
     this._estudo.bolas3d = pts.map(function (q) { return { i: q.i, x: q.x, y: q.y, r: 13 + 4 * q.z }; });
@@ -504,8 +506,7 @@ class BancadaGeometrica extends BancadaIsomeria {
       ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.setLineDash([]);
       var rb = 13 + 4 * p.z, cor = rev ? BG_CORES[p.i] : P.suave;
       ctx.fillStyle = biRgba(cor, 0.35 + 0.45 * (p.z + 1) / 2); ctx.beginPath(); ctx.arc(p.x, p.y, rb, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = P.texto; ctx.font = '700 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(rev ? String(p.i + 1) : p.rot, p.x, p.y);
-      if (rev) { ctx.font = '600 9.5px system-ui, sans-serif'; ctx.fillStyle = P.suave; ctx.fillText(p.rot, p.x, p.y + rb + 8); }
+      ctx.fillStyle = P.texto; ctx.font = '700 ' + fonte3 + 'px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.rot, p.x, p.y);
       if (p.i === 0 || p.i === 1) { ctx.fillStyle = P.texto; ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill(); }
     });
     if (rev && pts[3].z < -0.55) {                         // o 4 está atrás: a seta 1 → 2 → 3
@@ -534,8 +535,8 @@ class BancadaGeometrica extends BancadaIsomeria {
     if (!rev) {
       h += '<p class="ctrl-label">' + (u.tipo === 'dupla' ? 'Isomeria geométrica?' : 'Carbono quiral?') + '</p><div class="bg-grupo">' + esc('tem', '1', 'Sim', p.tem === true) + esc('tem', '0', 'Não', p.tem === false) + '</div>';
       if (p.tem === true && u.tipo === 'dupla') {
-        h += '<p class="ctrl-label">Prioridade em cada carbono</p>';
-        [0, 1].forEach(function (kk) { h += '<div class="bg-grupo">' + rotulos[kk].map(function (t, i) { return esc('topo' + kk, String(i), t, p.topo[kk] === i); }).join('') + '</div>'; });
+        // no estudo a dupla fica na horizontal: o 1º carbono dela (u.a) à esquerda, o 2º (u.b) à direita
+        ['esquerda', 'direita'].forEach(function (lado, kk) { h += '<p class="ctrl-label">Prioridade no carbono da ' + lado + '</p><div class="bg-grupo">' + rotulos[kk].map(function (t, i) { return esc('topo' + kk, String(i), t, p.topo[kk] === i); }).join('') + '</div>'; });
         h += '<p class="ctrl-label">Configuração</p><div class="bg-grupo">' + esc('desc', 'E', 'E', p.desc === 'E') + esc('desc', 'Z', 'Z', p.desc === 'Z') + '</div>';
         h += '<p class="ctrl-label">cis/trans</p><div class="bg-grupo">' + esc('ct', 'cis', 'cis', p.ct === 'cis') + esc('ct', 'trans', 'trans', p.ct === 'trans') + esc('ct', 'na', 'não se aplica', p.ct === 'na') + '</div>';
       }
@@ -545,25 +546,10 @@ class BancadaGeometrica extends BancadaIsomeria {
       }
       h += '<div class="action-row">' + btn('bg-revelar', 'Revelar', ' is-primario') + '</div><div class="action-row">' + btn('bg-outra', 'Outra unidade') + btn('bg-soltar', 'Voltar à bancada') + '</div>';
     } else {
-      // a comparação da previsão (igual / diferente), a árvore e o descritor
-      var linhas = [], marca = function (ok) { return ok ? '<span class="bg-igual">igual</span>' : '<span class="bg-dif">diferente</span>'; };
-      linhas.push('Isomeria: ' + (u.estereogenica ? 'sim' : 'não') + ' ' + marca(p.tem === !!u.estereogenica));
-      if (u.estereogenica && p.tem === true) {
-        var d2 = this._descDe(e, u);
-        if (u.tipo === 'dupla') { [0, 1].forEach(function (kk) { linhas.push('Prioridade no ' + (kk + 1) + 'º carbono: ' + rotulos[kk][0] + ' ' + marca(p.topo[kk] === 0)); }); var ct2 = this._ctDe(e, u); linhas.push('cis/trans: ' + (ct2 ? ct2.d : 'não se aplica') + ' ' + marca((ct2 ? ct2.d : 'na') === p.ct)); }
-        else linhas.push('Ordem: ' + rotulos[0].map(function (t, i) { return (i + 1) + ' ' + t; }).join(', ') + ' ' + marca(p.ordem.join() === '0,1,2,3'));
-        linhas.push('Configuração: ' + d2.d + ' ' + marca(p.desc === d2.d));
-      }
-      h += '<ul class="bg-conferencia">' + linhas.map(function (l) { return '<li>' + l + '</li>'; }).join('') + '</ul>';
+      // revelado: a conferência, a prioridade e as esferas estão em Resultados; aqui ficam os controles da leitura
       if (u.estereogenica) {
-        var rs = Q3.Estereo.rastro(ligs[0]), kE = Math.min(this.esfera, rs.esferas.length - 1);
-        h += '<p class="ctrl-label">Esfera por esfera (CIP)</p><ol class="bg-esferas">';
-        ligs.forEach(function (ls, kk) {
-          var r2 = Q3.Estereo.rastro(ls), kx = Math.min(self.esfera, r2.esferas.length - 1);
-          h += '<li>' + (ligs.length > 1 ? (kk + 1) + 'º carbono — ' : '') + 'esfera ' + (kx + 1) + ': ' + ls.map(function (l, i) { return rotulos[kk][i] + ' ' + (r2.esferas[kx][i] || []).map(function (st) { return '(' + (st.length ? st.join(',') : '–') + ')'; }).join(''); }).join(' × ') +
-               (r2.decisao.map(function (dd, i) { return dd === kx ? ' → aqui ' + rotulos[kk][i] + ' > ' + rotulos[kk][i + 1] : ''; }).join('')) + '</li>';
-        });
-        h += '</ol><div class="action-row">' + btn('bg-esfera-', 'Esfera anterior') + btn('bg-esfera+', 'Próxima esfera') + '</div>';
+        var nE = this._nEsferas(u), kE = Math.min(this.esfera, nE - 1);
+        h += '<p class="ctrl-label">Esfera por esfera · ' + (kE + 1) + ' de ' + nE + '</p><div class="action-row">' + btn('bg-esfera-', 'Esfera anterior') + btn('bg-esfera+', 'Próxima esfera') + '</div>';
       }
       if (u.tipo === 'centro' && u.estereogenica) h += '<div class="action-row">' + btn('bg-padrao3d', 'Posição de leitura (4 atrás, 1 em cima)') + '</div>';
       h += '<div class="action-row">' + btn('bg-outra', 'Outra unidade') + btn('bg-soltar', 'Voltar à bancada') + '</div>';
@@ -571,7 +557,13 @@ class BancadaGeometrica extends BancadaIsomeria {
     box.innerHTML = h;
     this._montarLaboratorio();
     var bR = box.querySelector('[data-action="bg-revelar"]'); if (bR) bR.disabled = !this._completa(u, p);
+    if (rev && u.estereogenica) {             // nas pontas da árvore, o botão que não leva a lugar nenhum fica desligado
+      var b0 = box.querySelector('[data-action="bg-esfera-"]'), b1 = box.querySelector('[data-action="bg-esfera+"]'), nE2 = this._nEsferas(u);
+      if (b0) b0.disabled = this.esfera <= 0; if (b1) b1.disabled = this.esfera >= nE2 - 1;
+    }
   }
+  /* quantas esferas a árvore tem (a mais funda entre os carbonos da unidade) */
+  _nEsferas(u) { return Math.max.apply(null, this._ligs(u).map(function (ls) { return Q3.Estereo.rastro(ls).esferas.length; })); }
   /* ══ O PAINEL LABORATÓRIO (separado da previsão) ══════════════ */
   _montarLaboratorio() {
     var box = document.getElementById('bg-laboratorio'); if (!box) return;
@@ -610,6 +602,126 @@ class BancadaGeometrica extends BancadaIsomeria {
     });
   }
   _sincronizarPainel() { super._sincronizarPainel(); }
-  mudarVista(v) { var ok = super.mudarVista(v); this.arr = null; this._montarPrioridades(); return ok; }
-  overlay() { return this.fonte === 'desenhar' ? 'Geométrica · desenho' : 'Geométrica'; }
+  mudarVista(v) { var ok = super.mudarVista(v); this.arr = null; this._evento = null; this._montarPrioridades(); return ok; }
+
+  /* o cartão em estudo tem sempre a representação inteira: os alvos de toque (as duplas, os carbonos) moram nela */
+  _detalhado(e, a, i) { return (this.sel.length === 1 && this.sel[0] === i) || super._detalhado(e, a, i); }
+
+  /* ══ OS RESULTADOS DO ESTUDO ═══════════════════════════════════
+     O que a revelação ensina mora aqui, e não na cena: a conferência item por item, a prioridade com um ponto
+     na cor de cada ligante (a mesma do realce na estrutura e das bolas da vista 3D) e a árvore esfera por
+     esfera. A cena só acende os átomos da esfera, nessas cores. */
+  _rotulosDe(e, u) { return this._ligs(u).map(function (ls, kk) { var c = u.tipo === 'dupla' ? (kk ? u.b : u.a) : u.c; return ls.map(function (l) { return Q3.Estereo.rotuloLigante(e.g, c, l, e.numeracao); }); }); }
+  _corLig(u, i) { return BG_CORES[u.tipo === 'dupla' ? i * 2 : i]; }
+  /* os itens da previsão, com a resposta: ok = igual (true), diferente (false) ou não previsto (null: o aluno
+     disse que não havia isomeria, e o resto não se compara) */
+  _conferencia(e, u) {
+    var p = e.prev[BancadaGeometrica.chave(u)] || { tem: null, ordem: [], topo: [null, null] }, rot = this._rotulosDe(e, u), self = this, it = [], previu = p.tem === true;
+    var esc = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+    var ponto = function (i) { return '<span class="bg-cor" style="--c:' + self._corLig(u, i) + '" aria-hidden="true"></span>'; };
+    it.push({ html: (u.tipo === 'dupla' ? 'Isomeria geométrica' : 'Carbono quiral') + ': <strong>' + (u.estereogenica ? 'sim' : 'não') + '</strong>', ok: p.tem === !!u.estereogenica });
+    if (u.estereogenica) {
+      var d = this._descDe(e, u);
+      if (u.tipo === 'dupla') {
+        ['esquerda', 'direita'].forEach(function (lado, kk) { it.push({ html: 'Carbono da ' + lado + ': ' + ponto(0) + esc(rot[kk][0]) + ' &gt; ' + ponto(1) + esc(rot[kk][1]), ok: previu ? p.topo[kk] === 0 : null }); });
+        var ct = this._ctDe(e, u);
+        it.push({ html: 'cis/trans: <strong>' + (ct ? ct.d : 'não se aplica') + '</strong>', ok: previu ? (ct ? ct.d : 'na') === p.ct : null });
+      } else it.push({ html: 'Ordem: ' + rot[0].map(function (t, i) { return '<span class="bg-ord">' + ponto(i) + '<strong>' + (i + 1) + '</strong> ' + esc(t) + '</span>'; }).join(' '), ok: previu ? p.ordem.join() === '0,1,2,3' : null });
+      var dd = d ? d.d : '—';
+      it.push({ html: 'Configuração: <strong>' + dd + '</strong>', ok: previu ? p.desc === dd : null });
+    }
+    return it;
+  }
+  _htmlEstudo() {
+    var e = this._estudoEspaco(), u = this._unidade();
+    if (!e || !u || this._ehTres() || !e.revelado[this.unid]) return '';
+    var self = this, rot = this._rotulosDe(e, u), ligs = this._ligs(u);
+    var esc = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+    var ponto = function (i) { return '<span class="bg-cor" style="--c:' + self._corLig(u, i) + '" aria-hidden="true"></span>'; };
+    var marca = function (ok) { return ok === true ? ' <span class="bg-igual">igual</span>' : ok === false ? ' <span class="bg-dif">diferente</span>' : ''; };
+    var h = '<p class="ctrl-label">Conferência da previsão</p><ul class="bg-conferencia">' +
+      this._conferencia(e, u).map(function (x) { return '<li>' + x.html + marca(x.ok) + '</li>'; }).join('') + '</ul>';
+    if (u.estereogenica) {
+      var nE = this._nEsferas(u), kE = Math.min(this.esfera, nE - 1);
+      h += '<p class="ctrl-label">Esfera ' + (kE + 1) + ' de ' + nE + ' (regra CIP)</p><ul class="bg-esferas">';
+      ligs.forEach(function (ls, kk) {
+        var r2 = Q3.Estereo.rastro(ls), kx = Math.min(self.esfera, r2.esferas.length - 1);
+        var partes = ls.map(function (l, i) { return '<span class="bg-ord">' + ponto(i) + esc(rot[kk][i]) + ' ' + (r2.esferas[kx][i] || []).map(function (st) { return '(' + (st.length ? st.join(',') : '–') + ')'; }).join('') + '</span>'; });
+        var decide = r2.decisao.map(function (dd, i) { return dd === kx ? esc(rot[kk][i]) + ' &gt; ' + esc(rot[kk][i + 1]) : ''; }).filter(Boolean);
+        h += '<li>' + (ligs.length > 1 ? '<span class="bg-lado">' + (kk ? 'Direita' : 'Esquerda') + (kx !== kE ? ' (esfera ' + (kx + 1) + ', a última)' : '') + ':</span> ' : '') + partes.join(' × ') +
+             (decide.length ? ' <span class="bg-decide">→ aqui: ' + decide.join('; ') + '</span>' : '') + '</li>';
+      });
+      h += '</ul>';
+    }
+    return h;
+  }
+  sincronizarResultado(mostrar) {
+    var box = document.getElementById('bg-resultado'); if (!box) return;
+    var html = mostrar && this.fonte !== 'desenhar' ? this._htmlEstudo() : '';
+    if (html !== this._htmlRes) { this._htmlRes = html; box.innerHTML = html; }   // o painel se refaz ~8×/s: só troca o que mudou
+    box.hidden = !html;
+  }
+
+  /* O RETORNO: o veredito do Comparar; senão, o último giro ou troca do laboratório; senão, a revelação */
+  retorno() {
+    if (this.fonte === 'desenhar') return null;
+    if (this.veredito) return super.retorno();
+    if (this._evento) return this._evento;
+    var e = this._estudoEspaco(), u = this._unidade();
+    if (!e || !u || this._ehTres() || !e.revelado[this.unid]) return null;
+    var dif = this._conferencia(e, u).filter(function (x) { return x.ok === false; }).length;
+    return { tipo: dif ? 'erro' : 'ok', texto: (dif ? 'A previsão difere em ' + dif + (dif === 1 ? ' item' : ' itens') + ' (a conferência vem logo abaixo). ' : 'Previsão certa. ') + this._textoRevelacao(e, u).replace(/<[^>]+>/g, '') };
+  }
+
+  proximoPasso() {
+    if (this.fonte === 'desenhar' || this.sel.length === 2) return super.proximoPasso();
+    var n = this.espacos.filter(Boolean).length;
+    if (!n) return 'Comece pela Bancada: digite uma fórmula molecular (por exemplo, C4H8 ou C4H9Cl) e gere os isômeros, ou ponha uma estrutura sua.';
+    if (!this.sel.length) return 'Toque num cartão para estudar a estrutura; toque em dois para compará-los.';
+    var e = this._estudoEspaco();
+    if (!e) return 'Este espaço está livre: ponha uma estrutura nele pela Bancada, ou toque noutro cartão.';
+    if (this._ehTres()) return 'Nas vistas espaciais a estrutura é só para ver: arraste o cartão para girá-la. Para estudar, escolha uma vista plana em Representação.';
+    var u = this._unidade();
+    if (!u) return e.und.length ? 'Toque numa dupla ou num carbono da estrutura (os contornos tracejados) para investigar. Ou toque noutro cartão da doca: ele vira a B, para comparar.' : 'Esta estrutura não tem dupla nem carbono para estudar: toque noutro cartão.';
+    if (this.lab) {
+      if (this.lab.modo === 'trocar') return this.lab.lig == null ? 'Laboratório: toque num ligante da estrutura (os círculos).' : 'Escolha o novo ligante no card Laboratório.';
+      return this.lab.par.length ? 'Toque no segundo ligante.' : 'Laboratório: toque em dois ligantes do carbono para trocá-los de lugar.';
+    }
+    var p = e.prev[this.unid], rev = e.revelado[this.unid];
+    if (!rev) {
+      if (p.tem === null) return 'Preveja em Prioridades: ' + (u.tipo === 'dupla' ? 'esta dupla tem isomeria geométrica?' : 'este carbono é quiral?');
+      if (!this._completa(u, p)) {
+        var f = [];
+        if (u.tipo === 'dupla') { if (p.topo[0] === null) f.push('a prioridade no carbono da esquerda'); if (p.topo[1] === null) f.push('a da direita'); if (!p.desc) f.push('E ou Z'); if (!p.ct) f.push('cis, trans ou não se aplica'); }
+        else { if (p.ordem.length < 4) f.push('a ordem de 1 a 4 (toque nos ligantes, do 1 ao 4)'); if (!p.desc) f.push('R ou S'); }
+        return 'Falta prever, em Prioridades: ' + (f.length > 1 ? f.slice(0, -1).join(', ') + ' e ' + f[f.length - 1] : f[0]) + '.';
+      }
+      return 'Previsão completa: toque em Revelar, em Prioridades.';
+    }
+    if (!u.estereogenica) return u.tipo === 'dupla' ? 'Arraste uma ponta da dupla para girá-la: dá a mesma molécula. Depois, toque noutra dupla ou num carbono.' : 'Toque noutro carbono ou numa dupla — ou troque um ligante no Laboratório e veja se o carbono fica quiral.';
+    if (u.tipo === 'centro') return 'Gire a vista 3D até o ligante 4 ficar atrás (ou toque em Posição de leitura) e siga 1 → 2 → 3. Avance as esferas em Prioridades para ver como a ordem foi decidida.';
+    return 'Avance as esferas em Prioridades para ver como a prioridade foi decidida. Arraste uma ponta da dupla para girá-la e trocar a configuração.';
+  }
+
+  resultados() {
+    var l = super.resultados(), e = this._estudoEspaco(), u = this._unidade();
+    if (e && u && !this._ehTres() && this.fonte !== 'desenhar') {
+      var num = e.numeracao, loc = function (id) { return num && num[id] ? 'C' + num[id] : ''; };
+      l.push({ l: 'Em estudo', v: u.tipo === 'dupla' ? 'ligação dupla' + (loc(u.a) && loc(u.b) ? ' ' + loc(u.a) + '=' + loc(u.b) : '') : 'carbono' + (loc(u.c) ? ' ' + loc(u.c) : '') });
+      if (e.revelado[this.unid]) {
+        var d = this._descDe(e, u), ct = this._ctDe(e, u);
+        l.push({ l: 'Configuração', v: !u.estereogenica ? (u.tipo === 'dupla' ? 'sem isomeria geométrica' : 'não é quiral') : (d ? d.d : '—') + (ct ? ' · ' + ct.d : ''), cls: 'val-texto' });
+      }
+    }
+    return l;
+  }
+  overlay() {
+    if (this.fonte === 'desenhar' || this.veredito) return super.overlay();
+    var e = this._estudoEspaco(), u = this._unidade();
+    if (e && u && !this._ehTres()) {
+      var rev = e.revelado[this.unid], d = this._descDe(e, u);
+      return (u.tipo === 'dupla' ? 'dupla' : 'carbono') + ' · ' + (!rev ? 'prevendo' : u.estereogenica ? (d ? d.d : '—') : u.tipo === 'dupla' ? 'sem isomeria' : 'não quiral');
+    }
+    return super.overlay();
+  }
 }

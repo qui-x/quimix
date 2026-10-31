@@ -176,7 +176,10 @@
         </div>
       </section>
 
-      <section class="panel" id="panel-investigar" data-owner hidden aria-labelledby="hdr-inv">
+      <!-- data-rail-junto: no computador, com a barra recolhida, abrir este card pelo trilho traz os Resultados
+           logo abaixo, no mesmo card flutuante — o aluno pinta e revela aqui e lê ali o composto, a explicação
+           e o próximo passo (antes escritos no alto da cena). -->
+      <section class="panel" id="panel-investigar" data-owner hidden aria-labelledby="hdr-inv" data-rail-junto="panel-result">
         <button type="button" class="panel-header" id="hdr-inv" aria-expanded="true" aria-controls="body-inv">
           <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18.37 2.63 14 7l-1.59-1.59a2 2 0 0 0-2.82 0L8 7l9 9 1.59-1.59a2 2 0 0 0 0-2.82L17 10l4.37-4.37a2.12 2.12 0 1 0-3-3Z"/><path d="M9 8c-2 3-4 3.5-7 4l8 10c2-1 6-5 6-7"/></svg></span>
           <span class="panel-label">Investigar</span>
@@ -194,7 +197,6 @@
           <div class="action-row">
             <button type="button" class="action-btn" data-action="gf-limpar">Apagar a pintura</button>
           </div>
-          <p class="hint-text gf-retorno" id="gf-retorno"></p>
           </div>
           <div id="gf-grupo-livre" hidden>
             <p class="ctrl-label">Grupos na molécula</p>
@@ -241,7 +243,9 @@
         </div>
       </section>
 
-      <section class="panel" id="panel-nome" data-owner hidden aria-labelledby="hdr-nome">
+      <!-- data-rail-junto: no computador, com a barra recolhida, abrir este card pelo trilho traz os Resultados
+           logo abaixo, no mesmo card flutuante — o aluno monta o nome aqui e lê a conferência ali. -->
+      <section class="panel" id="panel-nome" data-owner hidden aria-labelledby="hdr-nome" data-rail-junto="panel-result">
         <button type="button" class="panel-header" id="hdr-nome" aria-expanded="true" aria-controls="body-nome">
           <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg></span>
           <span class="panel-label">Nome</span>
@@ -264,13 +268,14 @@
             <label class="nm-campo" data-contexto="N" hidden><span>Grupo no N</span><select data-peca="n1"><option value="">—</option><option value="metil">N-metil</option><option value="etil">N-etil</option><option value="propil">N-propil</option><option value="butil">N-butil</option></select></label><label class="nm-campo" data-contexto="N" hidden><span>outro no N</span><select data-peca="n2"><option value="">—</option><option value="metil">N-metil</option><option value="etil">N-etil</option><option value="propil">N-propil</option><option value="butil">N-butil</option></select></label>
           </div>
           <p class="hint-text" id="nm-previsao" aria-live="polite"></p>
-          <p class="hint-text nm-nome" id="nm-nome"></p>
           <div class="action-row"><button type="button" class="action-btn" data-action="nm-conferir">Conferir as previsões</button></div>
         </div>
       </section>
 
       <!-- ════════ MÓDULO 3 — PONTO DE EBULIÇÃO ════════ -->
-      <section class="panel" id="panel-trilha" data-owner hidden aria-labelledby="hdr-trilha">
+      <!-- data-rail-junto: no computador, com a barra recolhida, abrir a Trilha pelo trilho traz os Resultados logo
+           abaixo — a ficha da peça tocada (o nome e os dados, que a cena não escreve) e o retorno da conferência. -->
+      <section class="panel" id="panel-trilha" data-owner hidden aria-labelledby="hdr-trilha" data-rail-junto="panel-result">
         <button type="button" class="panel-header" id="hdr-trilha" aria-expanded="true" aria-controls="body-trilha">
           <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
           <span class="panel-label">Trilha</span>
@@ -319,7 +324,7 @@
         </div>
       </section>
 
-      <section class="panel" id="panel-nc-nome" data-owner hidden aria-labelledby="hdr-nc-nome">
+      <section class="panel" id="panel-nc-nome" data-owner hidden aria-labelledby="hdr-nc-nome" data-rail-junto="panel-result">
         <button type="button" class="panel-header" id="hdr-nc-nome" aria-expanded="true" aria-controls="body-nc-nome">
           <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"/><path d="M6 20V14h4v-4h4V6h4v14"/></svg></span>
           <span class="panel-label">Nome completo</span>
@@ -328,8 +333,6 @@
         <div class="panel-body" id="body-nc-nome" role="region" aria-labelledby="hdr-nc-nome">
           <div id="nc-construtor"></div>
           <p class="hint-text" id="nc-previsao" aria-live="polite"></p>
-          <p class="hint-text nm-nome" id="nc-nome"></p>
-          <p class="hint-text eb-fonte" id="nc-onde"></p>
           <div class="action-row"><button type="button" class="action-btn" data-action="nc-conferir">Conferir as previsões</button></div>
         </div>
       </section>
@@ -338,7 +341,9 @@
            Um único painel de CONTROLES: só o que o aluno muda. O que a
            cadeia É (os quatro critérios, a classe de cada carbono) mora em
            Resultados — calculado da estrutura, nunca repetido aqui. -->
-      <section class="panel" id="panel-construcao" data-owner hidden aria-labelledby="hdr-cons">
+      <!-- data-rail-junto: o editor (construção livre do M1, desenho do M2) diz em Resultados como usar a
+           ferramenta escolhida; no computador, os dois cards abrem juntos, como no SIQC. -->
+      <section class="panel" id="panel-construcao" data-owner hidden aria-labelledby="hdr-cons" data-rail-junto="panel-result">
         <button type="button" class="panel-header" id="hdr-cons" aria-expanded="true" aria-controls="body-cons">
           <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="16.5" r="2.2"/><circle cx="12" cy="7" r="2.2"/><circle cx="18.5" cy="16.5" r="2.2"/><path d="M6.8 14.6 10.7 8.9M13.3 8.9l3.9 5.7"/></svg></span>
           <span class="panel-label">Construção</span>
@@ -399,13 +404,24 @@
 
 
       <!-- ════════ RESULTADOS (sempre visível, independe do modo) ════════ -->
-      <section class="panel" aria-labelledby="hdr-result">
+      <section class="panel" id="panel-result" aria-labelledby="hdr-result">
         <button type="button" class="panel-header" id="hdr-result" aria-expanded="true" aria-controls="body-result">
           <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
           <span class="panel-label">Resultados</span>
           <span class="chevron" aria-hidden="true">▾</span>
         </button>
         <div class="panel-body" id="body-result" role="region" aria-labelledby="hdr-result">
+          <!-- o retorno do modo ativo: a resposta ao último passo do aluno (no M2 e no M4, a conferência) -->
+          <p class="result-retorno" id="result-retorno" hidden></p>
+          <!-- o próximo passo do modo ativo -->
+          <p class="result-next" id="result-next" hidden></p>
+          <!-- Prioridade de Funções: a escada das 14 funções (antes desenhada na cena, à esquerda). Vem antes da
+               ficha: é a consulta de quem monta o nome (o nome certo já está na Previsão, no card Nome completo).
+               Com o nome certo, os grupos do composto sobem aos seus degraus. Montada por nomeador-completo.js. -->
+          <figure class="result-escada-box" id="nc-escada-box" hidden>
+            <figcaption class="result-diagram-title">Prioridade das funções: a mais alta presente no composto vira o sufixo</figcaption>
+            <ol class="result-escada" id="nc-escada"></ol>
+          </figure>
           <dl class="data-grid" id="result-grid" aria-live="polite" aria-atomic="true"></dl>
           <canvas id="result-chart" class="result-chart" hidden aria-label="Gráfico auxiliar do modo atual"></canvas>
         </div>
@@ -458,6 +474,7 @@
   <script src="js/render/desenho-molecula.js"></script>
   <script src="js/render/representacoes.js"></script>
   <script src="js/ui/kit-desenho.js"></script>
+  <script src="js/ui/moldura-cena.js"></script>
   <script src="js/view3d/camera-orbital.js"></script>
   <script src="js/view3d/navegacao-3d.js"></script>
   <script src="js/simulation/editor-cadeias.js"></script>
@@ -480,7 +497,7 @@
        registram em DOMContentLoaded, e o navegador dispara os
        ouvintes na ordem de registro — então quando o trilho monta,
        os painéis da app já existem no DOM. -->
-  <script>window.RAIL_CFG = { id: 'funcoes', bp: 1100 };</script>
+  <script>window.RAIL_CFG = { id: 'funcoes', bp: 900, mq: window.MQ_CELULAR };</script>
   <script src="js/ui/sidebar-rail.js"></script>
 <script>
 // Registra o service worker do PWA (cache/offline + instalação como app).
@@ -488,7 +505,7 @@
 // instala de verdade uma vez, então repetir isso em cada página é seguro.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('../sw.js')
+    navigator.serviceWorker.register('../../sw.js')
       .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
   });
 }

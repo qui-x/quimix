@@ -29,6 +29,19 @@
    SEM MEDIÇÃO DE DESEMPENHO. Nenhuma contagem de acertos, placar ou
    sequência: o simulador não avalia quanto o aluno sabe — explica.
 
+   ONDE CADA COISA APARECE
+     cena (canvas) .... só a estrutura: os átomos, os aros da pintura,
+                        as siglas das funções e os destaques
+     Resultados ....... o retorno (retorno), o próximo passo
+                        (proximoPasso) e a ficha: o composto, onde ele
+                        aparece, a fórmula, os grupos e o grupo tocado
+                        (resultados)
+   Antes, o nome, o contexto com a fórmula e o pedido da etapa eram
+   escritos no alto da cena, e a estrutura começava abaixo deles; numa
+   cena baixa, a sigla do átomo de cima encostava no pedido. No
+   computador, o card Investigar abre com os Resultados logo abaixo
+   (data-rail-junto, em index.html).
+
    Tudo o que o módulo diz sai de Q3.Funcoes.detectar (núcleo).
 ═══════════════════════════════════════════════════════════════ */
 
@@ -122,6 +135,8 @@ class InvestigadorGrupos {
     vis('gf-grupo-biblioteca', !c); vis('gf-grupo-pintura', !c); vis('gf-grupo-livre', c);
     var f = this.fonte;
     document.querySelectorAll('[data-group="gf-fonte"] .seg-btn').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.value === f)); });
+    // gancho de CSS: a ordem dos cards na gaveta do celular segue a fonte (stylefuncoes.css)
+    if (at) document.body.dataset.fonte = f; else delete document.body.dataset.fonte;
   }
 
   /* controles do editor: o elemento passa pela trava de grupos */
@@ -298,7 +313,7 @@ class InvestigadorGrupos {
      trilho (se já não estiver aberto); com a barra fixada, abre o corpo do
      painel e rola até ele. No celular, não abre nada sozinho. */
   _mostrarResultados() {
-    if (window.innerWidth < 1100) return;
+    if (typeof ehCelular === 'function' ? ehCelular() : window.innerWidth <= 900) return;   // a regra do celular mora em init/app.js
     var hdr = document.getElementById('hdr-result'); if (!hdr) return;
     var painel = hdr.closest('.panel'), barra = painel.closest('.sidebar');
     if (barra && barra.classList.contains('is-collapsed')) {
@@ -311,9 +326,9 @@ class InvestigadorGrupos {
     if (painel.scrollIntoView) painel.scrollIntoView({ block: 'nearest' });
   }
 
+  /* o retorno mora no alto dos Resultados (retorno()); antes ficava no painel Investigar, longe do próximo passo */
   _retorno(tipo, texto, realce, falado) {
     this.q.feedback = { tipo: tipo, texto: texto, realce: realce || null };
-    var el = document.getElementById('gf-retorno'); if (el) el.textContent = texto || '';
     announce(falado || texto);
     this._sincronizarPainel();
   }
@@ -414,21 +429,11 @@ class InvestigadorGrupos {
     if (this.fonte === 'construir') { this.editor.desenhar(ctx, W, H); this._atualizarLivre(); this._desenharGruposLivre(ctx); return; }
     var q = this.q, g = q.g, P = Q3.Desenho.paleta(), D = Q3.Desenho, cores = this._cores();
     var aviso = P.claro ? '#8a4b00' : '#ffb454';
-    this._cabBaixo = H < 300;   // cena muito baixa (celular pequeno deitado): o cabeçalho se aperta, para sobrar estrutura
-    var cab = this._cabecalho(ctx, W, P, true);   // o cabeçalho pode quebrar em linhas (tela estreita)
-    var topo = Math.max(130, cab + 16), base = H - 118, folga = 60, esq = 28, dir = W - 28;
-    /* CENA BAIXA (celular deitado): com as folgas de sempre, a altura da estrutura dava NEGATIVA — a molécula
-       saía espelhada e minúscula. Aqui ela começa logo abaixo do cabeçalho e desce até perto da borda (o
-       retorno mora no painel Investigar, não no canvas). */
-    if (H < 430) { topo = cab + 18; base = H - 22; folga = this._cabBaixo ? 22 : 30; dir = W >= 560 ? W - 64 : dir; }   // +18: as siglas das funções sobem acima dos átomos; −64: a coluna do zoom
-    var ids = Object.keys(q.pos), xs = ids.map(function (id) { return q.pos[id].x; }), ys = ids.map(function (id) { return q.pos[id].y; });
-    var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs), minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
-    var s = Math.min(92, (dir - esq - 110) / Math.max(1, maxX - minX), Math.max(14, base - topo - folga) / Math.max(1, maxY - minY));
-    var cx = (esq + dir) / 2 - (minX + maxX) / 2 * s, cy = (topo + base) / 2 - (minY + maxY) / 2 * s;
-    var T = {}; ids.forEach(function (id) { T[id] = { x: cx + q.pos[id].x * s, y: cy + q.pos[id].y * s }; });
+    // A CENA É SÓ A ESTRUTURA: o nome, o contexto e o pedido moram nos Resultados (e o nome, na pílula do modo)
+    var E = this._enquadrar(ctx, W, H), ids = Object.keys(q.pos);
+    var T = {}; ids.forEach(function (id) { T[id] = { x: E.cx + q.pos[id].x * E.s, y: E.cy + q.pos[id].y * E.s }; });
     this._tela = T;
-    var fonte = this._fonte = Math.max(12, Math.min(17, s * 0.3));
-    var margem = {}; ids.forEach(function (id) { margem[id] = D.medirRotulo(ctx, D.rotulo(g, id), fonte); });
+    var fonte = this._fonte = E.fonte, margem = E.margem;
     var aneis = Q3.Geometria.aneisMinimos(g);
     var centroAnel = function (l) {
       var r = aneis.filter(function (x) { return x.indexOf(l.a) >= 0 && x.indexOf(l.b) >= 0; })[0];
@@ -457,7 +462,7 @@ class InvestigadorGrupos {
         if (angs.length === 1) dirA = angs[0] + Math.PI;
         else if (angs.length > 1) { var maior = -1; angs.forEach(function (an, k) { var prox = k + 1 < angs.length ? angs[k + 1] : angs[0] + 2 * Math.PI, vao = prox - an; if (vao > maior) { maior = vao; dirA = an + vao / 2; } }); }
         var d0 = Math.max(margem[id].mx, 10) + 18, sx = p.x + Math.cos(dirA) * d0, sy = p.y + Math.sin(dirA) * d0;
-        ctx.font = '700 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = '700 ' + E.sigla + 'px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillStyle = cores[pint]; ctx.fillText(GF_SIGLA[pint], sx, sy);
       }
       if (q.conferencia && q.conferencia[id] === false) {
@@ -467,26 +472,55 @@ class InvestigadorGrupos {
       if (self.foco === id) D.foco(ctx, p, Math.max(margem[id].mx, 12) + 12, P.acento);
     });
     ctx.restore();
-    // cabeçalho (abaixo do selo de modo ativo)
-    this._cabecalho(ctx, W, P, false);
-    /* sem faixa de texto no canvas (pedido do professor): a área central é
-       para a interação; o retorno vai para o painel Investigar (#gf-retorno) */
   }
 
-  /* O CABEÇALHO: o nome, o contexto e o pedido da etapa. Numa tela estreita a fonte encolhe e o
-     contexto e o pedido quebram em linhas — nada sai pela borda. `soMedir`: só mede (a área da
-     estrutura começa abaixo dele). Devolve a altura em que ele termina. */
-  _cabecalho(ctx, W, P, soMedir) {
-    var q = this.q, D = Q3.Desenho, larg = W - 24 - 16;
-    var pedido = q.etapa === 'procurar' ? 'Preveja pintando cada grupo com o pincel da função — ou revele direto.' : 'Toque num grupo: a ficha dele vai para Resultados.';
-    ctx.save(); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    var yN = this._cabBaixo ? 62 : 70, yC = this._cabBaixo ? 80 : 90, vao = this._cabBaixo ? 24 : 30;
-    ctx.fillStyle = P.texto; D.textoQueCabe(ctx, q.nome, 24, yN, larg, { peso: '700', tam: 16, min: 13, linhas: 1, medir: soMedir });
-    ctx.fillStyle = P.suave; var r2 = D.textoQueCabe(ctx, q.contexto + '  ·  ' + q.formula, 24, yC, larg, { tam: 12.5, min: 10.5, linhas: 2, medir: soMedir });
-    var yp = yC + (r2.linhas - 1) * r2.tam * 1.28 + vao;
-    ctx.fillStyle = P.texto; var r3 = D.textoQueCabe(ctx, pedido, 24, yp, larg, { peso: '600', tam: 14, min: 11.5, linhas: 3, medir: soMedir });
-    ctx.restore();
-    return yp + (r3.linhas - 1) * r3.tam * 1.28 + 6;
+  /* O ENQUADRAMENTO da estrutura: a maior escala em que cabem, na área livre da cena (abaixo da pílula do
+     modo, Q3.Moldura), os átomos e o que se desenha em volta de cada um — o rótulo, os aros da pintura, do
+     destaque e do foco e, nos heteroátomos, a sigla da função (a máx(mx, 10) + 18 px do centro, no maior vão).
+     O lugar das siglas fica reservado desde o começo: pintar e revelar não mudam o tamanho do desenho. Antes,
+     a estrutura começava abaixo do cabeçalho escrito na cena e as siglas não entravam na conta. A conta só é
+     refeita quando mudam o tamanho da cena ou o composto. */
+  _enquadrar(ctx, W, H) {
+    var q = this.q, chave = W + 'x' + H;
+    if (this._enq && this._enq.q === q && this._enq.chave === chave) return this._enq;
+    var g = q.g, D = Q3.Desenho, ids = Object.keys(q.pos);
+    var M = Q3.Moldura ? Q3.Moldura.livre(W, H, false) : { x: 18, y: 52, w: Math.max(40, W - 36), h: Math.max(40, H - 66) };
+    // a letra acompanha a escala: de 12 a 17 px e, numa tela grande como a do projetor, até 20 px (como no SIQC M3)
+    var fonteDe = function (s) { return Math.max(12, Math.min(s > 96 ? 17 + (s - 96) * 0.09 : 17, s * 0.3)); };
+    var siglaDe = function (f) { return Math.max(11, Math.round(f * 0.68)); };
+    var medir = function (s) {
+      var f = fonteDe(s), sg = siglaDe(f), m = {}, ext = {};
+      ctx.save();
+      ctx.font = '700 ' + sg + 'px system-ui, sans-serif';
+      var meiaSigla = ctx.measureText('(CO)₂O').width / 2;            // a sigla mais larga
+      ids.forEach(function (id) {
+        m[id] = D.medirRotulo(ctx, D.rotulo(g, id), f);
+        ext[id] = g.atomos[id].el !== 'C' ? Math.max(m[id].mx, 10) + 18 + Math.max(meiaSigla, sg) + 4   // a sigla, para qualquer lado
+                                          : Math.max(m[id].mx, 12) + 14;                                  // os aros (o do foco vai a +12)
+      });
+      ctx.restore();
+      return { fonte: f, sigla: sg, m: m, ext: ext };
+    };
+    // num eixo, quanto o desenho avança para cada lado do centro da estrutura, na escala s
+    var lados = function (s, eixo, me) {
+      var mais = -Infinity, menos = -Infinity;
+      ids.forEach(function (id) { var v = q.pos[id][eixo] * s; mais = Math.max(mais, v + me.ext[id]); menos = Math.max(menos, me.ext[id] - v); });
+      return { mais: mais, menos: menos };
+    };
+    // a escala cresce até caber (busca binária: o tamanho do desenho só aumenta com a escala)
+    var sMax = Math.max(92, Math.min(128, Math.min(M.w, M.h) / 6.5)), lo = 4, hi = sMax;
+    for (var k = 0; k < 26; k++) {
+      var s = (lo + hi) / 2, me = medir(s), lx = lados(s, 'x', me), ly = lados(s, 'y', me);
+      if (lx.mais + lx.menos <= M.w && ly.mais + ly.menos <= M.h) lo = s; else hi = s;
+    }
+    var mf = medir(lo), fx = lados(lo, 'x', mf), fy = lados(lo, 'y', mf);
+    this._enq = {
+      q: q, chave: chave, s: lo, fonte: mf.fonte, sigla: mf.sigla, margem: mf.m,
+      // o centro fica no meio da folga que sobra em cada eixo
+      cx: M.x + (fx.menos + M.w - fx.mais) / 2,
+      cy: M.y + (fy.menos + M.h - fy.mais) / 2
+    };
+    return this._enq;
   }
 
   /* os grupos da molécula em construção ACENDEM: um aro da cor da
@@ -590,8 +624,10 @@ class InvestigadorGrupos {
       return lin;
     }
     var q = this.q;
+    // o que antes era o cabeçalho escrito no alto da cena: o nome, onde o composto aparece e a fórmula
     var linhas = [
       { l: 'Composto', v: q.nome },
+      { l: 'Onde aparece', v: q.contexto, cls: 'val-texto' },
       { l: 'Fórmula molecular', v: q.formula },
       { l: 'Etapa', v: q.etapa === 'procurar' ? 'antes de revelar' : 'grupos revelados' }
     ];
@@ -610,5 +646,26 @@ class InvestigadorGrupos {
     return linhas;
   }
 
-  overlay() { return this.fonte === 'construir' ? 'Grupos · construção livre' : 'Grupos · ' + this.q.nome; }
+  /* a explicação do último passo (o que a revelação mostrou, o átomo marcado), no alto dos Resultados */
+  retorno() {
+    if (this.fonte === 'construir') return null;
+    var fb = this.q.feedback;
+    return fb && fb.texto ? { tipo: fb.tipo, texto: fb.texto } : null;
+  }
+
+  /* o que fazer agora: antes era o pedido escrito no alto da cena; na construção livre, a dica do editor */
+  proximoPasso() {
+    if (!this.ativo) return '';
+    if (this.fonte === 'construir') return this.editor.proximoPasso();
+    var q = this.q;
+    if (q.etapa === 'fim') return 'Toque num grupo na estrutura: a ficha dele aparece aqui. Para outro composto, escolha na Biblioteca.';
+    if (!Object.keys(q.pintura).length) return 'Preveja os grupos: escolha o pincel de uma função em Investigar e pinte os átomos de cada grupo, tocando ou arrastando. Se preferir, revele direto.';
+    return 'Pinte os outros grupos que encontrar e toque em Revelar os grupos. Tocar de novo com o mesmo pincel despinta.';
+  }
+
+  /* a pílula do modo: o composto e a etapa (a app já põe o nome do módulo antes) */
+  overlay() {
+    if (this.fonte === 'construir') return 'construção livre';
+    return this.q.nome + ' · ' + (this.q.etapa === 'fim' ? 'grupos revelados' : 'preveja os grupos');
+  }
 }

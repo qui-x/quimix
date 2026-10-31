@@ -70,4 +70,11 @@ class Mech {
   draw(ctx, W, H) { this._ativo().desenhar(ctx, W, H); }
   getResults() { return this._ativo().resultados(); }
   getOverlay() { return this._ativo().overlay(); }
+
+  /* O que mora no painel Resultados além da lista (cada módulo implementa se tiver): o retorno ({ tipo, texto },
+     a resposta ao último passo do aluno), o próximo passo, em texto, e o que o módulo monta lá dentro (no M4, a
+     escada de prioridades). syncResults recebe se há modo ativo: sem ele, tudo o que é de módulo se esconde. */
+  getFeedback() { const m = this._ativo(); return typeof m.retorno === 'function' ? m.retorno() : null; }
+  getNext() { const m = this._ativo(); return typeof m.proximoPasso === 'function' ? m.proximoPasso() : ''; }
+  syncResults(temModo) { this.nc.sincronizarEscada(temModo && this.modo === 'prioridade'); }
 }

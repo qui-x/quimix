@@ -557,6 +557,22 @@
          que faz o formato sobreviver aos 180ms de fade ao fechar */
       cfg.sidebar.classList.add('has-solo');
       abrirCard(painel);
+      abrirCompanheiro(cfg, painel);
+    }
+
+    /* CARD COM COMPANHEIRO (opcional): data-rail-junto="<id>" no painel faz
+       o painel <id> flutuar junto, logo abaixo, no mesmo card. Caso de uso:
+       no SIQC, o aluno responde em Classificar e lê a explicação nos
+       Resultados — um card por vez o faria trocar de card a cada resposta.
+       Só vale se o companheiro está na mesma sidebar e à vista (não
+       [hidden]). Sem o atributo, nada muda: um card por vez. */
+    function abrirCompanheiro(cfg, painel) {
+      var id = painel.getAttribute('data-rail-junto');
+      var junto = id ? document.getElementById(id) : null;
+      if (!junto || junto === painel || !cfg.sidebar.contains(junto) || junto.hasAttribute('hidden')) return;
+      for (var no = junto; no && no !== cfg.sidebar; no = no.parentNode) no.classList.remove('rail-oculto');
+      junto.classList.add('is-solo');
+      abrirCard(junto);
     }
 
     /* Abre o card, seja qual for o dialeto de recolhimento do simulador.

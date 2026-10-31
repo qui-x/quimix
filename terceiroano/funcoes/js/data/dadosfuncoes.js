@@ -58,7 +58,7 @@ window.SIM_DATA = {
         { l: 'Sufixo', v: 'a função: o, ol, al, ona, oico, amina' },
         { l: 'Numeração', v: 'menor localizador para o grupo' },
       ],
-      canvasInteracao: 'Toque num cartão da bancada para selecioná-lo; a estrutura dele aparece grande. Quando o nome estiver certo, ele vai para o cartão, e a cadeia principal aparece destacada e numerada.',
+      canvasInteracao: 'Toque num cartão da bancada para selecioná-lo; a estrutura dele aparece grande. O sinal no canto do cartão: ✓ nome certo, ↺ a rever, ⊘ fora do escopo, • previsão feita. Com o nome certo, a cadeia principal aparece destacada e numerada; o nome fica em Resultados.',
       overlay: 'Nomenclatura', panels: ['panel-bancada', 'panel-nome'], primary: 'nm-acao',
     },
     {
@@ -76,7 +76,7 @@ window.SIM_DATA = {
         { l: 'Ligação de H', v: 'O–H e N–H' },
         { l: 'Ramificação', v: 'menos contato, ebulição menor' },
       ],
-      canvasInteracao: 'Toque numa peça e depois numa posição da trilha, ou arraste a peça até a posição (ela se encaixa). Toque numa peça da trilha para tirá-la. Com a trilha certa, cada composto sobe no termômetro até a sua temperatura.',
+      canvasInteracao: 'Toque numa peça e depois numa posição da trilha, ou arraste a peça até a posição (ela se encaixa); a posição 1 é a de menor ebulição. Toque numa peça da trilha para tirá-la. O nome e os dados da peça tocada aparecem em Resultados. Com a trilha certa, cada composto sobe no termômetro até a sua temperatura.',
       overlay: 'Ebulição', panels: ['panel-trilha', 'panel-dados'], primary: 'eb-acao',
     },
     {
@@ -94,7 +94,7 @@ window.SIM_DATA = {
         { l: 'Prefixos', v: 'hidroxi, oxo, amino…' },
         { l: 'Multiplicador', v: 'di, tri (não conta na ordem alfabética)' },
       ],
-      canvasInteracao: 'Toque num cartão da bancada para selecioná-lo. A escada das funções fica à esquerda; com o nome certo, os grupos do composto sobem até os seus degraus.',
+      canvasInteracao: 'Toque num cartão da bancada para selecioná-lo; a estrutura dele aparece grande. A escada das funções fica em Resultados: com o nome certo, os grupos do composto sobem até os seus degraus.',
       overlay: 'Prioridade', panels: ['panel-nc-bancada', 'panel-nc-nome'], primary: 'nc-acao',
     },
   ],

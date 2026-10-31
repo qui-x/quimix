@@ -15,9 +15,16 @@
 
 'use strict';
 
-/* A dica do canvas sem modo ativo. No celular (até 1100 px) os modos ficam nas abas de cima, sem botão Ativar. */
+/* ONDE O CELULAR COMEÇA — a mesma regra do CSS (stylefuncoes.css) e do SIQC: até 900 px de largura, como no
+   SIMA, ou deitado (até 1100 × 500 px). Acima disso, a tela de computador: trilhos e cards ao lado da cena — é o
+   que um tablet deitado de 1024 px recebe (antes, até 1100 px era tudo celular). Quem pergunta "é celular?" usa
+   ehCelular(), nunca um número próprio. */
+window.MQ_CELULAR = '(max-width: 900px), (max-width: 1100px) and (max-height: 500px)';
+function ehCelular() { return window.matchMedia ? window.matchMedia(window.MQ_CELULAR).matches : window.innerWidth <= 900; }
+
+/* A dica do canvas sem modo ativo. No celular os modos ficam nas abas de cima, sem botão Ativar. */
 function dicaInicial() {
-  return window.innerWidth <= 1100 ? 'Escolha um modo nas abas acima para começar.'
+  return ehCelular() ? 'Escolha um modo nas abas acima para começar.'
     : 'Escolha um modo ao lado e clique em "Ativar" para iniciar a simulação.';
 }
 
@@ -224,6 +231,7 @@ class App {
       }
     });
     document.querySelectorAll('.panel[data-owner]').forEach(p => { p.hidden = true; });
+    delete document.body.dataset.modo;
     const hint = document.getElementById('canvas-hint');
     if (hint) hint.textContent = dicaInicial();
     // esconde a pilula do canvas — volta ao estado puro
@@ -266,6 +274,7 @@ class App {
     document.querySelectorAll('.panel[data-owner]').forEach(p => {
       p.hidden = !(m.panels || []).includes(p.id);
     });
+    document.body.dataset.modo = id;   // gancho de CSS para o que muda por modo (ex.: a ordem dos painéis na gaveta)
     const hint = document.getElementById('canvas-hint');
     this.mech.setMode(id);
     this.refresh();
@@ -273,7 +282,7 @@ class App {
     // No mobile, ativar um modo RECOLHE o bottom sheet de controles (se
     // estiver aberto) em vez de abri-lo — reabrir pra ajustar parâmetros
     // é um toque no botão de controles do cabeçalho, a qualquer momento.
-    if (window.innerWidth <= 1100 && typeof window._closeSidebar === 'function') {
+    if (ehCelular() && typeof window._closeSidebar === 'function') {
       window._closeSidebar();
     }
     // ── largada com 2s de antecipação ──
@@ -294,8 +303,8 @@ class App {
   }
 
   /* ── barra de modos MOBILE — mesma ordem/dados de _buildModes() acima,
-     como abas roláveis em vez de acordeão (ver CSS, ativa só abaixo de
-     1100px). Clicar chama setMode/clearMode, o MESMO contrato de sempre —
+     como abas roláveis em vez de acordeão (ver CSS, ativa só no celular:
+     ehCelular()). Clicar chama setMode/clearMode, o MESMO contrato de sempre —
      a barra não tem lógica própria de estado, só delega. ── */
   _buildModeTabsMobile() {
     const bar = document.getElementById('mode-tabs-mobile');
@@ -358,7 +367,7 @@ class App {
     this._modosVistos.add(id);
     toggle.setAttribute('aria-expanded', 'false');
     body.classList.remove('open');
-    if (primeiraVez && window.innerWidth <= 1100) this._showModeInfoModal(m);
+    if (primeiraVez && ehCelular()) this._showModeInfoModal(m);
     if (!toggle._wired) {
       toggle._wired = true;
       toggle.addEventListener('click', () => {
@@ -380,13 +389,22 @@ class App {
     if (icon) icon.innerHTML = m.icon || '';
     if (title) title.textContent = m.nome;
     if (body) body.innerHTML = this._modeSummaryHTML(m);
+    this._modalVolta = document.activeElement;   // para devolver o foco a quem abriu o aviso
     overlay.classList.add('aberto');
     overlay.setAttribute('aria-hidden', 'false');
-    if (closeBtn) setTimeout(() => closeBtn.focus(), 220);
+    if (closeBtn) setTimeout(() => { if (overlay.classList.contains('aberto')) closeBtn.focus(); }, 220);
   }
   _hideModeInfoModal() {
     const overlay = document.getElementById('modeInfoOverlay');
     if (!overlay) return;
+    /* o foco sai do aviso ANTES de ele ganhar aria-hidden: com o foco dentro, o navegador bloqueia o
+       aria-hidden (aviso no console) e o leitor de tela ficaria preso num elemento escondido. O foco volta
+       para quem abriu o aviso (a aba do modo, em geral). */
+    if (overlay.contains(document.activeElement)) {
+      const volta = [this._modalVolta, document.querySelector('.mode-tab[aria-selected="true"]'), this.canvas]
+        .find(el => el && el.isConnected && !overlay.contains(el) && el.offsetParent !== null && typeof el.focus === 'function');
+      if (volta) volta.focus({ preventScroll: true }); else document.activeElement.blur();
+    }
     overlay.classList.remove('aberto');
     overlay.setAttribute('aria-hidden', 'true');
   }
@@ -509,6 +527,25 @@ class App {
       }
     }
     if (resultPanel) resultPanel.classList.toggle('panel--waiting', !this.mode);
+    // o retorno do modo: a resposta ao último passo do aluno (ex.: o resultado da conferência), no alto dos
+    // Resultados. Sem aria-live: o módulo já o anuncia ao leitor de tela no momento em que ele muda.
+    const rt = document.getElementById('result-retorno');
+    if (rt) {
+      const fb = this.mode && typeof this.mech.getFeedback === 'function' ? this.mech.getFeedback() : null;
+      const txt = fb ? fb.texto || '' : '', tipo = fb ? fb.tipo || 'info' : '';
+      if (rt.textContent !== txt) rt.textContent = txt;
+      if (rt.dataset.tipo !== tipo) rt.dataset.tipo = tipo;
+      rt.hidden = !txt;
+    }
+    // o próximo passo do modo, logo abaixo (a cena fica só com o desenho)
+    const nx = document.getElementById('result-next');
+    if (nx) {
+      const passo = this.mode && typeof this.mech.getNext === 'function' ? this.mech.getNext() || '' : '';
+      if (nx.textContent !== passo) nx.textContent = passo;
+      nx.hidden = !passo;
+    }
+    // o que o módulo põe nos Resultados além da lista (no M4, a escada de prioridades)
+    if (this.mech && typeof this.mech.syncResults === 'function') this.mech.syncResults(!!this.mode);
     // INDICADOR DE MODO ATIVO (padrao SILQ): a pilula do topo do canvas
     // so existe quando ha modo ativo. Sem modo, o canvas fica PURO.
     const ind = document.getElementById('mode-indicator');

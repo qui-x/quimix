@@ -159,175 +159,195 @@ class Mech {
 
   update(dt) { this.t += dt; }
 
+  /* A CENA FICA SÓ COM O DESENHO (regra do projeto). O que ela escrevia — o título, os elementos, o polímero, a
+     função e o exemplo; o nome e o pI dos aminoácidos, o nome do dipeptídeo, a fórmula geral e a nota; o nome da
+     enzima e a legenda da temperatura — está em Resultados. Ficam os desenhos e os rótulos que fazem parte deles:
+     os símbolos (O, P, H₂N, COOH…), as siglas dos resíduos (Gly) e das bases (A, C, G), a H₂O que sai e, no
+     gráfico, os eixos e a leitura do ponto.
+     O TAMANHO é proporcional à área livre (abaixo da pílula do modo, ui/moldura-cena.js), com piso e teto: antes
+     os raios e os passos tinham teto fixo (30 px), e no computador o desenho ficava pequeno no meio da tela. */
   draw(ctx, W, H) {
-    // a pílula do modo ativo (no topo, ao centro) cobria o título de cada cena: a cena começa abaixo dela
-    const topo = 40;
-    ctx.save(); ctx.translate(0, topo); H -= topo;
-    if (this.modo === 'biomoleculas') this._drawBio(ctx, W, H);
-    else if (this.modo === 'peptidica') this._drawPeptidica(ctx, W, H);
-    else this._drawEnzima(ctx, W, H);
-    ctx.restore();
+    const L = Q3.Moldura ? Q3.Moldura.livre(W, H, false) : { x: 16, y: 52, w: W - 32, h: H - 66 };
+    if (window.innerWidth > 1100) L.h -= 18;   // no computador, a dica de teclado mora no pé do canvas
+    if (this.modo === 'biomoleculas') this._drawBio(ctx, L);
+    else if (this.modo === 'peptidica') this._drawPeptidica(ctx, L);
+    else this._drawEnzima(ctx, L);
   }
 
-  /* ══════════ MODO 1 — biomoléculas ══════════ */
-  _drawBio(ctx, W, H) {
-    const b = this.bio;
-    kLabel(ctx, b.nome, W / 2, 40, { size: 16, bold: true, align: 'center', color: kTinta(b.dot) });
-    kLabel(ctx, `elementos: ${b.elementos}`, W / 2, 60, { size: 11, align: 'center' });
-
-    /* CENA BAIXA E LARGA (celular deitado): empilhados, a cadeia, a ligação e as três linhas de baixo não
-       cabiam na altura e se sobrepunham. Aqui a cadeia fica à esquerda e o texto à direita, lado a lado. */
-    const lado = H < 260 && W >= 600, xC = lado ? W * .29 : W / 2;   // < 260: a ligação encostava na linha do polímero
-    // três monômeros se ligando em cadeia, com a água que sai
-    const cy = lado ? (64 + H) / 2 + 4 : H / 2 - 6;
-    const r = Math.min(30, W * .05);
-    const passo = lado ? Math.min(W * .14, 120) : Math.min(W * .24, 150);
-    const x0 = xC - passo;
-    for (let i = 0; i < 3; i++) {
-      const x = x0 + passo * i;
-      ctx.save();
-      ctx.fillStyle = b.dot; ctx.globalAlpha = .85;
-      ctx.beginPath(); ctx.arc(x, cy, r, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-      kLabel(ctx, 'monômero', x, cy + 4, { size: 9, bold: true, align: 'center', baseline: 'middle', color: getContrastColor(b.dot.startsWith('#') ? b.dot : '#38bdf8') });
-      if (i < 2) {
-        const xm = x + passo / 2;
-        kBond(ctx, x + r, cy, x + passo - r, cy, 1, { color: cssVar('--accent-main', '#facc15'), width: 3 });
-        kChip(ctx, 'H₂O', xm, cy - r - 22, { size: 10, fg: cssVar('--accent-alt', '#38bdf8') });
-        kArrow(ctx, xm, cy - r - 12, xm, cy - r - 4, { color: cssVar('--accent-alt', '#38bdf8'), head: 5, width: 1.2 });
+  /* ══════════ MODO 1 — biomoléculas ══════════
+     A CONDENSAÇÃO de cada classe, no esquema dos livros, com uma H₂O saindo de cada ligação que se forma:
+       carboidratos — três monossacarídeos (anéis de seis, um deles o O do anel) unidos pelo O da ligação
+                      glicosídica;
+       proteínas    — três aminoácidos (Gly, Ala, Ser) unidos por ligações peptídicas;
+       ácidos nucleicos — três nucleotídeos (fosfato P, pentose e base) unidos pela ligação fosfodiéster, da
+                      pentose de um ao fosfato do seguinte;
+       lipídios     — não é polímero: um glicerol e três ácidos graxos, unidos por três ligações éster (o
+                      triglicerídeo). Antes, os lipídios apareciam como uma corrente de três monômeros. */
+  _drawBio(ctx, L) {
+    const b = this.bio, u = clamp(Math.min(L.w / 10.5, L.h / 5.4), 13, 72), cx = L.x + L.w / 2, cy = L.y + L.h / 2 + u * 0.25;
+    const tinta = b.dot, liga = cssVar('--accent-main', '#facc15'), agua = cssVar('--accent-alt', '#38bdf8'), larg = Math.max(2.2, u * 0.09);
+    const chip = Math.round(clamp(u * 0.36, 9.5, 14)), letra = Math.round(clamp(u * 0.42, 10, 22));
+    const sai = (x, y) => {   // a água que sai da ligação: o chip e a seta para cima
+      kArrow(ctx, x, y - u * 0.42, x, y - u * 0.92, { color: agua, head: Math.max(4, u * 0.14), width: Math.max(1.2, u * 0.05) });
+      kChip(ctx, 'H₂O', x, y - u * 1.28, { size: chip, fg: agua });
+    };
+    const atomo = (x, y, r, sim, cor) => { kAtom(ctx, x, y, r, sim, { color: cor, size: letra }); };
+    if (b.id === 'lipidio') { this._drawTriglicerideo(ctx, L, u, cx, cy, { tinta, liga, agua, larg, chip, letra, atomo }); return; }
+    if (b.id === 'carboidrato') {
+      const R = u, D = 3.8 * u, x0 = cx - D;
+      for (let i = 0; i < 3; i++) {
+        const x = x0 + D * i, v = k => ({ x: x + R * Math.cos(k * Math.PI / 3), y: cy + R * Math.sin(k * Math.PI / 3) });
+        ctx.save(); ctx.beginPath(); for (let k = 0; k < 6; k++) { const q = v(k); k ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); } ctx.closePath();
+        ctx.fillStyle = tinta; ctx.globalAlpha = 0.18; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = tinta; ctx.lineWidth = larg; ctx.stroke(); ctx.restore();
+        const o = v(5); atomo(o.x, o.y, Math.max(8, u * 0.3), 'O', cssVar('--accent-warn', '#f87171'));   // o O do anel
+        if (i < 2) {
+          const a = v(0), bq = { x: x + D - R, y: cy }, xo = (a.x + bq.x) / 2;
+          kBond(ctx, a.x, a.y, xo, cy, 1, { color: liga, width: larg * 1.3 }); kBond(ctx, xo, cy, bq.x, bq.y, 1, { color: liga, width: larg * 1.3 });
+          atomo(xo, cy, Math.max(8, u * 0.3), 'O', liga);                                                     // o O da ligação glicosídica
+          sai(xo, cy - u * 0.2);
+        }
       }
-    }
-    if (lado) {   // o bloco de texto à direita, centrado na altura da cadeia e no espaço que sobra depois do último monômero
-      const xT = (xC + passo + r + 16 + W) / 2;
-      kLabel(ctx, b.ligacao, xT, cy - 30, { size: 13, bold: true, align: 'center', color: cssVar('--accent-main', '#facc15') });
-      kLabel(ctx, `polímero: ${b.polimero}`, xT, cy - 8, { size: 11, align: 'center', uma: true });
-      kLabel(ctx, `função: ${b.funcao}`, xT, cy + 12, { size: 11, align: 'center', uma: true, color: cssVar('--text-secondary', '#7a9ab8') });
-      kChip(ctx, b.exemplo, xT, cy + 38, { size: 11, fg: kTinta(b.dot), border: b.dot });
       return;
     }
-    kLabel(ctx, b.ligacao, W / 2, cy + r + 26,
-      { size: 13, bold: true, align: 'center', color: cssVar('--accent-main', '#facc15') });
-    // duas linhas empilhadas: numa tela estreita, cada uma encolhe (e no limite se comprime) sem quebrar sobre a outra
-    kLabel(ctx, `polímero: ${b.polimero}`, W / 2, H - 62, { size: 11, align: 'center', uma: true });
-    kLabel(ctx, `função: ${b.funcao}`, W / 2, H - 42, { size: 11, align: 'center', uma: true, color: cssVar('--text-secondary', '#7a9ab8') });
-    kChip(ctx, b.exemplo, W / 2, H - 18, { size: 11, fg: kTinta(b.dot), border: b.dot });
+    if (b.id === 'proteina') {
+      const r = 0.9 * u, D = 3.6 * u, x0 = cx - D, res = ['Gly', 'Ala', 'Ser'];
+      for (let i = 0; i < 2; i++) kBond(ctx, x0 + D * i + r, cy, x0 + D * (i + 1) - r, cy, 1, { color: liga, width: larg * 1.4 });
+      for (let i = 0; i < 3; i++) { ctx.save(); ctx.globalAlpha = 0.9; atomo(x0 + D * i, cy, r, res[i], tinta); ctx.restore(); }
+      for (let i = 0; i < 2; i++) sai(x0 + D * i + D / 2, cy);
+      return;
+    }
+    // ácidos nucleicos: P — pentose — P — pentose — P — pentose, e as bases penduradas nas pentoses
+    const pP = 1.25 * u, pL = 1.6 * u, passo = pP + pL, total = 3 * passo - pL, x0 = cx - total / 2, bases = ['A', 'C', 'G'];
+    const rP = Math.max(8, u * 0.4), rS = u * 0.6, amber = cssVar('--accent-amber', '#fbbf24');
+    for (let i = 0; i < 3; i++) {
+      const xP = x0 + passo * i, xS = xP + pP;
+      kBond(ctx, xP + rP, cy, xS - rS, cy, 1, { color: cssVar('--scene-b', '#94a3b8'), width: larg });
+      if (i < 2) { kBond(ctx, xS + rS * 0.9, cy, xS + pL - rP, cy, 1, { color: liga, width: larg * 1.4 }); }   // a fosfodiéster
+      kBond(ctx, xS, cy + rS * 0.8, xS, cy + u * 1.05, 1, { color: cssVar('--scene-b', '#94a3b8'), width: larg });
+      // a pentose: um pentágono com a ponta para cima
+      ctx.save(); ctx.beginPath(); for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + k * 2 * Math.PI / 5, X = xS + rS * Math.cos(a), Y = cy + rS * Math.sin(a); k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.closePath();
+      ctx.fillStyle = tinta; ctx.globalAlpha = 0.85; ctx.fill(); ctx.restore();
+      atomo(xP, cy, rP, 'P', amber);
+      // a base: um retângulo com a letra
+      const bw = u * 0.95, bh = u * 0.95, by = cy + u * 1.05;
+      ctx.save(); ctx.fillStyle = cssVar('--bg-panel2', '#101c2b'); ctx.strokeStyle = tinta; ctx.lineWidth = larg; kRound(ctx, xS - bw / 2, by, bw, bh, Math.max(3, u * 0.12)); ctx.fill(); ctx.stroke(); ctx.restore();
+      kLabel(ctx, bases[i], xS, by + bh / 2 + 0.5, { size: letra, bold: true, align: 'center', baseline: 'middle', color: kTinta(tinta) });
+      if (i < 2) sai(xS + rS * 0.9 + (pL - rP - rS * 0.9) / 2, cy);
+    }
+  }
+  /* o triglicerídeo: o glicerol (três carbonos, de cima para baixo) e, em cada um, uma ligação éster (o O, em
+     destaque) com um ácido graxo — a carbonila (C=O) e a cadeia em zigue-zague. Uma H₂O sai de cada éster. */
+  _drawTriglicerideo(ctx, L, u, cx, cy, o) {
+    const dy = 1.55 * u, gx = cx - 3.6 * u, rC = Math.max(7, u * 0.3), cinza = cssVar('--scene-b', '#94a3b8');
+    kBond(ctx, gx, cy - dy, gx, cy + dy, 1, { color: o.tinta, width: o.larg * 1.6 });   // o glicerol: C–C–C
+    for (let k = -1; k <= 1; k++) {
+      const y = cy + k * dy, xO = gx + 1.15 * u, xC = xO + 1.05 * u;
+      kBond(ctx, gx + rC, y, xO, y, 1, { color: o.liga, width: o.larg * 1.4 });
+      kBond(ctx, xO, y, xC, y, 1, { color: o.liga, width: o.larg * 1.4 });
+      kBond(ctx, xC, y, xC + 0.32 * u, y - 0.55 * u, 2, { color: cinza, width: o.larg * 0.8, gap: Math.max(2, u * 0.07) });   // C=O
+      o.atomo(xC + 0.42 * u, y - 0.72 * u, Math.max(6, u * 0.22), 'O', cssVar('--accent-warn', '#f87171'));
+      // a cadeia do ácido graxo: zigue-zague
+      ctx.save(); ctx.strokeStyle = o.tinta; ctx.lineWidth = o.larg; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(xC, y);
+      for (let j = 1; j <= 8; j++) ctx.lineTo(xC + j * 0.62 * u, y + (j % 2 ? 0.28 : 0) * u);
+      ctx.stroke(); ctx.restore();
+      o.atomo(gx, y, rC, 'C', o.tinta);
+      o.atomo(xO, y, Math.max(7, u * 0.28), 'O', o.liga);                     // o O do éster
+      // a água sai à esquerda do glicerol
+      kArrow(ctx, gx - rC - 2, y, gx - 0.95 * u, y, { color: o.agua, head: Math.max(4, u * 0.14), width: Math.max(1.2, u * 0.05) });
+      kChip(ctx, 'H₂O', gx - 1.55 * u, y, { size: o.chip, fg: o.agua });
+    }
   }
 
-  /* ══════════ MODO 2 — ligação peptídica ══════════ */
-  _drawPeptidica(ctx, W, H) {
-    kLabel(ctx, 'Ligação peptídica (amida)', W / 2, 34,
-      { size: 15, bold: true, align: 'center', color: cssVar('--text-primary', '#ddeaf8') });
-
-    /* CENA BAIXA (celular deitado): na conta proporcional, o "+" entre os aminoácidos encostava no "− H₂O"
-       do produto, e o nome dos aminoácidos subia até o título. Os dois blocos ganham posições fixas. */
-    const baixa = H < 265;
-    const cy = baixa ? 88 : H * .40;
-    const desenhaAA = (aa, cx, destaqueCarboxila, destaqueAmino) => {
-      const dx = Math.min(44, W * .06);
-      const nos = [
-        { x: cx - dx * 1.6, y: cy, el: 'H₂N', cor: destaqueAmino ? cssVar('--accent-main', '#facc15') : cssVar('--accent-ok', '#4ade80') },
-        { x: cx, y: cy, el: 'CH', cor: cssVar('--scene-b', '#94a3b8') },
-        { x: cx + dx * 1.6, y: cy, el: 'COOH', cor: destaqueCarboxila ? cssVar('--accent-main', '#facc15') : cssVar('--accent-warn', '#f87171') },
-      ];
-      kBond(ctx, nos[0].x, nos[0].y, nos[1].x, nos[1].y, 1, { color: cssVar('--scene-a', '#facc15'), width: 2.2 });
-      kBond(ctx, nos[1].x, nos[1].y, nos[2].x, nos[2].y, 1, { color: cssVar('--scene-a', '#facc15'), width: 2.2 });
-      kBond(ctx, nos[1].x, nos[1].y, nos[1].x, nos[1].y + 34, 1, { color: cssVar('--scene-a', '#facc15'), width: 2.2 });
-      nos.forEach(n => kAtom(ctx, n.x, n.y, 12 + n.el.length * 2.2, n.el, { color: n.cor, size: 9 }));
-      kChip(ctx, `R = ${aa.r}`, nos[1].x, nos[1].y + 48, { size: 9, fg: kTinta(aa.dot), border: kTinta(aa.dot) });
-      kLabel(ctx, `${aa.nome} (${aa.sigla})`, cx, cy - 34, { size: 11, bold: true, align: 'center', color: kTinta(aa.dot) });
-      kLabel(ctx, `pI = ${fmt(aa.pI, 2)}`, cx, cy - 18, { size: 10, mono: true, align: 'center', color: cssVar('--accent-amber', '#fbbf24') });
+  /* ══════════ MODO 2 — ligação peptídica ══════════
+     Em cima, os dois aminoácidos (H₂N–CH–COOH, com o grupo R embaixo do CH); a carboxila do primeiro e a amina do
+     segundo, com um contorno tracejado, são os grupos que reagem. A seta desce com a H₂O que sai. Embaixo, o dipeptídeo:
+     H₂N–CH–CO–NH–CH–COOH, com a ligação peptídica (CO–NH) em destaque. Antes, o produto era só texto. */
+  _drawPeptidica(ctx, L) {
+    const s = clamp(Math.min(L.w / 6.3, (L.h - 12) / 3.9), 24, 100), destaque = cssVar('--accent-main', '#facc15');
+    const verde = cssVar('--accent-ok', '#4ade80'), verm = cssVar('--accent-warn', '#f87171'), cinza = cssVar('--scene-b', '#94a3b8'), traco = cssVar('--scene-a', '#22d3c6');
+    const letra = Math.max(9, Math.round(s * 0.2)), chipR = Math.round(clamp(s * 0.17, 9, 13)), larg = Math.max(2, s * 0.045);
+    const alto = 3.9 * s, y1 = L.y + Math.max(0, (L.h - 12 - alto) / 2) + 0.45 * s, y2 = y1 + 2.4 * s;
+    const raio = el => s * (0.24 + el.length * 0.035);
+    const no = (x, y, el, cor) => kAtom(ctx, x, y, raio(el), el, { color: cor, size: letra });
+    const grupoR = (x, y, aa) => { kBond(ctx, x, y + raio('CH'), x, y + 0.72 * s, 1, { color: traco, width: larg }); kChip(ctx, 'R = ' + aa.r, x, y + 0.95 * s, { size: chipR, fg: kTinta(aa.dot), border: kTinta(aa.dot) }); };
+    // o grupo que reage ganha um contorno tracejado (a cor dele continua a do grupo: verde, a amina; vermelho, a carboxila)
+    const reage = (x, el) => { ctx.save(); ctx.strokeStyle = destaque; ctx.lineWidth = Math.max(1.6, s * 0.035); ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.arc(x, y1, raio(el) + s * 0.1, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); };
+    const aminoacido = (aa, cx, carboxila, amina) => {
+      kBond(ctx, cx - s, y1, cx, y1, 1, { color: traco, width: larg }); kBond(ctx, cx, y1, cx + s, y1, 1, { color: traco, width: larg });
+      grupoR(cx, y1, aa);
+      no(cx - s, y1, 'H₂N', verde); no(cx, y1, 'CH', cinza); no(cx + s, y1, 'COOH', verm);
+      if (amina) reage(cx - s, 'H₂N'); if (carboxila) reage(cx + s, 'COOH');
     };
-
-    desenhaAA(this.aa1, W * .26, true, false);
-    desenhaAA(this.aa2, W * .74, false, true);
-
-    kLabel(ctx, '+', W / 2, cy + 4, { size: 20, bold: true, align: 'center', baseline: 'middle', color: cssVar('--text-muted', '#3d566e') });
-
-    // produto
-    const yProd = baixa ? cy + 66 : H - 96;
-    kArrow(ctx, W / 2 - 30, yProd - (baixa ? 30 : 26), W / 2 + 30, yProd - (baixa ? 30 : 26),
-      { color: cssVar('--accent-main', '#facc15'), width: 2, head: 9 });
-    kChip(ctx, '− H₂O', W / 2, yProd - (baixa ? 46 : 44), { size: 10, fg: cssVar('--accent-alt', '#38bdf8') });
-    kLabel(ctx, `${this.aa1.sigla}–${this.aa2.sigla}: ${this._nomeDipeptideo()}`, W / 2, yProd + (baixa ? 0 : 2),
-      { size: 15, bold: true, align: 'center', color: cssVar('--accent-main', '#facc15') });
-    kLabel(ctx, 'H₂N–CHR–CO–NH–CHR′–COOH', W / 2, yProd + (baixa ? 19 : 26),
-      { size: 13, mono: true, align: 'center', color: cssVar('--text-primary', '#ddeaf8') });
-    kLabel(ctx, 'a carbonila do primeiro se liga ao nitrogênio do segundo — invertendo a ordem, o peptídeo é outro', W / 2, baixa ? Math.max(yProd + 36, H - 10) : H - 16,
-      { size: 10, align: 'center', color: cssVar('--text-muted', '#3d566e') });
+    aminoacido(this.aa1, L.x + L.w * 0.25, true, false);
+    aminoacido(this.aa2, L.x + L.w * 0.75, false, true);
+    kLabel(ctx, '+', L.x + L.w / 2, y1 + 1, { size: Math.max(16, Math.round(s * 0.36)), bold: true, align: 'center', baseline: 'middle', color: cssVar('--text-muted', '#3d566e') });
+    // a seta e a água que sai
+    const xm = L.x + L.w / 2;
+    kArrow(ctx, xm, y1 + 0.55 * s, xm, y2 - 0.6 * s, { color: destaque, width: Math.max(2, s * 0.04), head: Math.max(8, s * 0.16) });
+    kChip(ctx, '− H₂O', xm + 0.95 * s, (y1 + y2) / 2 + 0.1 * s, { size: chipR, fg: cssVar('--accent-alt', '#38bdf8') });
+    // o dipeptídeo
+    const x0 = xm - 2.5 * s, el = ['H₂N', 'CH', 'CO', 'NH', 'CH', 'COOH'], cor = [verde, cinza, verm, verde, cinza, verm];
+    for (let i = 0; i < 5; i++) kBond(ctx, x0 + s * i, y2, x0 + s * (i + 1), y2, 1, i === 2 ? { color: destaque, width: larg * 2.2 } : { color: traco, width: larg });
+    grupoR(x0 + s, y2, this.aa1); grupoR(x0 + 4 * s, y2, this.aa2);
+    el.forEach((e, i) => no(x0 + s * i, y2, e, cor[i]));
   }
 
-  /* ══════════ MODO 3 — atividade enzimática ══════════ */
-  _drawEnzima(ctx, W, H) {
-    const e = this.enz;
-    // numa cena baixa (celular deitado) o gráfico encolhe para a barra de temperatura e a legenda dela caberem embaixo
-    const x = 62, y = 60, w = W - 96, h = H < 240 ? Math.max(50, H - 146) : Math.max(90, H - 200);
-
-    kLabel(ctx, `${e.nome} — ${e.local}`, W / 2, 32,
-      { size: 15, bold: true, align: 'center', color: kTinta(e.dot) });
-
+  /* ══════════ MODO 3 — atividade enzimática ══════════
+     O gráfico da atividade contra o pH (na temperatura atual), com a leitura do ponto, e embaixo a escala da
+     temperatura: a faixa até o valor atual, a marca da ótima (triângulo) e a da desnaturação (tracejada).
+     Desnaturada, a curva fica tracejada e apagada. */
+  _drawEnzima(ctx, L) {
+    const e = this.enz, at = this._atividade() * 100, baixa = L.h < 300;
+    const escH = baixa ? 44 : 58, gx = L.x + 46, gy = L.y + 6, gw = Math.max(80, L.w - 56), gh = Math.max(56, L.h - 6 - 34 - escH);
     const eixos = kAxes(ctx, {
-      x, y, w, h, xmin: 0, xmax: 14, ymin: 0, ymax: 105,
+      x: gx, y: gy, w: gw, h: gh, xmin: 0, xmax: 14, ymin: 0, ymax: 105,
       xticks: [0, 2, 4, 6, 8, 10, 12, 14].map(v => ({ v, l: v })),
-      yticks: [0, 25, 50, 75, 100].map(v => ({ v, l: v })),
-      xlabel: 'pH', ylabel: h < 80 ? 'atividade (%)' : 'atividade relativa (%)',   // num gráfico baixo, o rótulo deitado não caberia no eixo
+      yticks: (gh < 90 ? [0, 50, 100] : [0, 25, 50, 75, 100]).map(v => ({ v, l: v })),
+      xlabel: 'pH', ylabel: gh < 110 ? 'atividade (%)' : 'atividade relativa (%)',
     });
-
-    // curva de atividade contra pH, na temperatura atual
-    const pts = [];
-    const fT = this._fatorT();
-    for (let p = 0; p <= 14; p += .2) {
-      const d = p - e.phOtimo;
-      pts.push({ x: p, y: Math.exp(-(d * d) / (2 * 1.2 * 1.2)) * fT * 100 });
-    }
-    kLine(ctx, pts, eixos.px, eixos.py, { color: e.dot, width: 2.6 });
-
-    // ponto atual
-    const at = this._atividade() * 100;
+    // a curva de atividade contra o pH, na temperatura atual
+    const pts = [], fT = this._fatorT();
+    for (let p = 0; p <= 14; p += .2) { const d = p - e.phOtimo; pts.push({ x: p, y: Math.exp(-(d * d) / (2 * 1.2 * 1.2)) * fT * 100 }); }
+    kLine(ctx, pts, eixos.px, eixos.py, this.desnaturada ? { color: cssVar('--text-muted', '#3d566e'), width: 2, dash: [6, 5] } : { color: e.dot, width: 2.6 });
+    // o ponto atual e a leitura dele
+    ctx.save(); ctx.fillStyle = cssVar('--accent-amber', '#fbbf24'); ctx.beginPath(); ctx.arc(eixos.px(this.ph), eixos.py(at), 6, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    kChip(ctx, `${fmt(at, 0)} %`, eixos.px(this.ph), eixos.py(at) - 20, { size: 11, bold: true, fg: cssVar('--accent-amber', '#fbbf24') });
+    // a escala da temperatura (0 a 90 °C)
+    const bw = Math.min(gw, 460), bx = gx + (gw - bw) / 2, by = gy + gh + 34 + (baixa ? 8 : 14), bh = baixa ? 10 : 14, tx = t => bx + (t / 90) * bw;
     ctx.save();
-    ctx.fillStyle = cssVar('--accent-amber', '#fbbf24');
-    ctx.beginPath(); ctx.arc(eixos.px(this.ph), eixos.py(at), 6, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-    kChip(ctx, `${fmt(at, 0)} %`, eixos.px(this.ph), eixos.py(at) - 20,
-      { size: 11, bold: true, fg: cssVar('--accent-amber', '#fbbf24') });
-
-    // barra de temperatura
-    const bw = Math.min(W * .7, 420), bx = W / 2 - bw / 2, by = y + h + 44, bh = 16;
-    ctx.save();
-    ctx.fillStyle = cssVar('--bg-panel2', '#101c2b');
-    kRound(ctx, bx, by, bw, bh, 8); ctx.fill();
+    ctx.fillStyle = cssVar('--bg-panel2', '#101c2b'); kRound(ctx, bx, by, bw, bh, bh / 2); ctx.fill();
     const fracT = clamp(this.temp / 90, 0, 1);
-    ctx.fillStyle = kMix('#38bdf8', '#f87171', fracT);
-    kRound(ctx, bx, by, bw * fracT, bh, 8); ctx.fill();
-    ctx.strokeStyle = cssVar('--border', '#1c2e44'); ctx.lineWidth = 1;
-    kRound(ctx, bx, by, bw, bh, 8); ctx.stroke();
-    // marca da temperatura de desnaturação
-    const xd = bx + (e.tDesnatura / 90) * bw;
-    ctx.strokeStyle = cssVar('--accent-warn', '#f87171'); ctx.lineWidth = 2;
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath(); ctx.moveTo(xd, by - 5); ctx.lineTo(xd, by + bh + 5); ctx.stroke();
+    ctx.fillStyle = kMix('#38bdf8', '#f87171', fracT); kRound(ctx, bx, by, Math.max(bh, bw * fracT), bh, bh / 2); ctx.fill();
+    ctx.strokeStyle = cssVar('--border', '#1c2e44'); ctx.lineWidth = 1; kRound(ctx, bx, by, bw, bh, bh / 2); ctx.stroke();
+    ctx.strokeStyle = cssVar('--accent-warn', '#f87171'); ctx.lineWidth = 2; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(tx(e.tDesnatura), by - 5); ctx.lineTo(tx(e.tDesnatura), by + bh + 5); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = cssVar('--accent-ok', '#4ade80'); ctx.beginPath(); ctx.moveTo(tx(e.tOtima), by - 2); ctx.lineTo(tx(e.tOtima) - 5, by - 9); ctx.lineTo(tx(e.tOtima) + 5, by - 9); ctx.closePath(); ctx.fill();   // a ótima
     ctx.restore();
-    kLabel(ctx, `temperatura: ${fmt(this.temp, 0)} °C (ótima ${e.tOtima} °C · desnatura acima de ${e.tDesnatura} °C)`,
-      W / 2, by + bh + 20, { size: 11, align: 'center', color: cssVar('--text-secondary', '#7a9ab8') });
-
-    if (this.desnaturada) {
-      kChip(ctx, 'ENZIMA DESNATURADA — perda irreversível', W / 2, by - 26,
-        { size: 11, bold: true, fg: cssVar('--accent-warn', '#f87171'), border: cssVar('--accent-warn', '#f87171') });
-    }
+    [0, 30, 60, 90].forEach(t => kLabel(ctx, String(t), tx(t), by + bh + 13, { size: 10, align: 'center', mono: true, color: cssVar('--text-muted', '#3d566e') }));
+    kLabel(ctx, '°C', bx + bw + 8, by + bh / 2 + 4, { size: 11, color: cssVar('--text-secondary', '#7a9ab8') });
   }
 
   /* ══════════ resultados ══════════ */
   getResults() {
     if (this.modo === 'biomoleculas') {
       const b = this.bio;
+      // o que o esquema da cena mostra, em palavras (a cena não tem legenda)
+      const cena = {
+        carboidrato: 'três monossacarídeos (os anéis, com o O de cada um) unidos pelo O da ligação glicosídica; cada ligação libera uma H₂O',
+        proteina: 'três aminoácidos (Gly, Ala e Ser) unidos por ligações peptídicas; cada ligação libera uma H₂O',
+        nucleico: 'três nucleotídeos (fosfato P, pentose e base A, C, G) unidos pela ligação fosfodiéster, da pentose de um ao fosfato do seguinte; cada uma libera uma H₂O',
+        lipidio: 'um glicerol (C–C–C) e três ácidos graxos unidos por três ligações éster (o O em destaque), formando um triglicerídeo; cada éster libera uma H₂O',
+      }[b.id];
       return [
         { l: 'Classe', v: b.nome },
-        { l: 'Monômero', v: b.monomero },
-        { l: 'Polímero', v: b.polimero },
+        { l: 'Monômero', v: b.monomero, cls: 'val-texto' },
+        { l: 'Polímero', v: b.polimero, cls: 'val-texto' },
         { l: 'Ligação', v: b.ligacao, cls: 'val-ok' },
         { l: 'Elementos', v: b.elementos },
-        { l: 'Fórmula típica', v: b.formulaGeral },
-        { l: 'Função', v: b.funcao },
-        { l: 'Exemplo', v: b.exemplo },
+        { l: 'Fórmula típica', v: b.formulaGeral, cls: 'val-texto' },
+        { l: 'Função', v: b.funcao, cls: 'val-texto' },
+        { l: 'Exemplo', v: b.exemplo, cls: 'val-texto' },
+        { l: 'Na cena', v: cena, cls: 'val-texto' },
       ];
     }
     if (this.modo === 'peptidica') {
@@ -338,8 +358,11 @@ class Mech {
         { l: 'Aminoácido 2', v: `${this.aa2.nome} (${this.aa2.sigla})` },
         { l: 'pI do segundo', v: fmt(this.aa2.pI, 2) },
         { l: 'Grupo R do segundo', v: this.aa2.r },
-        { l: 'Dipeptídeo', v: this._nomeDipeptideo(), cls: 'val-ok' },
+        { l: 'Dipeptídeo', v: `${this.aa1.sigla}–${this.aa2.sigla}: ${this._nomeDipeptideo()}`, cls: 'val-ok' },
+        { l: 'Ligação formada', v: 'peptídica (amida): a carbonila (C=O) do primeiro com o N do segundo', cls: 'val-texto' },
+        { l: 'Fórmula geral', v: 'H₂N–CHR–CO–NH–CHR′–COOH' },
         { l: 'Subproduto', v: '1 H₂O (condensação)', cls: 'val-alt' },
+        { l: 'A ordem importa', v: `invertendo, o peptídeo é outro: ${this.aa2.sigla}–${this.aa1.sigla}`, cls: 'val-texto' },
       ];
     }
     const e = this.enz, at = this._atividade() * 100;
@@ -350,8 +373,10 @@ class Mech {
       { l: 'pH atual', v: fmt(this.ph, 1) },
       { l: 'pH ótimo', v: fmt(e.phOtimo, 1) },
       { l: 'Temperatura atual', v: `${fmt(this.temp, 0)} °C` },
+      { l: 'Temperatura ótima', v: `${e.tOtima} °C (o triângulo na escala)` },
+      { l: 'Desnatura acima de', v: `${e.tDesnatura} °C (a marca tracejada)` },
       { l: 'Atividade relativa', v: `${fmt(at, 0)} %`, cls: at > 60 ? 'val-ok' : at > 20 ? '' : 'val-warn' },
-      { l: 'Estado', v: this.desnaturada ? 'desnaturada (irreversível)' : 'ativa', cls: this.desnaturada ? 'val-warn' : 'val-ok' },
+      { l: 'Estado', v: this.desnaturada ? 'desnaturada: perda irreversível (use Repor enzima)' : 'ativa', cls: this.desnaturada ? 'val-warn val-texto' : 'val-ok' },
     ];
   }
 

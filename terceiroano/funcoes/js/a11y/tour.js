@@ -26,8 +26,7 @@
 
 document.addEventListener('DOMContentLoaded', function () {
   if (typeof Coachmark === 'undefined') return;
-  var LARGURA_MOBILE = 1100;
-  function ehMobile() { return window.innerWidth <= LARGURA_MOBILE; }
+  function ehMobile() { return typeof ehCelular === 'function' ? ehCelular() : window.innerWidth <= 900; }   // a regra do celular mora em init/app.js
 
   function abrirPainel(headerId) {
     var h = document.getElementById(headerId);
@@ -73,32 +72,40 @@ document.addEventListener('DOMContentLoaded', function () {
         texto: 'Se quiser prever, escolha o pincel de uma função no painel Investigar e arraste sobre os átomos do grupo: o O e o carbono do álcool, o C, o =O e o O do éster… Toque de novo com o mesmo pincel para despintar.' },
       { hdr: 'hdr-inv', titulo: 'Revele e entenda',
         texto: 'Revelar mostra todos os grupos, calculados a partir da estrutura. Onde a sua pintura for diferente, a explicação diz o que o átomo é — um O entre a C=O e outro carbono é éster, não éter. Se achar que só há carbono e hidrogênio, toque em Não há grupo funcional.' },
+      { hdr: 'hdr-result', titulo: 'O composto e a explicação',
+        texto: 'Em Resultados ficam o composto, onde ele aparece e a fórmula; logo acima, o que fazer agora e, depois de revelar, a explicação. Toque num grupo da estrutura e a ficha dele aparece aqui. A cena fica só com a estrutura.' },
       { hdr: 'hdr-bib', titulo: 'A biblioteca',
         texto: 'Compostos reais em cinco categorias. Busque pelo nome ou pelo uso — dor, aroma, combustível — e toque num composto para abri-lo. Ou toque em Construir para montar a sua própria molécula: os grupos acendem conforme se formam, até 6 ao mesmo tempo.' }
     ],
     nomenclatura: [
       { alvo: '#sim-canvas', titulo: 'A bancada',
-        texto: 'Oito cartões para estruturas. Toque num cartão para ver a estrutura grande. Quando o nome dela estiver certo, ele aparece no cartão, e a cadeia principal fica destacada e numerada.' },
+        texto: 'Oito cartões no alto da cena. Toque num cartão para ver a estrutura grande. No canto, o sinal do cartão: ✓ nome certo, ↺ a rever, ⊘ fora do escopo, • previsão feita. Com o nome certo, a cadeia principal fica destacada e numerada.' },
       { hdr: 'hdr-banc', titulo: 'Três jeitos de pôr estruturas',
         texto: 'Digite uma fórmula molecular, como C4H10O, e a bancada se enche com os isômeros; digite a fórmula estrutural do espaço, como CH3-CH(OH)-CH3 — a ligação tripla é o botão ≡, ou digite -=, uma σ e duas π —; ou desenhe no editor.' },
       { hdr: 'hdr-nome', titulo: 'Preveja todas e confira',
-        texto: 'Monte o nome de cada estrutura pelas peças: cadeia principal, ligações, função e localizadores. Quando todas tiverem previsão, confira: o nome certo vai para o cartão; os outros ficam marcados para você refazer e conferir de novo.' }
+        texto: 'Monte o nome de cada estrutura pelas peças: cadeia principal, ligações, função e localizadores. Quando todas tiverem previsão, confira: o cartão do nome certo ganha o ✓; os outros ficam marcados para você refazer e conferir de novo.' },
+      { hdr: 'hdr-result', titulo: 'A conferência e o nome',
+        texto: 'Em Resultados ficam o resultado da conferência, o que fazer agora e a ficha do cartão escolhido: a fórmula e, quando certo, o nome em todas as formas que ele tiver.' }
     ],
     ebulicao: [
       { alvo: '#sim-canvas', titulo: 'Monte a trilha',
-        texto: 'Ordene os compostos por ebulição crescente: toque numa peça e depois numa posição, ou arraste a peça até a posição — ela se encaixa. Toque numa peça da trilha para tirá-la.' },
+        texto: 'Ordene os compostos por ebulição crescente: a posição 1 é a de menor temperatura de ebulição, e a faixa vai do frio (azul) ao quente (vermelho). Toque numa peça e depois numa posição, ou arraste a peça até a posição — ela se encaixa. Toque numa peça da trilha para tirá-la.' },
+      { hdr: 'hdr-result', titulo: 'O nome e os dados da peça',
+        texto: 'As peças mostram só a estrutura, todas na mesma escala. Toque numa peça: o nome, a fórmula, a massa molar e a função dela aparecem em Resultados, com o que fazer agora e o resultado da conferência.' },
       { hdr: 'hdr-trilha', titulo: 'Escolha o conjunto e confira',
         texto: 'Cada conjunto isola uma variável: a força entre as moléculas, o tamanho da cadeia, a ramificação, o O–H, o N–H. Conferir diz só se existe erro na trilha; refaça até acertar. Com a trilha certa, cada composto sobe no termômetro até a sua temperatura.' },
       { hdr: 'hdr-dados', titulo: 'Os dados para raciocinar',
         texto: 'Massa molar, função e a presença de O–H ou N–H de cada composto. Depois do acerto, aparecem a temperatura de ebulição e a força intermolecular de cada um.' }
     ],
     prioridade: [
-      { alvo: '#sim-canvas', titulo: 'A bancada e a escada',
-        texto: 'Oito cartões com compostos reais de vários grupos. A escada à esquerda mostra a prioridade das funções: o grupo mais alto dá o sufixo do nome. Com o nome certo, os grupos do composto sobem até os seus degraus.' },
+      { alvo: '#sim-canvas', titulo: 'A bancada',
+        texto: 'Oito cartões com compostos reais de vários grupos, no alto da cena. Toque num cartão para ver a estrutura grande; o sinal no canto diz se o nome está certo (✓) ou a rever (↺).' },
       { hdr: 'hdr-nc-banc', titulo: 'Os compostos',
         texto: 'Sorteie compostos da biblioteca — aminoácidos, ácidos da fruta, aromas, medicamentos — ou digite uma fórmula estrutural.' },
       { hdr: 'hdr-nc-nome', titulo: 'Monte o nome completo',
-        texto: 'Acrescente um prefixo para cada grupo que não é o principal, com os localizadores (2,3 vira di-); escolha a cadeia ou o anel, as insaturações e o sufixo. Preveja todos os cartões e confira: o nome certo vai para o cartão; os outros você refaz.' }
+        texto: 'Acrescente um prefixo para cada grupo que não é o principal, com os localizadores (2,3 vira di-); escolha a cadeia ou o anel, as insaturações e o sufixo. Preveja todos os cartões e confira: o cartão do nome certo ganha o ✓; os outros você refaz.' },
+      { hdr: 'hdr-result', titulo: 'A escada das funções',
+        texto: 'Em Resultados fica a escada da prioridade das funções: o grupo mais alto do composto dá o sufixo do nome. Com o nome certo, os grupos do composto sobem até os seus degraus, e a ficha mostra o nome IUPAC, o nome comum e onde o composto aparece.' }
     ]
   };
 

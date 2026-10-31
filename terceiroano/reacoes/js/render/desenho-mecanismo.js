@@ -17,8 +17,27 @@
   var M = function () { return Q3.Mecanismo; };
 
   /* ══ AS POSIÇÕES ══════════════════════════════════════════════════ */
-  /* posições iniciais: o substrato pelo desenho 2D do SIQC; os reagentes à direita da dupla, um embaixo do outro */
-  DM.posicoesIniciais = function (S, smilesSubstrato) {
+  /* um reagente COM CADEIA (o anidrido acético): desenhado pelo mesmo motor de layout do substrato */
+  var temCadeia = function (S, c, pes) {
+    var Mc = M();
+    return pes.length >= 3 || (pes.length === 2 && c.length > 2 && pes.every(function (id) { return S.at[id].el === 'C' || S.at[id].el === 'O'; }) && Mc.vizinhos(S, pes[0]).indexOf(pes[1]) >= 0 && S.at[pes[0]].el === 'C');
+  };
+  /* as posições do reagente com cadeia, pelo layout 2D (só a conectividade importa), relativas ao canto (x mínimo, y médio) */
+  var layoutCadeia = function (S, pes) {
+    var Mc = M(), g2 = new Q3.Grafo(), mapa = {}, out = {};
+    pes.forEach(function (id) { mapa[id] = g2.addAtomo(S.at[id].el); });
+    pes.forEach(function (id) { Mc.vizinhos(S, id).forEach(function (v) { if (mapa[v] && id < v) g2.ligacoes.push({ a: mapa[id], b: mapa[v], ordem: Math.max(1, Math.round((S.lig[Mc.chaveLig(id, v)] || 2) / 2)) }); }); });
+    var lay2 = Q3.Geometria.layout(g2), xs2 = pes.map(function (id) { return lay2[mapa[id]].x; }), ys2 = pes.map(function (id) { return lay2[mapa[id]].y; });
+    var mx = Math.min.apply(null, xs2), my = (Math.min.apply(null, ys2) + Math.max.apply(null, ys2)) / 2;
+    pes.forEach(function (id) { out[id] = { x: lay2[mapa[id]].x - mx, y: lay2[mapa[id]].y - my }; });
+    return out;
+  };
+  /* posições iniciais: o substrato pelo desenho 2D do SIQC; os reagentes à direita da dupla, um embaixo do outro.
+     embaixo (opcional, { alvo, reagente }): numa área MAIS ALTA QUE LARGA (o celular em pé), os reagentes vão
+     EMBAIXO do substrato, numa fileira — ver reagentesEmbaixo. alvo: o que o primeiro reagente ataca no substrato,
+     pela literatura ({ at } ou { lig }); o substrato fica com ele virado para baixo, para os reagentes. reagente: o
+     átomo do reagente que faz esse ataque (fica no alto do reagente). */
+  DM.posicoesIniciais = function (S, smilesSubstrato, embaixo) {
     var pos = {}, Mc = M(), g = typeof smilesSubstrato === 'string' ? Q3.deSmiles(smilesSubstrato) : smilesSubstrato, lay = Q3.Geometria.layout(g), ids = g.pesados();
     ids.forEach(function (id, i) { pos['a' + (i + 1)] = { x: lay[id].x, y: lay[id].y }; });
     // os H EXPLÍCITOS do substrato (os dos carbonos vizinhos, na eliminação): nos espaços livres em volta do carbono
@@ -34,17 +53,23 @@
     var alvo = d ? { x: (pos[d.a].x + pos[d.b].x) / 2, y: (pos[d.a].y + pos[d.b].y) / 2 } : grupo ? { x: pos[grupo].x, y: pos[grupo].y } : { x: 0, y: 0 };
     var maxX = Math.max.apply(null, Object.keys(pos).map(function (id) { return pos[id].x; }));
     var comps = Mc.componentes(S).filter(function (c) { return c.indexOf('a1') < 0 && !c.some(function (id) { return pos[id]; }); }), y0 = alvo.y - (comps.length - 1) * 0.9;
-    comps.forEach(function (c, k) {
+    if (embaixo) {
+      /* o que o reagente ataca, virado para BAIXO: se está na metade de cima do substrato, o desenho é espelhado
+         (de cima para baixo — a mesma molécula vista do outro lado). O metano que perde um H para o O₂: o H de
+         cima passa para baixo, de frente para o O₂, e as farpas ficam curtas. */
+      var a0 = embaixo.alvo, T = a0 && a0.at && pos[a0.at] ? { x: pos[a0.at].x, y: pos[a0.at].y }
+        : a0 && a0.lig && pos[a0.lig[0]] && pos[a0.lig[1]] ? { x: (pos[a0.lig[0]].x + pos[a0.lig[1]].x) / 2, y: (pos[a0.lig[0]].y + pos[a0.lig[1]].y) / 2 } : { x: alvo.x, y: alvo.y };
+      var ysS = Object.keys(pos).map(function (id) { return pos[id].y; }), meio = (Math.min.apply(null, ysS) + Math.max.apply(null, ysS)) / 2;
+      if (T.y < meio - 0.05) { Object.keys(pos).forEach(function (id) { pos[id].y = 2 * meio - pos[id].y; }); T.y = 2 * meio - T.y; }
+      DM.reagentesEmbaixo(S, pos, comps, T, embaixo.reagente);
+    }
+    else comps.forEach(function (c, k) {
       var pes = c.filter(function (id) { return S.at[id].el !== 'H'; }), cx = Math.max(maxX, alvo.x) + 2.2, cy = y0 + k * 1.8;
       if (pes.length === 2 && c.length === 2) { pos[pes[0]] = { x: cx, y: cy }; pos[pes[1]] = { x: cx + 1, y: cy }; return; }   // X–X
-      if (pes.length >= 3 || (pes.length === 2 && c.length > 2 && pes.every(function (id) { return S.at[id].el === 'C' || S.at[id].el === 'O'; }) && Mc.vizinhos(S, pes[0]).indexOf(pes[1]) >= 0 && S.at[pes[0]].el === 'C')) {
+      if (temCadeia(S, c, pes)) {
         // um reagente COM CADEIA (o anidrido acético): o mesmo motor de layout do substrato (só a conectividade importa)
-        var g2 = new Q3.Grafo(), mapa = {}, volta = {};
-        pes.forEach(function (id) { var gid = g2.addAtomo(S.at[id].el); mapa[id] = gid; volta[gid] = id; });
-        pes.forEach(function (id) { Mc.vizinhos(S, id).forEach(function (v) { if (mapa[v] && id < v) g2.ligacoes.push({ a: mapa[id], b: mapa[v], ordem: Math.max(1, Math.round((S.lig[Mc.chaveLig(id, v)] || 2) / 2)) }); }); });
-        var lay2 = Q3.Geometria.layout(g2), xs2 = pes.map(function (id) { return lay2[mapa[id]].x; }), ys2 = pes.map(function (id) { return lay2[mapa[id]].y; });
-        var mx = Math.min.apply(null, xs2), my = (Math.min.apply(null, ys2) + Math.max.apply(null, ys2)) / 2;
-        pes.forEach(function (id) { pos[id] = { x: cx + (lay2[mapa[id]].x - mx), y: cy + (lay2[mapa[id]].y - my) }; });
+        var lay2 = layoutCadeia(S, pes);
+        pes.forEach(function (id) { pos[id] = { x: cx + lay2[id].x, y: cy + lay2[id].y }; });
         c.filter(function (id) { return S.at[id].el === 'H'; }).forEach(function (h) { var pai = Mc.vizinhos(S, h)[0]; if (pai && pos[pai]) { var ang = DM.vao(S, pos, pai); pos[h] = { x: pos[pai].x + Math.cos(ang) * 0.75, y: pos[pai].y + Math.sin(ang) * 0.75 }; } });
         return;
       }
@@ -56,7 +81,66 @@
       });
     });
     DM.relaxarH(S, pos, true);                                        // os H se acomodam juntos
-    return DM.arrumar(S, pos);                                         // a cena inicial também, arrumada
+    return DM.arrumar(S, pos, embaixo || false);                       // a cena inicial também, arrumada
+  };
+  /* OS REAGENTES EMBAIXO DO SUBSTRATO (a área mais alta que larga: o celular em pé). Lado a lado eles alargam o
+     desenho, e a escala é a que cabe na largura: o desenho vira uma faixa no meio da tela. Embaixo, ocupam a altura
+     que sobra. Cada reagente com o lado que reage virado para CIMA, para o substrato — o X–X em pé (como se desenha
+     o Br₂ chegando à dupla), o H do HX em cima, os H da água para cima —, numa fileira sob o alvo, sem passar
+     da largura do substrato quando cabe. O átomo mais alto fica a 2,1 ligações do substrato, como à direita.
+     reag (opcional, { at } ou { lig }): o átomo do reagente que a primeira seta da literatura liga ao substrato
+     (o H do H₃O⁺ que o O do álcool ataca). Ele fica no alto do seu reagente, e a fileira se ajeita para ele cair
+     o mais perto possível de baixo do alvo, sem alargar o desenho.
+     As caixas são as do arrumar (com a folga dos H): lado a lado, ninguém é empurrado para a faixa. */
+  DM.reagentesEmbaixo = function (S, pos, comps, alvo, reag) {
+    var Mc = M(), folgaAt = function (id) { return S.at[id].hImp ? 1.0 : 0.62; }, R = reag ? (reag.at || (reag.lig && reag.lig[0])) : null;
+    var subs = Object.keys(pos), sx0 = Infinity, sx1 = -Infinity, sy1 = -Infinity;
+    subs.forEach(function (id) { sx0 = Math.min(sx0, pos[id].x - folgaAt(id)); sx1 = Math.max(sx1, pos[id].x + folgaAt(id)); sy1 = Math.max(sy1, pos[id].y); });
+    // cada reagente na sua forma, em coordenadas locais (o átomo que reage no alto)
+    var blocos = comps.map(function (c) {
+      var pes = c.filter(function (id) { return S.at[id].el !== 'H'; }), loc = {}, hsSoltos = [], temR = !!R && c.indexOf(R) >= 0;
+      if (pes.length === 2 && c.length === 2) {                                                                         // X–X em pé, o que reage em cima
+        var cima = temR && R === pes[1] ? pes[1] : pes[0], baixo = cima === pes[0] ? pes[1] : pes[0];
+        loc[cima] = { x: 0, y: 0 }; loc[baixo] = { x: 0, y: 1 };
+      } else if (temCadeia(S, c, pes)) {                                                                                // a cadeia: deitada, como no papel
+        var lay2 = layoutCadeia(S, pes); pes.forEach(function (id) { loc[id] = lay2[id]; });
+        if (temR && loc[R] && loc[R].y > 0.05) pes.forEach(function (id) { loc[id] = { x: loc[id].x, y: -loc[id].y }; });   // o que reage para cima
+        hsSoltos = c.filter(function (id) { return S.at[id].el === 'H'; });                                              // os H explícitos, depois, nos vãos
+      } else {
+        var central = pes[0] || c[0], hs = c.filter(function (id) { return id !== central; }), n = hs.length;
+        var angs = hs.map(function (h, i) { return -Math.PI / 2 + (n === 1 ? 0 : (i - (n - 1) / 2) * (n === 2 ? 1.85 : 2.1)); });
+        if (temR && hs.indexOf(R) >= 0) {                                                                               // o H que reage no lugar mais alto
+          var iCima = 0; angs.forEach(function (a, i) { if (Math.sin(a) < Math.sin(angs[iCima]) - 1e-9) iCima = i; });
+          var iR = hs.indexOf(R); hs[iR] = hs[iCima]; hs[iCima] = R;
+        }
+        loc[central] = { x: 0, y: 0 };
+        hs.forEach(function (h, i) { loc[h] = { x: Math.cos(angs[i]) * 0.85, y: Math.sin(angs[i]) * 0.85 }; });
+      }
+      var b = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, topo: Infinity };
+      Object.keys(loc).forEach(function (id) { var f = folgaAt(id), q = loc[id]; b.x0 = Math.min(b.x0, q.x - f); b.x1 = Math.max(b.x1, q.x + f); b.y0 = Math.min(b.y0, q.y - f); b.y1 = Math.max(b.y1, q.y + f); b.topo = Math.min(b.topo, q.y); });
+      if (hsSoltos.length) { b.y0 -= 0.75; b.y1 += 0.75; }                                                            // espaço para os H da cadeia
+      return { c: c, loc: loc, b: b, hs: hsSoltos, reage: temR };
+    });
+    /* a fileira: o reagente que reage primeiro numa das pontas (a mais perto do alvo), e a fileira posta para o átomo
+       dele cair o mais perto possível de baixo do alvo — sem passar da largura do substrato quando cabe nela, ou, se
+       é mais larga, cobrindo o substrato (a largura do desenho é a menor possível nos dois casos) */
+    var vao = 0.25, larg = blocos.reduce(function (s, q) { return s + q.b.x1 - q.b.x0; }, 0) + vao * (blocos.length - 1);
+    var lo = (sx1 - sx0) >= larg ? sx0 : sx1 - larg, hi = (sx1 - sx0) >= larg ? sx1 - larg : sx0;
+    var iRe = Math.max(0, blocos.findIndex(function (k) { return k.reage; })), melhor = null;
+    [true, false].forEach(function (primeiro) {
+      var ordem = blocos.slice(), kR = ordem.splice(iRe, 1)[0]; if (primeiro) ordem.unshift(kR); else ordem.push(kR);
+      var ini = 0, offR = 0;                                              // onde cai o átomo que reage, a partir do começo da fileira
+      ordem.forEach(function (k) { if (k === kR) offR = ini + ((R && k.loc[R] ? k.loc[R].x : (k.b.x0 + k.b.x1) / 2) - k.b.x0); ini += k.b.x1 - k.b.x0 + vao; });
+      var x0 = Math.max(lo, Math.min(hi, alvo.x - offR)), d = Math.abs(x0 + offR - alvo.x);
+      if (!melhor || d < melhor.d - 1e-6) melhor = { d: d, x0: x0, ordem: ordem };
+    });
+    var x = melhor.x0, topoAt = Math.max(sy1, alvo.y) + 2.1;
+    melhor.ordem.forEach(function (k) {
+      var dx = x - k.b.x0, dy = topoAt - k.b.topo;
+      Object.keys(k.loc).forEach(function (id) { pos[id] = { x: k.loc[id].x + dx, y: k.loc[id].y + dy }; });
+      k.hs.forEach(function (h) { var pai = Mc.vizinhos(S, h)[0]; if (pai && pos[pai]) { var ang = DM.vao(S, pos, pai); pos[h] = { x: pos[pai].x + Math.cos(ang) * 0.75, y: pos[pai].y + Math.sin(ang) * 0.75 }; } });
+      x += k.b.x1 - k.b.x0 + vao;
+    });
   };
   /* o maior espaço livre em volta de um átomo (para pôr um H, um par, um grupo que chega) */
   DM.vao = function (S, pos, id, ignora) {
@@ -65,8 +149,9 @@
     var melhor = -1, ang = 0; angs.forEach(function (a, i) { var b = i + 1 < angs.length ? angs[i + 1] : angs[0] + 2 * Math.PI; if (b - a > melhor) { melhor = b - a; ang = a + (b - a) / 2; } });
     return ang;
   };
-  /* as posições depois de um passo: as moléculas que se uniram vêm para junto; o resto fica */
-  DM.posicoesDepois = function (Sa, Sd, posA) {
+  /* as posições depois de um passo: as moléculas que se uniram vêm para junto; o resto fica.
+     embaixo: a cena tem os reagentes embaixo do substrato (a área mais alta que larga) — o que sai vai para baixo */
+  DM.posicoesDepois = function (Sa, Sd, posA, embaixo) {
     /* QUEM SE MOVE: a parte com carbonos é a âncora (fica); do outro lado, só vem o que CHEGA — os átomos
        da molécula nova que vieram da molécula de quem se liga (o H que passa do H3O+ vem sozinho; a água
        que ataca o C+ vem inteira; no halônio, só o X que fecha o anel) */
@@ -158,14 +243,18 @@
       parte.forEach(function (id) { movidos[id] = true; });
     });
     DM.relaxarH(Sd, pos, true);                                     // os H (explícitos e implícitos) se acomodam juntos
-    DM.arrumar(Sd, pos);                                            // o que SAIU não fica em cima de ninguém
+    DM.arrumar(Sd, pos, embaixo);                                   // o que SAIU não fica em cima de ninguém
     return pos;
   };
   /* ARRUMAR A CENA (como se arruma uma lousa): a molécula orgânica é a âncora e fica; toda molécula que se
      separou dela e ENCOSTA em outra (a água que saiu, o haleto, o H3O+ que se formou) vai para uma faixa livre
      ao lado da orgânica, empilhada sem se sobrepor. O tamanho conta os H desenhados em volta. O que não
-     encosta em nada fica onde está (os reagentes que ainda vão reagir). */
-  DM.arrumar = function (S, pos) {
+     encosta em nada fica onde está (os reagentes que ainda vão reagir).
+     embaixo (a área mais alta que larga; { aspecto: largura/altura da área }): uma faixa fixa ao lado alarga o
+     desenho, e uma embaixo o faz descer à toa. Cada molécula que precisa sair do lugar vai para o lugar LIVRE onde a
+     cena fica mais compacta PARA A FORMA DA TELA — o menor max(largura/aspecto, altura) da caixa de tudo —, e,
+     entre lugares iguais, o mais perto de onde ela estava (a animação anda menos). Nunca acima da orgânica. */
+  DM.arrumar = function (S, pos, embaixo) {
     var Mc = M(), comps = Mc.componentes(S).map(function (c) { return c.filter(function (id) { return pos[id]; }); }).filter(function (c) { return c.length; });
     var nC = function (c) { return c.filter(function (id) { return S.at[id].el === 'C'; }).length; };
     comps.sort(function (a, b) { return nC(b) - nC(a) || b.length - a.length; });
@@ -177,11 +266,25 @@
     var bate = function (a, b) { return !(a.maxX <= b.minX || b.maxX <= a.minX || a.maxY <= b.minY || b.maxY <= a.minY); };
     var ocupado = [caixa(comps[0])], ancora = ocupado[0];
     var faixaX = ancora.maxX + 1.2, topo = ancora.minY - 0.6;
-    comps.slice(1).forEach(function (c) {
+    comps.slice(1).forEach(function (c, i) {
       var b = caixa(c);
       if (ocupado.some(function (o) { return bate(b, o); })) {
-        var w = b.maxX - b.minX, h = b.maxY - b.minY, x = faixaX, y = topo, tent = 0;
-        while (ocupado.some(function (o) { return bate({ minX: x, maxX: x + w, minY: y, maxY: y + h }, o); }) && tent < 60) { y += 0.35; tent++; if (tent % 20 === 0) { x += 2.2; y = topo; } }
+        var w = b.maxX - b.minX, h = b.maxY - b.minY, x = faixaX, y = topo, tent = 0, livre = function () { return !ocupado.some(function (o) { return bate({ minX: x, maxX: x + w, minY: y, maxY: y + h }, o); }); };
+        if (embaixo) {
+          // os outros: os já postos e os que ainda vêm (onde estão); a cena sem esta molécula
+          var outros = ocupado.concat(comps.slice(i + 2).map(caixa)), asp = embaixo.aspecto || 0.7, U = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+          outros.forEach(function (o) { U.minX = Math.min(U.minX, o.minX); U.maxX = Math.max(U.maxX, o.maxX); U.minY = Math.min(U.minY, o.minY); U.maxY = Math.max(U.maxY, o.maxY); });
+          var livreDeTodos = function () { var q = { minX: x, maxX: x + w, minY: y, maxY: y + h }; return !outros.some(function (o) { return bate(q, o); }); };
+          var melhor = null, cx0 = (b.minX + b.maxX) / 2, cy0 = (b.minY + b.maxY) / 2;
+          for (var yy = ancora.minY; yy <= U.maxY + h + 3; yy += 0.35) for (var xx = U.minX - w - 0.6; xx <= U.maxX + 0.6; xx += 0.35) {
+            x = xx; y = yy; if (!livreDeTodos()) continue;
+            var cu = Math.max((Math.max(U.maxX, xx + w) - Math.min(U.minX, xx)) / asp, Math.max(U.maxY, yy + h) - Math.min(U.minY, yy)), di = Math.hypot(xx + w / 2 - cx0, yy + h / 2 - cy0);
+            if (!melhor || cu < melhor.cu - 1e-6 || (cu <= melhor.cu + 1e-6 && di < melhor.di)) melhor = { cu: cu, di: di, x: xx, y: yy };
+          }
+          if (melhor) { x = melhor.x; y = melhor.y; }
+          else { x = ancora.minX; y = U.maxY + 0.6; }                  // sem lugar livre por perto: logo abaixo de tudo
+        }
+        else while (!livre() && tent < 60) { y += 0.35; tent++; if (tent % 20 === 0) { x += 2.2; y = topo; } }
         var dx = x - b.minX, dy = y - b.minY; c.forEach(function (id) { pos[id].x += dx; pos[id].y += dy; });
         b = caixa(c);
       }
@@ -393,11 +496,16 @@
 
 
   /* O ENQUADRAMENTO DE VÁRIAS CENAS JUNTAS (o antes e o depois de um passo): a mesma escala e o mesmo
-     centro, para a animação não saltar de tamanho; folga para os H e os pares */
-  DM.transformar = function (posicoes, area, maxEsc) {
+     centro, para a animação não saltar de tamanho; folga para os H e os pares.
+     folga (opcional): { lig, px } — a folga em cada borda, em ligações mais px. A de sempre é 1,4 ligação.
+     DM.FOLGA_JUSTA cobre o que se desenha além dos átomos: o H que não reage (a 0,68 ligação do átomo, com o
+     rótulo), os pares, a carga e o radical (até 1,3 letra + 3 px do átomo). */
+  DM.FOLGA_JUSTA = { lig: 0.8, px: 10 };
+  DM.transformar = function (posicoes, area, maxEsc, folga) {
+    var fl = folga ? folga.lig : 1.4, fp = folga ? folga.px : 0;
     var xs = [], ys = []; posicoes.forEach(function (pos) { for (var id in pos) { xs.push(pos[id].x); ys.push(pos[id].y); } });
-    var minX = Math.min.apply(null, xs) - 1.4, maxX = Math.max.apply(null, xs) + 1.4, minY = Math.min.apply(null, ys) - 1.4, maxY = Math.max.apply(null, ys) + 1.4;
-    var esc = Math.min(maxEsc || 120, area.w / (maxX - minX), area.h / (maxY - minY));
+    var minX = Math.min.apply(null, xs) - fl, maxX = Math.max.apply(null, xs) + fl, minY = Math.min.apply(null, ys) - fl, maxY = Math.max.apply(null, ys) + fl;
+    var esc = Math.min(maxEsc || 120, (area.w - 2 * fp) / (maxX - minX), (area.h - 2 * fp) / (maxY - minY));
     return { esc: esc, ox: area.x + area.w / 2 - (minX + maxX) / 2 * esc, oy: area.y + area.h / 2 - (minY + maxY) / 2 * esc };
   };
   /* as posições a meio caminho (s de 0 a 1) */

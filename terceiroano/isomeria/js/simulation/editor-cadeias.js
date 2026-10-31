@@ -70,7 +70,7 @@ class EditorCadeias {
       canvas: document.getElementById('sim-canvas'), camera: this.cam3,
       ativo: function () { return eu.ativo && Q3.Representacoes.vista(eu.vista).tresD; },
       escala: function () { return eu._r3 && eu._r3.escala ? eu._r3.escala : 200; },
-      centroTela: function (w, h) { return { x: w / 2, y: 72 + (h - 72 - 96) / 2 }; },
+      centroTela: function (w, h) { var f = eu._faixas(w, h); return { x: w / 2, y: f.topo + (h - f.topo - f.base) / 2 }; },
       fraseAjustar: 'Molécula inteira na tela.',
       vistaPapel: true
     });
@@ -221,13 +221,18 @@ class EditorCadeias {
     if (enc && this.vis[this.sel]) {
       inclui({ x: self.vis[self.sel].x + enc.x - self.pos[self.sel].x, y: self.vis[self.sel].y + enc.y - self.pos[self.sel].y });
     }
-    /* BASE: a altura do rodapé (dica, legenda das cunhas, contagem de
-       Lewis) — a molécula nunca fica por baixo dessas linhas */
-    var nRod = (this._linhasRodape || []).length || 1;
-    var TOPO = 72, BASE = Math.max(70, 36 + 17 * nRod + 18), LADO = 28, PISO = 52, TETO = 92;
+    /* A ÁREA DO DESENHO: a área livre da cena (ui/moldura-cena.js) — abaixo da pílula do modo e fora da coluna de
+       zoom —, e no pé só a faixa da dica de teclado (no computador). O rodapé de texto que havia aqui (a dica de
+       como mexer, a legenda das cunhas, a contagem de Lewis) foi para os Resultados: a cena fica só com o desenho.
+       O TETO da escala cresce com a área: antes era fixo (92 px por ligação, pensado para o dedo), e no computador
+       a cadeia inicial ficava pequena no meio da tela; agora ela começa grande e o enquadramento a reduz conforme
+       cresce, até o PISO do toque (52 px). Numa cena baixa (o celular deitado), o piso desce até 36 px: com 52, uma
+       cadeia de seis carbonos já não cabia na altura, e a ponta oposta à que se monta saía da tela. */
+    var f = this._faixas(W, H), TOPO = f.topo, BASE = f.base, LADO = f.esq, DIR = f.dir, PISO = Math.max(36, Math.min(52, (H - TOPO - BASE) / 4.4));
+    var TETO = Math.max(92, Math.min(150, Math.min(W - LADO - DIR, H - TOPO - BASE) / 5.2));
     var MARGEM = 0.95 + Q3.Representacoes.margemExtra(this.vista);
     var w = (x1 - x0) + 2 * MARGEM, h = (y1 - y0) + 2 * MARGEM;
-    var alvo = Math.min((W - 2 * LADO) / w, (H - TOPO - BASE) / h, TETO);
+    var alvo = Math.min((W - LADO - DIR) / w, (H - TOPO - BASE) / h, TETO);
     var cabe = alvo >= PISO;
     alvo = Math.max(alvo, PISO);
     var cam = this.cam2, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
@@ -243,7 +248,7 @@ class EditorCadeias {
     }
     this._panLivre = !cabe;
     var ref = this._ref2D, esc = ref.esc * cam.zoom;
-    var centro = { x: W / 2, y: TOPO + (H - TOPO - BASE) / 2 };
+    var centro = { x: LADO + (W - LADO - DIR) / 2, y: TOPO + (H - TOPO - BASE) / 2 };
     this._centroTela2D = centro;                     // o zoom em direção ao cursor mede a partir daqui
     this._vista = {
       ox: centro.x - ref.cx * esc + cam.alvo[0],
@@ -257,14 +262,26 @@ class EditorCadeias {
        (o teste de arraste no celular pegou: o pan andava 3px em vez de
        100). O arraste do aluno desliga o seguimento na hora. */
     if ((!cabe || cam.manual) && this._seguir && this.vis[this.sel]) {
-      var p = this._tela(this.vis[this.sel]), m = 60;
-      var ajx = p.x < m ? m - p.x : (p.x > W - m ? W - m - p.x : 0);
-      var ajy = p.y < TOPO ? TOPO - p.y : (p.y > H - BASE ? H - BASE - p.y : 0);
+      /* o átomo selecionado E o + do encaixe dele (é nele que o aluno toca a seguir) ficam dentro da área: antes só
+         o átomo contava, e numa cena baixa o + subia para baixo da pílula do modo */
+      var p = this._tela(this.vis[this.sel]), pts = [p], mg = Math.max(16, esc * 0.38);
+      if (enc) pts.push(this._tela({ x: this.vis[this.sel].x + enc.x - this.pos[this.sel].x, y: this.vis[this.sel].y + enc.y - this.pos[this.sel].y }));
+      var xa = Infinity, xb = -Infinity, ya = Infinity, yb = -Infinity;
+      pts.forEach(function (q) { xa = Math.min(xa, q.x - mg); xb = Math.max(xb, q.x + mg); ya = Math.min(ya, q.y - mg); yb = Math.max(yb, q.y + mg); });
+      var ajx = xa < LADO ? LADO - xa : (xb > W - DIR ? W - DIR - xb : 0);
+      var ajy = ya < TOPO ? TOPO - ya : (yb > H - BASE ? H - BASE - yb : 0);
       if (Math.abs(ajx) < 1 && Math.abs(ajy) < 1) this._seguir = false;
       else { cam.alvo[0] += ajx * 0.25; cam.alvo[1] += ajy * 0.25; }
     }
   }
   _tela(p) { return { x: this._vista.ox + p.x * this._vista.esc, y: this._vista.oy + p.y * this._vista.esc }; }
+  /* as faixas da cena que o desenho não usa: em cima, a pílula do modo; à direita, a coluna de zoom; embaixo, a dica
+     de teclado do canvas (no computador; no celular ela sai com o modo ativo) */
+  _faixas(W, H) {
+    var L = Q3.Moldura ? Q3.Moldura.livre(W, H, true) : { x: 28, y: 72, w: W - 56, h: H - 72 - 70 };
+    var celular = typeof ehCelular === 'function' && ehCelular();
+    return { topo: L.y, base: Math.max(H - L.y - L.h, celular ? 14 : 34), esq: L.x, dir: Math.max(L.x, W - L.x - L.w) };
+  }
 
   /* O pan das vistas planas, que morava aqui, passou para o módulo de
      navegação (navegacao-3d.js, com a Camera2D): as vistas planas e as
@@ -692,19 +709,20 @@ class EditorCadeias {
     this.nav2.sincronizar();                  // …e planas (sem o botão recentrar)
     if (vi.tresD) this._desenhar3D(ctx, W, H);
     else {
-      this._linhasRodape = this._rodape(ctx, W);
       this._calcVista(W, H);
       if (vi.edita) this._desenharCondensada(ctx, W, H);
       else this._desenharPlana(ctx, W, H);
     }
-    this._desenharDica(ctx, W, H);
   }
+  /* a letra dos rótulos acompanha a escala (antes parava em 21 px: com a escala que cresce com a área, o CH₄ do
+     começo ficava miúdo no computador) */
+  _fonte(esc) { return Math.max(12, Math.min(28, Math.round(esc * 0.26))); }
 
   _desenharPlana(ctx, W, H) {
     var self = this, esc = this._vista.esc;
     Q3.Representacoes.desenharPlana(ctx, this.vista, {
       g: this.g, T: function (id) { return self._tela(self.vis[id]); }, esc: esc,
-      cores: Q3.Desenho.paleta(), aneis: this._aneis(), estereo: this._estereo(), posH: this._posicoesH(), fonte: Math.max(12, Math.min(21, Math.round(esc * 0.26)))
+      cores: Q3.Desenho.paleta(), aneis: this._aneis(), estereo: this._estereo(), posH: this._posicoesH(), fonte: this._fonte(esc)
     });
   }
 
@@ -739,21 +757,11 @@ class EditorCadeias {
     }
     var centro = this.centro3d || this._centroPadrao();
     var nv = this.vista === 'esfera' && centro ? Q3.Geometria3D.nuvens(this.g, molDesenho, centro, this.tensao) : { lista: [], ideal: 0 };
+    var f = this._faixas(W, H);
     this._r3 = Q3.Representacoes.desenhar3D(ctx, this.vista, { mol: molDesenho, cam: this.cam3, W: W, H: H,
       claro: cores.claro, contraste: b.classList.contains('high-contrast'), centro: centro,
-      nuvens: nv.lista, tensao: this.tensao, idealCentro: nv.ideal });
-    var esfera = this.vista === 'esfera';
-    var curto = W < 620;
-    // a descrição do centro é a linha principal; a nota da tensão vem logo abaixo
-    var linhasHud = [(esfera ? this._descreverCentro(centro) : 'modelo compacto  ·  raios de van der Waals, em escala') +
-        (curto ? '' : '  ·  toque num átomo: gira em torno dele')];
-    if (esfera && !curto) linhasHud.push(this._notaTensao(centro));
-    Q3.Representacoes.hud3D(ctx, linhasHud.concat([
-      // no celular a linha não cabe inteira: o "ajustar" fica com o botão da barra
-      curto ? 'arraste: girar · 2 dedos: mover e ampliar'
-            : 'arraste: girar · Shift ou botão direito: mover · rolagem: ampliar · duplo clique: ajustar',
-      esfera ? '▶ frente   ╌╌ atrás   ─── plano' : 'para montar, volte à estrutural condensada'
-    ]), W, H, cores.suave);
+      nuvens: nv.lista, tensao: this.tensao, idealCentro: nv.ideal, topo: f.topo, base: f.base });
+    this._centro3dVisto = centro;   // o que o HUD dizia (o centro, a tensão, a legenda) agora está nos Resultados
   }
 
   /* Centro padrão dos ângulos: o átomo pesado com mais ligações (o
@@ -816,7 +824,7 @@ class EditorCadeias {
 
   _desenharCondensada(ctx, W, H) {
     var self = this, P = Q3.Desenho, cores = P.paleta(), g = this.g, esc = this._vista.esc;
-    var fonte = Math.max(12, Math.min(21, Math.round(esc * 0.26)));
+    var fonte = this._fonte(esc);
     var ids = this._ids(), med = {}, rot = {};
     ids.forEach(function (id) { rot[id] = P.rotulo(g, id); med[id] = P.medirRotulo(ctx, rot[id], fonte); });
     var T = function (id) { return self._tela(self.vis[id]); };
@@ -885,7 +893,7 @@ class EditorCadeias {
             if (gap > melhor) { melhor = gap; ang = (i ? angs[i - 1] : ini - 2 * Math.PI) + gap / 2; }
           }
         }
-        P.seloClasse(ctx, p, classe, cores.classes[classe], Math.cos(ang), Math.sin(ang), Math.max(med[id].mx, med[id].my) + 10);
+        P.seloClasse(ctx, p, classe, cores.classes[classe], Math.cos(ang), Math.sin(ang), Math.max(med[id].mx, med[id].my) + 10, Math.max(11, Math.round(fonte * 0.62)));
       }
       if (alvoFoco && alvoFoco.tipo === 'atomo' && alvoFoco.id === id) P.foco(ctx, p, Math.max(med[id].mx, med[id].my) + 9, cores.acento);
     });
@@ -937,49 +945,31 @@ class EditorCadeias {
     return Object.keys(e.hidrogenios).some(function (k) { return e.hidrogenios[k].some(function (t) { return t !== 'plano'; }); });
   }
 
-  /* Rodapé das vistas planas, de cima para baixo: a contagem de Lewis,
-     a legenda das cunhas e a dica. Cada linha já sai quebrada para a
-     largura da tela; a vista reserva a altura da pilha (ver BASE). */
-  _rodape(ctx, W) {
-    var cores = Q3.Desenho.paleta(), out = [];
-    var FD = '500 13px system-ui, -apple-system, "Segoe UI", sans-serif', FL = '500 12px system-ui, -apple-system, "Segoe UI", sans-serif', FC = '600 12px system-ui, -apple-system, "Segoe UI", sans-serif';
-    var quebra = function (texto, fonte) {
-      ctx.font = fonte;
-      if (ctx.measureText(texto).width <= W - 32) return [texto];
-      var p = texto.split('  ·  ');
-      if (p.length < 2) { var pal = texto.split(' '), m = Math.ceil(pal.length / 2); return [pal.slice(0, m).join(' '), pal.slice(m).join(' ')]; }
-      var meio = Math.ceil(p.length / 2);
-      return [p.slice(0, meio).join('  ·  '), p.slice(meio).join('  ·  ')];
-    };
-    var poe = function (texto, fonte, cor) { quebra(texto, fonte).forEach(function (t) { out.push({ t: t, fonte: fonte, cor: cor }); }); };
-    if (this.vista === 'lewis') poe(Q3.Representacoes.contagemLewis(this.g), FC, cores.texto);
-    if (this._temCunhas()) poe('cunha cheia: vem para a frente  ·  cunha tracejada: vai para trás', FL, cores.suave);
-    poe(this._dica(), FD, cores.suave);
-    return out;
+  /* O QUE ERA TEXTO NA CENA, agora nos Resultados: a dica de como mexer vira o próximo passo (ela muda com a
+     ferramenta e com a vista), e a contagem de Lewis, a legenda das cunhas e, nas vistas espaciais, o centro dos
+     ângulos e a nota da tensão viram linhas da ficha. */
+  proximoPasso() {
+    if (!this.ativo) return '';
+    var vi = Q3.Representacoes.vista(this.vista);
+    if (vi.tresD) {
+      if (this._dicaTemp && performance.now() < this._dicaTemp.ate) return this._dicaTemp.texto;
+      var celular = typeof ehCelular === 'function' && ehCelular();
+      return (celular ? 'Arraste para girar; com dois dedos, mova e amplie.' : 'Arraste para girar; Shift ou o botão direito movem; a rolagem amplia; o duplo clique ajusta.') +
+        (this.vista === 'esfera' ? ' Toque num átomo para ver os ângulos em volta dele.' : '') + ' Para montar, volte à estrutural condensada.';
+    }
+    return this._dica();
   }
-
-  _desenharDica(ctx, W, H) {
-    if (Q3.Representacoes.vista(this.vista).tresD) return;   // na 3D, o HUD faz esse papel
-    var linhas = this._linhasRodape || this._rodape(ctx, W), n = linhas.length;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    linhas.forEach(function (l, i) {
-      ctx.font = l.fonte; ctx.fillStyle = l.cor;
-      ctx.fillText(l.t, W / 2, H - 36 - (n - 1 - i) * 17);
-    });
-  }
-
   _dica() {
     if (this._dicaTemp && performance.now() < this._dicaTemp.ate) return this._dicaTemp.texto;
     var vi = Q3.Representacoes.vista(this.vista);
-    if (vi.tresD) return 'Arraste para girar a molécula  ·  para montar, volte à estrutural condensada';
-    if (!vi.edita) return vi.nome + ': só para ver  ·  para montar, volte à estrutural condensada';
+    if (!vi.edita) return vi.nome + ': só para ver. Para montar, volte à estrutural condensada.';
     if (this.ferramenta === 'ligar') return this.ligarDe ? 'Toque no segundo átomo para fechar o anel.' : 'Toque em dois átomos para ligá-los.';
     if (this.ferramenta === 'apagar') return 'Toque num átomo ou numa ligação para remover.';
-    if (this.ferramenta === 'cunha' && this._ambiguos().length) return '?  = cunhas ambíguas: o desenho não define a configuração desse carbono. Mude uma delas de lugar.';
-    if (this.ferramenta === 'cunha') return 'Toque numa ligação simples: ela ' + ({ frente: 'vem para a frente', tras: 'vai para trás', plano: 'fica no plano' })[this.cunhaTipo] + '  ·  tocar de novo volta ao automático';
+    if (this.ferramenta === 'cunha' && this._ambiguos().length) return 'O ? marca cunhas ambíguas: o desenho não define a configuração desse carbono. Mude uma delas de lugar.';
+    if (this.ferramenta === 'cunha') return 'Toque numa ligação simples: ela ' + ({ frente: 'vem para a frente', tras: 'vai para trás', plano: 'fica no plano' })[this.cunhaTipo] + '. Tocar de novo volta ao automático.';
     if (this.g.pesados().length >= Q3.TETO_PESADOS) return 'Teto de ' + Q3.TETO_PESADOS + ' átomos pesados atingido.';
     if (!this._encaixe()) return 'Esse átomo está completo: toque em outro átomo.';
-    return 'Toque no + para anexar ' + Q3.Desenho.NOMES[this.elemento].toLowerCase() + '  ·  toque numa ligação para mudar a ordem';
+    return 'Toque no + para anexar ' + Q3.Desenho.NOMES[this.elemento].toLowerCase() + ', ou numa ligação para mudar a ordem.';
   }
 
   /* ── painel de resultados ──────────────────────────────────── */
@@ -998,6 +988,20 @@ class EditorCadeias {
     g.pesados().forEach(function (id) { if (g.atomos[id].el === 'C') cont[Math.min(4, self._nC(id))]++; });
     var nomes = ['nulários', 'primários', 'secundários', 'terciários', 'quaternários'];
     cont.forEach(function (n, i) { if (n || (i >= 1 && g.pesados().length > 1)) linhas.push({ l: 'Carbonos ' + nomes[i], v: String(n) }); });
+    // o que antes era escrito no rodapé da cena (ou no HUD das vistas espaciais)
+    var vi = Q3.Representacoes.vista(this.vista), limpa = function (t) { return String(t).replace(/\s+·\s+/g, ' · '); };
+    if (this.vista === 'lewis') linhas.push({ l: 'Contagem de Lewis', v: limpa(Q3.Representacoes.contagemLewis(g)), cls: 'val-texto' });
+    if (!vi.tresD && this._temCunhas()) linhas.push({ l: 'Cunhas', v: 'cheia: vem para a frente · tracejada: vai para trás', cls: 'val-texto' });
+    if (this.vista === 'esfera') {
+      var c3 = this._centro3dVisto || this.centro3d || this._centroPadrao();
+      if (c3 && g.atomos[c3]) {
+        linhas.push({ l: 'Centro dos ângulos', v: limpa(this._descreverCentro(c3)), cls: 'val-texto' });
+        // os mesmos valores dos rótulos da cena (ângulos iguais dividem um rótulo: 109,5° × 6)
+        if (this._r3 && this._r3.rotulos && this._r3.rotulos.length) linhas.push({ l: 'Ângulos', v: this._r3.rotulos.join(' · ') });
+        var nt = this._notaTensao(c3); if (nt) linhas.push({ l: 'Tensão angular', v: limpa(nt).replace(/^tensão angular (ligada|desligada) · /, '$1 · '), cls: 'val-texto' });
+      }
+      linhas.push({ l: 'Ligações', v: 'cunha cheia: para a frente · tracejada: para trás · traço: no plano', cls: 'val-texto' });
+    } else if (this.vista === 'compacto') linhas.push({ l: 'Modelo', v: 'compacto: raios de van der Waals, em escala', cls: 'val-texto' });
     return linhas;
   }
 

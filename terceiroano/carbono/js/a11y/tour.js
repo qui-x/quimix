@@ -71,6 +71,8 @@ document.addEventListener('DOMContentLoaded', function () {
         texto: 'Toque num átomo para selecioná-lo: o + tracejado mostra onde o próximo átomo entra. Toque no + para anexar, e numa ligação para passar de simples a dupla e tripla.' },
       { hdr: 'hdr-cons', titulo: 'Paleta e ferramentas',
         texto: 'Escolha o elemento a anexar — o hidrogênio nunca entra como peça, ele aparece no rótulo (CH₃). Ligar fecha um anel entre dois átomos; Cunha escolhe se uma ligação vem para a frente, vai para trás ou fica no plano; Snap Literatura refaz o desenho de livro.' },
+      { hdr: 'hdr-result', titulo: 'A dica e a cadeia',
+        texto: 'Em Resultados: no alto, como usar a ferramenta escolhida; abaixo, a fórmula e a classificação da cadeia, que mudam a cada átomo. Nas vistas espaciais, também o centro dos ângulos e a legenda das ligações. A cena fica só com o desenho.' },
       { hdr: 'hdr-rep', titulo: 'Seis jeitos de ver a mesma molécula',
         texto: 'Estrutural condensada, completa, em linha, de Lewis e duas espaciais. A edição acontece só na condensada; as outras acompanham cada mudança. Nas espaciais, os ângulos saem da hibridização — 109,5° no carbono saturado. A chave Tensão angular mostra as nuvens se empurrando e leva aos ângulos medidos: pares isolados e duplas fecham os ângulos vizinhos.' }
     ],
@@ -88,7 +90,9 @@ document.addEventListener('DOMContentLoaded', function () {
       { alvo: '#sim-canvas', titulo: 'Preveja pintando',
         texto: 'Se quiser prever, escolha um pincel no painel — primário, secundário, terciário ou quaternário — e arraste sobre os carbonos. Depois revele: o simulador mostra a classe de cada um, calculada pelo número de carbonos ligados a ele, e marca onde a previsão foi outra.' },
       { hdr: 'hdr-cls-cla', titulo: 'Classifique e aponte',
-        texto: 'Um critério por vez: escolha a sua previsão. Se ela for afirmativa — insaturada, ramificada, heterogênea… —, aponte a evidência na estrutura. Em seguida o simulador revela a resposta, destaca a evidência real e explica a química, inclusive por que a C=O e o OH da ponta não contam.' },
+        texto: 'Um critério por vez: escolha a sua previsão. Se ela for afirmativa — insaturada, ramificada, heterogênea… —, aponte a evidência na estrutura. Em seguida o simulador revela a resposta e destaca a evidência real.' },
+      { hdr: 'hdr-result', titulo: 'A explicação e o próximo passo',
+        texto: 'Em Resultados ficam a explicação de cada resposta (inclusive por que a C=O e o OH da ponta não contam), o que fazer agora e a classificação que vai se formando, critério por critério.' },
       { hdr: 'hdr-cls-est', titulo: 'Moléculas reais ou sorteadas',
         texto: 'Escolha a fonte e o nível: de cadeias abertas até aromáticas e heterociclos. As moléculas reais vêm com o lugar onde você as encontra; as sorteadas vêm sem nome, para classificar só pela estrutura.' }
     ]

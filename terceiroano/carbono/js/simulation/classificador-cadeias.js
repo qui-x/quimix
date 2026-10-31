@@ -26,6 +26,17 @@
    Tudo o que o módulo diz sai de Q3.Classificacao.analisar — a mesma
    regra do Módulo 1. Não há resposta guardada por molécula.
 
+   ONDE CADA COISA APARECE
+     cena (canvas) .... só a estrutura: os átomos, os selos de classe,
+                        os destaques da evidência e o traçado do anel
+     Resultados ....... o retorno (retorno), o próximo passo
+                        (proximoPasso) e a ficha da estrutura com os
+                        critérios já revelados (resultados)
+   Antes, o nome, o pedido, os pontos de progresso e o retorno eram
+   desenhados na cena; no celular o retorno passava de quatro linhas e
+   era cortado com reticências. No computador, o card Classificar abre
+   com os Resultados logo abaixo (data-rail-junto, em index.html).
+
    Depende de: core (grafo, geometria, smiles, classificacao-cadeias,
    gerador-estruturas), data (banco-cadeias), render (desenho-molecula).
 ═══════════════════════════════════════════════════════════════ */
@@ -51,6 +62,13 @@ var CLS_PERGUNTA = {
   heterociclo: 'O anel tem heteroátomo?',
   nucleos: 'Quantos núcleos aromáticos?',
   tipoPolinuclear: 'Os núcleos aromáticos estão…'
+};
+
+/* o nome curto de cada critério, na ficha dos Resultados */
+var CLS_ROTULO = {
+  cadeia: 'Fechamento', ramificacao: 'Disposição', saturacao: 'Saturação', natureza: 'Natureza',
+  aromaticidade: 'Aromaticidade', heterociclo: 'Heteroátomo no anel', nucleos: 'Núcleos aromáticos',
+  tipoPolinuclear: 'Arranjo dos núcleos'
 };
 
 /* respostas afirmativas que pedem a evidência: o que tocar, e onde está */
@@ -234,8 +252,7 @@ class ClassificadorCadeias {
   _iniciarCadeia(texto) {
     var q = this.q;
     q.etapa = 'cadeia'; q.i = 0;
-    this._retorno('ok', texto + ' ' + CLS_PERGUNTA[q.criterios[0].chave]);
-    this._sincronizarPainel();
+    this._retorno('ok', texto, null, CLS_PERGUNTA[q.criterios[0].chave]);
   }
 
   /* ══ 3. A CADEIA, UM CRITÉRIO POR VEZ ══════════════════════════ */
@@ -253,7 +270,9 @@ class ClassificadorCadeias {
     if (ev) {
       q.evidencia = { chave: c.chave, op: op, tipo: ev.tipo, alvo: op === c.resposta && ev.alvo ? ev.alvo(q.a) : [], pedido: ev.pedido.replace(/^Prove: /, 'Aponte: ') };
       playTone(660, .05, .03);
-      this._retorno('info', 'Previsão: ' + op + '. ' + q.evidencia.pedido + ' Se não souber onde, revele sem apontar.');
+      // o pedido é o próximo passo (Resultados); a explicação do critério anterior sai, com o destaque dela
+      q.feedback = null;
+      announce('Previsão: ' + op + '. ' + q.evidencia.pedido + ' Se não souber onde, revele sem apontar.');
       this._sincronizarPainel();
       return true;
     }
@@ -309,15 +328,13 @@ class ClassificadorCadeias {
     q.conferencia = null;
     q.i++;
     if (q.i < q.criterios.length) {
-      this._retorno('info', texto + '  →  ' + CLS_PERGUNTA[q.criterios[q.i].chave], realce);
-      this._sincronizarPainel();
+      this._retorno('info', texto, realce, CLS_PERGUNTA[q.criterios[q.i].chave]);
       return;
     }
     /* FIM: sem contagem, placar ou celebração — a classificação completa */
     q.etapa = 'fim';
     playTone(660, .08, .04);
-    this._retorno('info', texto + '  ·  Cadeia ' + this._resumo() + '. Toque em Nova estrutura para seguir.', realce);
-    this._sincronizarPainel();
+    this._retorno('info', texto, realce, 'Cadeia ' + this._resumo() + '. Toque em Nova estrutura para seguir.');
   }
 
   /* a revelação de um critério: a resposta calculada, a evidência real
@@ -328,7 +345,7 @@ class ClassificadorCadeias {
     var just = this._explicarAcerto(c.chave, certa), texto = just.texto, realce = just.realce;
     if (op && op !== certa) {
       var e = this._explicarErro(c.chave, op, certa);
-      texto += ' Na previsão: ' + op + ' — ' + e.texto;
+      texto += ' Na previsão: ' + op + '. ' + e.texto;
       realce = e.realce || realce;
     } else if (apontado && apontado.texto) texto += ' No que você apontou: ' + apontado.texto;
     playTone(660, .06, .03);
@@ -446,9 +463,12 @@ class ClassificadorCadeias {
     return vistos.join(', ');
   }
 
-  _retorno(tipo, texto, realce) {
+  /* O RETORNO: a explicação do que o aluno acabou de fazer. Aparece nos Resultados (retorno) e destaca
+     na estrutura o que ela cita (realce). `depois`: o que vem em seguida — a próxima pergunta ou o fim —,
+     que o leitor de tela ouve junto; na tela, isso está no próximo passo e no card Classificar. */
+  _retorno(tipo, texto, realce, depois) {
     this.q.feedback = { tipo: tipo, texto: texto, realce: realce || null, t0: this.t };
-    announce(texto);
+    announce(texto + (depois ? ' ' + depois : ''));
     this._sincronizarPainel();
   }
 
@@ -610,39 +630,15 @@ class ClassificadorCadeias {
 
   /* ══ DESENHO ════════════════════════════════════════════════════ */
 
+  /* A CENA É SÓ A ESTRUTURA: os átomos, os selos de classe, os destaques e o traçado do anel. O nome, o
+     pedido da etapa, o progresso e o retorno moram nos Resultados. */
   desenhar(ctx, W, H) {
     var q = this.q, g = q.g, P = Q3.Desenho.paleta(), D = Q3.Desenho, self = this;
     var claro = P.claro, aviso = claro ? '#8a4b00' : '#ffb454';
-    // área útil: abaixo do cabeçalho (nome e pedido) e acima do retorno
-    this._cabBaixo = H < 300;   // cena muito baixa (celular pequeno deitado): o cabeçalho se aperta, para sobrar estrutura
-    var cab = this._desenharCabecalho(ctx, W, P, aviso, true);   // o cabeçalho pode quebrar em linhas (tela estreita)
-    var topo = Math.max(150, cab + 22), reserva = 118, folga = 60, esq = 28, dir = W - 28;   // reserva: o retorno mais alto (4 linhas)
-    /* CENA BAIXA (celular deitado): com as folgas de sempre, a altura da estrutura dava NEGATIVA — a molécula
-       saía espelhada e minúscula. Aqui ela começa logo abaixo do cabeçalho (com folga para os selos de classe).
-       Numa faixa larga, o retorno não disputa a altura: mora numa coluna à esquerda, embaixo do cabeçalho, e a
-       estrutura fica à direita dele (longe da coluna dos botões de zoom). Numa faixa estreita, se não sobrar
-       altura, a estrutura fica com ela e o retorno passa por cima do pé. */
-    this._retLado = null;
-    if (H < 430) {
-      topo = cab + 18; folga = this._cabBaixo ? 22 : 30;
-      if (W >= 560) {
-        reserva = 22; dir = W - 64; folga = this._cabBaixo ? 30 : 40;   // os selos de classe descem abaixo do átomo de baixo
-        if (q.feedback) { this._retLado = { x: 24, y: cab + 8, w: Math.round(W * (this._cabBaixo ? 0.5 : 0.42)) }; esq = this._retLado.x + this._retLado.w + 16; }
-      } else {
-        reserva = 118;
-        if (H - reserva - topo - folga < 50) reserva = 24;
-      }
-    }
-    var base = H - reserva;
-    var ids = Object.keys(q.pos), xs = ids.map(function (id) { return q.pos[id].x; }), ys = ids.map(function (id) { return q.pos[id].y; });
-    var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs), minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
-    var s = Math.min(96, (dir - esq - 110) / Math.max(1, maxX - minX), Math.max(14, base - topo - folga) / Math.max(1, maxY - minY));
-    var cx = (esq + dir) / 2 - (minX + maxX) / 2 * s, cy = (topo + base) / 2 - (minY + maxY) / 2 * s;
-    var T = {}; ids.forEach(function (id) { T[id] = { x: cx + q.pos[id].x * s, y: cy + q.pos[id].y * s }; });
+    var E = this._enquadrar(ctx, W, H), ids = Object.keys(q.pos);
+    var T = {}; ids.forEach(function (id) { T[id] = { x: E.cx + q.pos[id].x * E.s, y: E.cy + q.pos[id].y * E.s }; });
     this._tela = T;
-    var fonte = this._fonte = Math.max(12, Math.min(17, s * 0.3));
-    var rotulo = function (id) { return self.vista === 'bastao' && g.atomos[id].el === 'C' ? '' : D.rotulo(g, id); };
-    var margem = {}; ids.forEach(function (id) { var r = rotulo(id); margem[id] = r ? D.medirRotulo(ctx, r, fonte) : { mx: 0, my: 0 }; });
+    var fonte = this._fonte = E.fonte, margem = E.margem, rotulo = E.rotulo;
     var centroAnel = function (l) {
       var r = q.a.aneis.filter(function (x) { return x.atomos.indexOf(l.a) >= 0 && x.atomos.indexOf(l.b) >= 0; })[0];
       if (!r) return null;
@@ -680,86 +676,119 @@ class ClassificadorCadeias {
       var r = rotulo(id);
       if (r) D.atomo(ctx, p, r, fonte, P, { corTexto: P.elementos[el] || P.texto, aro: corAro });
       else if (pint) { ctx.fillStyle = corAro; ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, Math.PI * 2); ctx.fill(); }
-      if (pint) {
-        /* o selo vai no meio da MAIOR abertura entre as ligações. "Oposto à
-           soma dos vizinhos" falhava no carbono quaternário: os quatro se
-           equilibram, a soma dá quase zero e o selo caía numa ligação. */
-        var angs = g.vizinhos(id).map(function (v) { return Math.atan2(T[v.id].y - p.y, T[v.id].x - p.x); }).sort(function (x, y) { return x - y; });
-        var dirA = -Math.PI / 2;
-        if (angs.length === 1) dirA = angs[0] + Math.PI;
-        else if (angs.length > 1) {
-          var maior = -1;
-          angs.forEach(function (an, k) {
-            var prox = k + 1 < angs.length ? angs[k + 1] : angs[0] + 2 * Math.PI, vao = prox - an;
-            if (vao > maior) { maior = vao; dirA = an + vao / 2; }
-          });
-        }
-        D.seloClasse(ctx, p, CLS_INDICE[pint], corAro, Math.cos(dirA), Math.sin(dirA), Math.max(margem[id].mx, 10) + 14);
-      }
       if (q.conferencia && conf === false) {
         ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = aviso; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(margem[id].mx, 12) + 7, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
       }
       if (self.foco === id) D.foco(ctx, p, Math.max(margem[id].mx, 12) + 12, P.acento);
     });
+    // os selos da classe, por cima de tudo (o lugar de cada um: _lugarSelos)
+    this._lugarSelos(ctx, T, E, W, H).forEach(function (s) {
+      D.seloClasse(ctx, s.p, s.n, P.classes[s.n], s.ux, s.uy, s.dist, E.selo);
+    });
     ctx.restore();
-    this._desenharCabecalho(ctx, W, P, aviso);
-    this._desenharRetorno(ctx, W, H, P, aviso);
   }
 
-  /* o cabeçalho: o nome, o contexto e o pedido da etapa. Numa tela estreita a fonte encolhe e o contexto
-     e o pedido quebram em linhas — nada sai pela borda. `soMedir`: só mede (a área da estrutura começa
-     abaixo dele) e devolve a altura em que ele termina. */
-  _desenharCabecalho(ctx, W, P, aviso, soMedir) {
-    var q = this.q, self = this, D = Q3.Desenho, larg = W - 24 - 16;
-    var largNome = q.etapa !== 'carbonos' ? larg - q.criterios.length * 18 - 16 : larg;   // os pontos do progresso moram à direita do nome
-    ctx.save(); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    // abaixo do selo de modo ativo, que o app desenha no topo, ao centro
-    var yN = this._cabBaixo ? 62 : 70, yC = this._cabBaixo ? 80 : 90, vao = this._cabBaixo ? 24 : 30;
-    ctx.fillStyle = P.texto; D.textoQueCabe(ctx, q.nome, 24, yN, largNome, { peso: '700', tam: 16, min: 13, linhas: 1, medir: soMedir });
-    ctx.fillStyle = P.suave; var r2 = D.textoQueCabe(ctx, q.contexto + '  ·  ' + q.formula, 24, yC, larg, { tam: 12.5, min: 10.5, linhas: 2, medir: soMedir });
-    // o pedido da etapa
-    var pedido = q.etapa === 'carbonos' ? 'Preveja a classe de cada carbono pintando-o — ou revele direto.' :
-                 q.etapa === 'fim' ? 'Classificação completa.' :
-                 q.evidencia ? q.evidencia.pedido : CLS_PERGUNTA[this.criterio.chave];
-    var yp = yC + (r2.linhas - 1) * r2.tam * 1.28 + vao;
-    ctx.fillStyle = q.evidencia ? P.acento : P.texto;
-    var r3 = D.textoQueCabe(ctx, pedido, 24, yp, larg, { peso: '600', tam: 14, min: 11.5, linhas: 3, medir: soMedir });
-    if (soMedir) { ctx.restore(); return yp + (r3.linhas - 1) * r3.tam * 1.28 + 6; }
-    // o progresso dos critérios: um ponto por critério
-    if (q.etapa !== 'carbonos') {
-      var n = q.criterios.length, x0 = W - 24 - n * 18;
-      q.criterios.forEach(function (c, k) {
-        // só mostra ONDE o aluno está: feito, atual ou por fazer — sem cor de acerto
-        var feito = q.etapa === 'fim' || k < q.i, cor = feito ? clsRgba(P.texto, 0.75) : clsRgba(P.suave, 0.4);
-        ctx.fillStyle = cor; ctx.beginPath(); ctx.arc(x0 + k * 18 + 6, yN - 4, 6, 0, Math.PI * 2); ctx.fill();
-        if (k === q.i && q.etapa === 'cadeia') { ctx.strokeStyle = P.texto; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x0 + k * 18 + 6, yN - 4, 9, 0, Math.PI * 2); ctx.stroke(); }
+  /* ONDE VAI CADA SELO DE CLASSE (1°, 2°…). No meio da MAIOR abertura entre as ligações do átomo — "oposto à
+     soma dos vizinhos" falhava no carbono quaternário: os quatro se equilibram, a soma dá quase zero e o selo
+     caía numa ligação. Numa cena pequena (celular deitado), os átomos ficam perto e o selo de um encostava no
+     do vizinho: aí ele gira dentro da mesma abertura (sem chegar a menos de 25° das ligações) e, se preciso,
+     se afasta um pouco, até achar lugar livre dos rótulos, dos outros selos e da pílula do modo. Refeito só
+     quando muda o enquadramento ou a pintura. */
+  _lugarSelos(ctx, T, E, W, H) {
+    var q = this.q, g = q.g, ids = Object.keys(T);
+    var pint = ids.filter(function (id) { return q.pintura[id]; });
+    var chave = pint.map(function (id) { return id + ':' + q.pintura[id]; }).join(',');
+    if (this._selos && this._selos.enq === E && this._selos.chave === chave) return this._selos.lista;
+    ctx.save(); ctx.font = '700 ' + E.selo + 'px system-ui, -apple-system, "Segoe UI", sans-serif';
+    var meiaW = ctx.measureText('4°').width / 2 + 1, meiaH = E.selo / 2 + 1;
+    ctx.restore();
+    var obst = ids.map(function (id) {
+      var m = E.margem[id], mx = Math.max(m.mx, 7), my = Math.max(m.my, 7);
+      return { x0: T[id].x - mx, y0: T[id].y - my, x1: T[id].x + mx, y1: T[id].y + my };
+    });
+    obst.push(Q3.Moldura.pilula(W));
+    var postos = [], lista = [];
+    pint.forEach(function (id) {
+      var p = T[id], n = CLS_INDICE[q.pintura[id]];
+      var angs = g.vizinhos(id).map(function (v) { return Math.atan2(T[v.id].y - p.y, T[v.id].x - p.x); }).sort(function (a, b) { return a - b; });
+      var meio = -Math.PI / 2, vao = 2 * Math.PI;
+      if (angs.length === 1) meio = angs[0] + Math.PI;
+      else if (angs.length > 1) {
+        vao = -1;
+        angs.forEach(function (an, k) {
+          var prox = k + 1 < angs.length ? angs[k + 1] : angs[0] + 2 * Math.PI, v = prox - an;
+          if (v > vao) { vao = v; meio = an + v / 2; }
+        });
+      }
+      var dist0 = Math.max(E.margem[id].mx, 10) + 14, lim = Math.max(0, vao / 2 - 0.44), cands = [];
+      [0, 5, 10].forEach(function (extra) {
+        for (var j = 0; j <= 10 && j * 0.26 <= lim + 1e-9; j++) {
+          cands.push({ a: meio + j * 0.26, d: dist0 + extra });
+          if (j) cands.push({ a: meio - j * 0.26, d: dist0 + extra });
+        }
       });
-    }
-    ctx.restore();
+      var melhor = null, menor = Infinity;
+      for (var c = 0; c < cands.length; c++) {
+        var ux = Math.cos(cands[c].a), uy = Math.sin(cands[c].a), cx = p.x + ux * cands[c].d, cy = p.y + uy * cands[c].d;
+        var cx0 = cx - meiaW, cy0 = cy - meiaH, cx1 = cx + meiaW, cy1 = cy + meiaH, sob = 0;
+        obst.concat(postos).forEach(function (o) {
+          var w = Math.min(cx1, o.x1) - Math.max(cx0, o.x0), h = Math.min(cy1, o.y1) - Math.max(cy0, o.y0);
+          if (w > -1 && h > -1) sob += (w + 1) * (h + 1) + 1;
+        });
+        if (cx0 < 2 || cy0 < 2 || cx1 > W - 2 || cy1 > H - 2) sob += 60;
+        if (sob < menor) { menor = sob; melhor = { ux: ux, uy: uy, d: cands[c].d, caixa: { x0: cx0, y0: cy0, x1: cx1, y1: cy1 } }; }
+        if (sob === 0) break;
+      }
+      postos.push(melhor.caixa);
+      lista.push({ p: p, n: n, ux: melhor.ux, uy: melhor.uy, dist: melhor.d });
+    });
+    this._selos = { enq: E, chave: chave, lista: lista };
+    return lista;
   }
 
-  _desenharRetorno(ctx, W, H, P, aviso) {
-    var fb = this.q.feedback;
-    if (!fb) return;
-    var cor = fb.tipo === 'ok' ? P.ok : fb.tipo === 'erro' ? aviso : P.acento;
-    // ao lado (celular deitado): na coluna da esquerda, embaixo do cabeçalho, com letra um pouco menor e mais linhas
-    var lado = this._retLado, tam = lado ? 12.5 : 13.5, entre = lado ? 17 : 19;
-    var larg = lado ? lado.w : Math.min(W - 48, 680), x0 = lado ? lado.x : (W - larg) / 2;
-    ctx.save(); ctx.font = '500 ' + tam + 'px system-ui, sans-serif';
-    var palavras = fb.texto.split(' '), linhas = [], atual = '';
-    palavras.forEach(function (p) { var t = atual ? atual + ' ' + p : p; if (ctx.measureText(t).width > larg - 36) { linhas.push(atual); atual = p; } else atual = t; });
-    if (atual) linhas.push(atual);
-    var maxL = lado ? Math.max(2, Math.floor((H - 8 - lado.y - 18) / entre)) : 4;
-    if (linhas.length > maxL) { linhas = linhas.slice(0, maxL); linhas[maxL - 1] = linhas[maxL - 1].replace(/\s*\S*$/, '') + ' …'; }
-    var h = 18 + linhas.length * entre, y0 = lado ? lado.y : H - 24 - h;
-    ctx.fillStyle = clsRgba(P.painel, 0.94); ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(x0, y0, larg, h, 10); else ctx.rect(x0, y0, larg, h);
-    ctx.fill();
-    ctx.fillStyle = cor; ctx.fillRect(x0, y0 + 6, 4, h - 12);
-    ctx.fillStyle = P.texto; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    linhas.forEach(function (l, k) { ctx.fillText(l, x0 + 18, y0 + 24 + k * entre); });
-    ctx.restore();
+  /* O ENQUADRAMENTO da estrutura: a maior escala em que cabem, na área livre da cena (abaixo da pílula do
+     modo, Q3.Moldura), os átomos e o que se desenha em volta de cada um — o rótulo, o selo da classe e os
+     anéis de destaque e de foco. O lugar dos selos fica reservado desde o começo: pintar não muda o tamanho
+     do desenho. A conta só é refeita quando mudam o tamanho da cena, a estrutura ou a vista. */
+  _enquadrar(ctx, W, H) {
+    var q = this.q, chave = W + 'x' + H + '|' + this.vista;
+    if (this._enq && this._enq.q === q && this._enq.chave === chave) return this._enq;
+    var g = q.g, D = Q3.Desenho, self = this, ids = Object.keys(q.pos), M = Q3.Moldura.livre(W, H, false);
+    var rotulo = function (id) { return self.vista === 'bastao' && g.atomos[id].el === 'C' ? '' : D.rotulo(g, id); };
+    var textos = {}; ids.forEach(function (id) { textos[id] = rotulo(id); });
+    // a letra acompanha a escala: de 12 a 17 px e, numa tela grande como a do projetor, até 20 px
+    var fonteDe = function (s) { return Math.max(12, Math.min(s > 96 ? 17 + (s - 96) * 0.09 : 17, s * 0.3)); };
+    var medir = function (s) {
+      var f = fonteDe(s), m = {}, ext = {};
+      ids.forEach(function (id) {
+        m[id] = textos[id] ? D.medirRotulo(ctx, textos[id], f) : { mx: 0, my: 0 };
+        // o selo fica a máx(mx, 10) + 14 do centro, com uns 8 px de meia-letra; os anéis vão até máx(mx, 12) + 13
+        ext[id] = Math.max(m[id].mx, 12) + 22;
+      });
+      return { fonte: f, m: m, ext: ext };
+    };
+    // num eixo, quanto o desenho avança para cada lado do centro da estrutura, na escala s
+    var lados = function (s, eixo, me) {
+      var mais = -Infinity, menos = -Infinity;
+      ids.forEach(function (id) { var v = q.pos[id][eixo] * s; mais = Math.max(mais, v + me.ext[id]); menos = Math.max(menos, me.ext[id] - v); });
+      return { mais: mais, menos: menos };
+    };
+    // a escala cresce até caber (busca binária: o tamanho do desenho só aumenta com a escala)
+    var sMax = Math.max(96, Math.min(128, Math.min(M.w, M.h) / 7.3)), lo = 4, hi = sMax;
+    for (var k = 0; k < 26; k++) {
+      var s = (lo + hi) / 2, me = medir(s), lx = lados(s, 'x', me), ly = lados(s, 'y', me);
+      if (lx.mais + lx.menos <= M.w && ly.mais + ly.menos <= M.h) lo = s; else hi = s;
+    }
+    var mf = medir(lo), fx = lados(lo, 'x', mf), fy = lados(lo, 'y', mf);
+    this._enq = {
+      q: q, chave: chave, s: lo, fonte: mf.fonte, margem: mf.m, rotulo: rotulo,
+      selo: Math.max(11, Math.round(mf.fonte * 0.65)),
+      // o centro fica no meio da folga que sobra em cada eixo
+      cx: M.x + (fx.menos + M.w - fx.mais) / 2,
+      cy: M.y + (fy.menos + M.h - fy.mais) / 2
+    };
+    return this._enq;
   }
 
   /* ══ PAINEL ════════════════════════════════════════════════════ */
@@ -784,7 +813,7 @@ class ClassificadorCadeias {
     var dica = document.getElementById('cls-etapa-dica');
     if (dica) dica.textContent = q.etapa === 'carbonos' ? 'Etapa 1 de 2 · classes dos carbonos' :
       q.etapa === 'cadeia' ? 'Etapa 2 de 2 · critério ' + (q.i + 1) + ' de ' + q.criterios.length + (q.evidencia ? ' · evidência: toque na estrutura' : '') :
-      'Cadeia ' + this._resumo() + '.';
+      'Classificação completa.';   // a frase inteira ("Cadeia aberta, normal…") está nos Resultados
     var c = this.criterio, perg = document.getElementById('cls-pergunta'), ops = document.getElementById('cls-opcoes');
     if (c && perg && ops) {
       perg.textContent = CLS_PERGUNTA[c.chave];
@@ -808,18 +837,58 @@ class ClassificadorCadeias {
        Um ouvinte próprio aqui responderia duas vezes a cada toque. */
   }
 
-  /* ══ RESULTADOS E SOBREPOSIÇÃO ═════════════════════════════════ */
+  /* ══ RESULTADOS: o retorno, o próximo passo e a ficha ════════════ */
 
+  /* a explicação do último passo, no alto dos Resultados; nada enquanto não houver */
+  retorno() { var fb = this.q.feedback; return fb ? { tipo: fb.tipo, texto: fb.texto } : null; }
+
+  /* o que fazer agora (antes era o pedido escrito no alto da cena) */
+  proximoPasso() {
+    var q = this.q, n = q.carbonos.length;
+    if (q.etapa === 'carbonos') {
+      var faltam = q.carbonos.filter(function (id) { return !q.pintura[id]; }).length;
+      if (faltam === n) return 'Preveja a classe de cada carbono: escolha um pincel em Classificar e pinte, tocando ou arrastando sobre eles. Se preferir, revele direto.';
+      return faltam ? 'Faltam ' + faltam + ' de ' + n + ' carbonos. Depois, toque em Revelar as classes.' : 'Todos os carbonos pintados. Toque em Revelar as classes.';
+    }
+    if (q.etapa === 'fim') return 'Cadeia ' + this._resumo() + '. Toque em Nova estrutura para seguir.';
+    if (q.evidencia) return q.evidencia.pedido + ' Se não souber onde, toque em Revelar sem apontar.';
+    return 'Faça a sua previsão em Classificar: critério ' + (q.i + 1) + ' de ' + q.criterios.length + '.';
+  }
+
+  /* A FICHA: o que é a estrutura e o que já se sabe dela. Na etapa da cadeia, os critérios aparecem todos,
+     no lugar dos antigos pontos de progresso: os feitos com a resposta revelada, o atual e os que faltam —
+     sem marca de acerto, como os pontos. */
   resultados() {
-    var q = this.q;
-    var linhas = [
-      { l: 'Estrutura', v: q.nome },
-      { l: 'Fórmula molecular', v: q.formula },
-      { l: 'Etapa', v: q.etapa === 'carbonos' ? 'classes dos carbonos' : q.etapa === 'cadeia' ? 'critério ' + (q.i + 1) + ' de ' + q.criterios.length : 'completa' }
-    ];
-    if (q.etapa === 'fim') linhas.push({ l: 'Classificação', v: this._resumo() });
+    var q = this.q, n = q.carbonos.length;
+    var linhas = [{ l: 'Estrutura', v: q.id ? q.nome : 'sorteada, sem nome' }];
+    if (q.id && q.contexto) linhas.push({ l: 'Onde aparece', v: q.contexto, cls: 'val-texto' });
+    linhas.push({ l: 'Fórmula molecular', v: q.formula });
+    if (q.etapa === 'carbonos') {
+      var pintados = q.carbonos.filter(function (id) { return q.pintura[id]; }).length;
+      linhas.push({ l: 'Carbonos pintados', v: pintados + ' de ' + n });
+      return linhas;
+    }
+    linhas.push({ l: 'Carbonos', v: n + ': ' + this._contarClasses() });
+    q.criterios.forEach(function (c, k) {
+      var feito = q.etapa === 'fim' || k < q.i, atual = q.etapa === 'cadeia' && k === q.i;
+      linhas.push({ l: CLS_ROTULO[c.chave] || c.chave, v: feito ? c.resposta : atual ? 'agora' : '—', cls: atual ? 'val-alt' : '' });
+    });
     return linhas;
   }
 
-  overlay() { return 'Classificação · ' + this.q.nome; }
+  /* "4 primários, 3 secundários…", da classe calculada de cada carbono */
+  _contarClasses() {
+    var a = this.q.a, cont = {};
+    this.q.carbonos.forEach(function (id) { var c = a.classes[id]; cont[c] = (cont[c] || 0) + 1; });
+    return Object.keys(CLS_INDICE).filter(function (c) { return cont[c]; })
+      .map(function (c) { return cont[c] + ' ' + (cont[c] > 1 ? c.replace(/o$/, 'os') : c); }).join(', ');
+  }
+
+  /* a pílula do modo, no alto da cena: a estrutura e a etapa — o que fica à vista com os cards fechados */
+  overlay() {
+    var q = this.q;
+    var etapa = q.etapa === 'carbonos' ? 'pinte os carbonos' : q.etapa === 'fim' ? 'classificação completa' :
+                q.evidencia ? 'aponte a evidência' : 'critério ' + (q.i + 1) + ' de ' + q.criterios.length;
+    return q.nome + ' · ' + etapa;
+  }
 }

@@ -331,6 +331,10 @@ body.wide-spacing * {
 .app-main{ flex:1; display:flex; overflow:hidden; height:calc(100vh - var(--header-h)); height:calc(100dvh - var(--header-h)); }
 
 .sidebar {
+  /* relativa: ancora a alça de redimensionar (absoluta). No celular, a gaveta de baixo troca isto por
+     position: fixed (bloco do celular, mais abaixo). Antes era um position:relative INLINE gravado pelo
+     script ao abrir no computador — e o inline vencia o CSS do celular (ver ui/offcanvas-mobile.js). */
+  position: relative;
   background:var(--bg-panel);
   overflow-y:auto;
   overflow-x: hidden;
@@ -523,6 +527,8 @@ input[type="range"]:focus-visible{ outline:3px solid var(--accent-main); outline
 }
 .action-btn:hover{ background:rgba(203,246,166,.26); box-shadow:0 0 10px rgba(203,246,166,.3); }
 .action-row{ display:flex; gap:.4rem; flex-wrap:wrap; }
+/* o display:flex acima venceria o [hidden] do navegador: "Revelar sem apontar" (M3) aparecia o tempo todo */
+.action-row[hidden]{ display:none; }
 .action-row .action-btn{ flex:1; min-width:120px; }
 
 .status-badge{
@@ -552,6 +558,8 @@ body.light-mode .data-row{ border-bottom-color:rgba(155,173,196,.5); }
 .data-value.val-warn{ color:var(--accent-warn); }
 .data-value.val-alt { color:var(--accent-alt); }
 .data-value.val-ok  { color:var(--accent-ok); }
+/* valor que é uma frase (ex.: onde a substância aparece): letra comum, para ler, e não um número */
+.data-value.val-texto { font-family:inherit; font-weight:500; color:var(--text-secondary); font-size:.68rem; line-height:1.4; }
 
 /* ═══════════════ ÁREA DO CANVAS ═══════════════ */
 .canvas-wrap{
@@ -605,6 +613,7 @@ body.light-mode .overlay-label{ background:rgba(255,255,255,.85); }
   }
   .sidebar--right.mobile-open { transform: translateY(0); }
   .sidebar--right::before {
+    order: -10;   /* a alça fica no topo mesmo quando um modo reordena os painéis da gaveta */
     content: ''; display: block; width: 36px; height: 4px; border-radius: 2px;
     background: var(--border); margin: .5rem auto .25rem;
   }
@@ -797,7 +806,18 @@ body.high-contrast .opt-btn.active .opt-c { color: var(--hc-fg); }
   background: color-mix(in srgb, var(--accent-main) 10%, transparent);
   color: var(--text-primary); font-size: .7rem; line-height: 1.45;
 }
-.result-next[hidden], .result-diagram[hidden] { display: none; }
+.result-next[hidden], .result-diagram[hidden], .result-retorno[hidden] { display: none; }
+/* O RETORNO (Classificação com Evidências): a explicação do último passo, antes do próximo passo.
+   A barra da esquerda diz o tipo: confirmação (revelou as classes) ou explicação de um critério. */
+.result-retorno {
+  margin: 0 0 .55rem; padding: .45rem .6rem .45rem .7rem;
+  border-radius: var(--radius-sm); border: 1px solid var(--border); border-left: 4px solid var(--accent-main);
+  background: var(--bg-void, transparent);
+  color: var(--text-primary); font-size: .72rem; line-height: 1.5;
+}
+.result-retorno[data-tipo="ok"] { border-left-color: var(--accent-ok); }
+.result-retorno[data-tipo="erro"] { border-left-color: var(--accent-warn); }
+body.high-contrast .result-retorno { background: transparent !important; border: 2px solid var(--hc-fg) !important; border-left-width: 6px !important; color: var(--hc-fg) !important; }
 .result-diagram { margin: 0 0 .6rem; }
 .result-diagram-title { font-size: .64rem; color: var(--text-muted); margin: 0 0 .25rem; }
 .result-diagram-canvas {
@@ -1216,7 +1236,7 @@ body.high-contrast .sidebar-lock-hint{ border:2px solid var(--hc-fg) !important;
   .sidebar.is-collapsed .rail-toggle { display: none; }
 
   /* ── recolhida: fora do fluxo, canvas cresce ──────────────────
-     O !important NÃO é enfeite. O sidebar-resizer.js grava
+     O !important NÃO é enfeite (e fica, por garantia, mesmo depois de o redimensionador deixar de gravar o inline: a posição relativa agora vem da regra .sidebar). O sidebar-resizer.js grava
      `style="position:relative"` INLINE em cada sidebar, para ancorar a
      alça de arrastar (só quando o CSS base deixa a sidebar static — é o
      caso de todo o 2º e 3º ano). Inline vence qualquer regra de folha,
@@ -1461,6 +1481,16 @@ body.reduce-motion .canvas-wrap .fps-counter, body.reduce-motion .canvas-wrap .n
 @media (max-width: 900px), (max-width: 1100px) and (max-height: 500px) {
   body[data-modo="hibridizacao"] #sidebar-right > .mode-summary-mobile { order: -2; }
   body[data-modo="hibridizacao"] #panel-result { order: -1; }
+  /* Classificação com Evidências: Classificar (a pergunta e as opções) e, logo abaixo, os Resultados (a
+     explicação e o próximo passo) — o mesmo par que flutua junto no computador. A Estrutura vai para o fim. */
+  body[data-modo="classificacao"] #sidebar-right > .mode-summary-mobile { order: -3; }
+  body[data-modo="classificacao"] #panel-cls-classificar { order: -2; }
+  body[data-modo="classificacao"] #panel-result { order: -1; }
+  /* Cadeias: a Construção (o elemento e a ferramenta) e, logo abaixo, os Resultados — o próximo passo diz como usar a
+     ferramenta escolhida (antes, essa dica era escrita no pé da cena). A Representação vai para o fim. */
+  body[data-modo="cadeias"] #sidebar-right > .mode-summary-mobile { order: -3; }
+  body[data-modo="cadeias"] #panel-construcao { order: -2; }
+  body[data-modo="cadeias"] #panel-result { order: -1; }
 }
 /* Hibridização no celular em pé: os botões de zoom saem da coluna à direita e viram uma fileira no pé da
    cena. Em pé falta largura e sobra altura — a coluna tirava 62 px da largura do desenho, e as nuvens

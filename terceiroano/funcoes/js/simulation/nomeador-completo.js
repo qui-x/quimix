@@ -19,9 +19,16 @@
    …ila" do éster. O multiplicador sai da quantidade de localizadores; o
    nome se forma ao vivo com as MESMAS regras de montagem do motor.
 
-   A ESCADA das 14 funções, sempre visível à esquerda (é a regra, não a
-   resposta). Com o nome certo, os grupos do composto sobem aos seus
-   degraus: o principal vira "sufixo"; os outros, o prefixo que viraram.
+   A ESCADA das 14 funções, nos Resultados (é a regra, não a resposta).
+   Com o nome certo, os grupos do composto sobem aos seus degraus: o
+   principal vira "sufixo"; os outros, o prefixo que viraram. Antes ela
+   era desenhada na cena, à esquerda: no celular os degraus desciam a
+   8 px e os nomes se sobrepunham.
+
+   ONDE CADA COISA APARECE (como no Módulo 2): na cena, a doca de
+   miniaturas com os sinais e a estrutura escolhida; no card Nome
+   completo, o construtor e a previsão; nos Resultados, a conferência,
+   o próximo passo, a escada e a ficha do espaço.
 
    CONFERIR, como no Módulo 2: depois da previsão de TODOS os cartões;
    só "certo" ou "a rever", sem dizer o quê; o nome certo vai para o
@@ -44,12 +51,12 @@ class NomeadorCompleto {
   /* a troca de módulo LIMPA o que sai */
   reiniciar(inicio) {
     this.espacos = []; for (var i = 0; i < NC_ESPACOS; i++) this.espacos.push(null);
-    this.sel = 0; this.nota = ''; this.erro = null; this.contador = ''; this._ciclo = null; this.animEscada = 0;
+    this.sel = 0; this.nota = ''; this.erro = null; this.contador = ''; this._ciclo = null; this._ret = null;
     if (!inicio) { var c = document.getElementById('nc-estrutural'); if (c) c.value = ''; this._montarConstrutor(); this._sincronizarPainel(); }
   }
   ativar() { this.ativo = true; var cv = document.getElementById('sim-canvas'); if (cv) cv.style.touchAction = 'none'; this._ligarPainel(); this._montarConstrutor(); this._sincronizarPainel(); }
   desativar() { this.ativo = false; }
-  atualizar(dt) { this.t += dt; var e = this.espacos[this.sel]; if (e && e.estado === 'certo' && this.animEscada < 1) this.animEscada = Math.min(1, this.animEscada + dt / 1.4); }
+  atualizar(dt) { this.t += dt; }   // a subida dos grupos na escada é uma animação do CSS (stylefuncoes.css)
 
   /* ══ A BANCADA ═════════════════════════════════════════════════ */
 
@@ -70,7 +77,7 @@ class NomeadorCompleto {
     c.fila = adiados.concat(c.fila);
     for (var i = 0; i < NC_ESPACOS; i++) this.espacos[i] = i < leva.length ? this._espaco(Q3.deSmiles(L[leva[i]].smiles), 'biblioteca', L[leva[i]]) : null;
     leva.forEach(function (k3) { c.vistos[k3] = 1; });
-    this.sel = 0; this.animEscada = 0; this.erro = null; this.nota = '';
+    this.sel = 0; this.erro = null; this.nota = ''; this._ret = null;   // leva nova: a conferência anterior não vale mais
     this.contador = Object.keys(c.vistos).length + ' de ' + n + ' compostos';
     playTone(660, .06, .04);
     announce('Bancada com ' + leva.length + ' compostos reais. Já apareceram ' + this.contador + '.');
@@ -81,7 +88,7 @@ class NomeadorCompleto {
     var g;
     try { g = Q3.deFormulaCondensada(texto); } catch (e) { this.erro = e.message; announce(e.message); this._sincronizarPainel(); return false; }
     this.erro = null;
-    this.espacos[this.sel] = this._espaco(g, 'digitada', null); this.animEscada = 0;
+    this.espacos[this.sel] = this._espaco(g, 'digitada', null);
     var e2 = this.espacos[this.sel];
     announce('Estrutura no espaço ' + (this.sel + 1) + (e2.estado === 'fora' ? ': ' + e2.r.motivo : '.'));
     this._montarConstrutor(); this._sincronizarPainel();
@@ -89,7 +96,7 @@ class NomeadorCompleto {
   }
   selecionar(i) {
     if (i < 0 || i >= NC_ESPACOS) return false;
-    this.sel = i; this.animEscada = 0; this.erro = null;
+    this.sel = i; this.erro = null;
     var e = this.espacos[i];
     announce('Espaço ' + (i + 1) + (e ? ': ' + (e.comum ? e.comum.comum + ', ' : '') + e.formula + '.' : ': vazio.'));
     this._montarConstrutor(); this._sincronizarPainel();
@@ -138,16 +145,17 @@ class NomeadorCompleto {
     this.espacos.forEach(function (e, i) { if (e) cheios.push(i); });
     if (!cheios.length) { announce('A bancada está vazia: sorteie compostos ou digite uma fórmula.'); return false; }
     var faltam = cheios.filter(function (i) { var e = self.espacos[i]; return e.estado !== 'fora' && e.estado !== 'certo' && !self._completa(e.prev); });
-    if (faltam.length) { this.nota = 'Faltam previsões: ' + faltam.map(function (i) { return i + 1; }).join(', ') + '.'; announce('A conferência vem depois da previsão de todas as estruturas. ' + this.nota); this._sincronizarPainel(); return true; }
+    if (faltam.length) { this._ret = NomeadorCadeias.prototype._faltam(faltam.map(function (i) { return i + 1; })); announce(this._ret.texto); this._sincronizarPainel(); return true; }
     var certos = [], rever = [];
     cheios.forEach(function (i) {
       var e = self.espacos[i]; if (e.estado === 'fora') return;
       if (e.estado !== 'certo') e.estado = self.nomePrevisto(e.prev) === e.r.nome ? 'certo' : 'rever';
       (e.estado === 'certo' ? certos : rever).push(i + 1);
     });
-    this.nota = ''; this.animEscada = 0;
+    this.nota = '';
     playTone(660, .08, .04);
-    announce((certos.length ? 'Nome certo ' + (certos.length === 1 ? 'no espaço ' : 'nos espaços ') + certos.join(', ') + '.' : '') + (rever.length ? (certos.length ? ' ' : '') + 'A rever: ' + rever.join(', ') + '.' : ''));
+    this._ret = NomeadorCadeias.prototype._frasesConferencia(certos, rever);
+    announce(this._ret.texto);
     this._montarConstrutor(); this._sincronizarPainel();
     return true;
   }
@@ -221,10 +229,9 @@ class NomeadorCompleto {
     var e = this.espacos[this.sel];
     var set = function (id, t) { var el = document.getElementById(id); if (el) el.textContent = t; };
     set('nc-rotulo-espaco', 'Fórmula estrutural do espaço ' + (this.sel + 1));
-    set('nc-nota', this.erro || this.nota || this.contador || '');
+    set('nc-nota', this.erro || '');   // o contador e a conferência moram nos Resultados
     set('nc-previsao', this.nomePrevisto() ? 'Previsão: ' + this.nomePrevisto() : '');
-    set('nc-nome', !e ? '' : e.estado === 'certo' ? e.r.nome + (e.comum ? ' · ' + e.comum.comum : '') : e.estado === 'fora' ? e.r.motivo : e.estado === 'rever' ? 'A rever.' : '');
-    set('nc-onde', e && e.comum && e.estado === 'certo' ? e.comum.onde.charAt(0).toUpperCase() + e.comum.onde.slice(1) + '.' : '');
+    if (this.ativo) document.body.dataset.bancada = this.espacos.some(Boolean) ? 'cheia' : 'vazia';   // a ordem dos cards na gaveta
     var b = document.querySelector('[data-action="nc-conferir"]'); if (b) b.disabled = !this.espacos.some(Boolean);
   }
 
@@ -240,75 +247,92 @@ class NomeadorCompleto {
     return false;
   }
 
-  /* ══ DESENHO: a doca, a estrutura e a escada ═══════════════════ */
+  /* ══ DESENHO: a doca e a estrutura (a escada mora nos Resultados) ══ */
 
   desenhar(ctx, W, H) {
-    var P = Q3.Desenho.paleta(), self = this, M2 = NomeadorCadeias.prototype;
-    var pad = 8, fimDoca = M2._desenharDoca.call(this, ctx, W, P, NC_ESPACOS, H);   // a mesma doca do Módulo 2 (duas fileiras numa tela estreita)
-    var escadaL = Math.round(Math.max(116, Math.min(176, W * 0.36))), areaX = escadaL + (W < 560 ? 28 : 40), areaTopo = fimDoca + pad + 28;   // tela estreita: escada mais estreita
-    if (H - 30 - areaTopo < 14 * 15 && W >= 560) {
-      /* CENA BAIXA E LARGA (celular deitado): os 14 degraus numa coluna só ficavam com 8 px cada — uma faixa
-         ilegível. Vão em duas colunas de 7 (1–7 | 8–14), logo abaixo da doca, e a estrutura fica à direita. */
-      var yE = fimDoca + (H < 300 ? 10 : 14), colE = Math.round(Math.max(118, Math.min(150, W * 0.22))), largE = 2 * colE + 10;
-      this._escada(ctx, 14, yE, largE, H - 10 - yE, P, 2);
-      areaX = 14 + largE + 28; areaTopo = yE;
-    } else this._escada(ctx, 20, areaTopo, escadaL, H - 30 - areaTopo, P);
-    var es = this.espacos[this.sel];
-    if (es) M2._estrutura.call(this, ctx, es, areaX, areaTopo, W - areaX - 24, H - (H < 430 ? 16 : 40) - areaTopo, P);   // cena baixa: a estrutura desce até perto da borda
-    else { ctx.save(); ctx.fillStyle = P.suave; ctx.textAlign = 'center'; Q3.Desenho.textoQueCabe(ctx, 'Espaço ' + (this.sel + 1) + ' vazio.', (areaX + W) / 2, (areaTopo + H) / 2, W - areaX - 16, { tam: 14, min: 11 }); ctx.restore(); }
+    var P = Q3.Desenho.paleta(), M2 = NomeadorCadeias.prototype;
+    var A = M2._docaEArea.call(this, ctx, W, H, P, NC_ESPACOS), es = this.espacos[this.sel];   // a mesma doca do Módulo 2
+    if (es) M2._estrutura.call(this, ctx, es, A.x, A.y, A.w, A.h, P);
   }
 
-  /* a escada das 14 funções (a mais prioritária no alto). Com o nome certo, os grupos sobem aos degraus. */
-  _escada(ctx, x, y, w, h, P, colunas) {
+  /* A ESCADA (nos Resultados): as 14 funções em ordem de prioridade, em duas colunas de sete. Montada uma vez;
+     quando muda o espaço escolhido ou o estado dele, marca os degraus das funções do composto — só com o nome
+     certo — com a cor da função, o papel no nome e um ponto que sobe do pé da coluna (animação do CSS).
+     O app chama a cada atualização dos Resultados; a chave evita mexer no DOM sem necessidade. */
+  sincronizarEscada(mostrar) {
+    var box = document.getElementById('nc-escada-box'), ol = document.getElementById('nc-escada');
+    if (!box || !ol) return;
+    box.hidden = !mostrar;
+    if (!mostrar) { this._escChave = null; return; }
     var classes = this._classes || (this._classes = Object.keys(Q3.Funcoes.POR_ID).map(function (id) { return { id: id, c: Q3.Funcoes.POR_ID[id] }; })
       .filter(function (o) { return o.c.prioridade <= 14; }).sort(function (a, b) { return a.c.prioridade - b.c.prioridade; }));
-    /* em colunas (cena baixa): 1–7 na primeira, 8–14 na segunda; cada coluna é uma escada com os seus degraus */
-    var cols = colunas || 1, porCol = Math.ceil(classes.length / cols), gapC = 10, wc = cols > 1 ? (w - gapC * (cols - 1)) / cols : w;
-    var passo = Math.min(30, h / porCol), e = this.espacos[this.sel];
-    var cores = typeof GF_CORES !== 'undefined' ? GF_CORES[P.claro ? 'claro' : 'escuro'] : {};
-    var ativos = e && e.estado === 'certo' && e.r.grupos ? e.r.grupos : [];
-    var prog = 1 - Math.pow(1 - this.animEscada, 3);
-    var lugar = function (k) { return { x: x + Math.floor(k / porCol) * (wc + gapC), y: y + (k % porCol) * passo, dx: (porCol - 1 - k % porCol) * (wc < 150 ? 1.5 : 3) }; };
-    ctx.save(); ctx.textBaseline = 'middle';
+    if (ol.children.length !== classes.length) {
+      ol.innerHTML = classes.map(function (o) {
+        return '<li data-funcao="' + o.id + '"><span class="esc-n" aria-hidden="true">' + o.c.prioridade + '</span><span class="esc-nome">' + o.c.nome + '</span><span class="esc-papel"></span></li>';
+      }).join('');
+    }
+    var e = this.espacos[this.sel], claro = Q3.Desenho.paleta().claro, ativos = e && e.estado === 'certo' && e.r.grupos ? e.r.grupos : [];
+    var chave = this.sel + '|' + (claro ? 'c' : 'e') + '|' + ativos.map(function (g) { return g.id + ':' + g.papel + ':' + g.prefixo; }).join(',');
+    if (chave === this._escChave) return;
+    this._escChave = chave;
+    var cores = typeof GF_CORES !== 'undefined' ? GF_CORES[claro ? 'claro' : 'escuro'] : {};
+    var porCol = Math.ceil(classes.length / 2);
     classes.forEach(function (o, k) {
-      var L = lugar(k), xx = L.x, yy = L.y, marc = ativos.filter(function (g) { return g.id === o.id || (g.id === 'fenol' && o.id === 'fenol'); })[0];
-      ctx.fillStyle = nmRgba(P.painel, marc && prog > 0.95 ? 0.95 : 0.6); ctx.strokeStyle = marc && prog > 0.95 ? (cores[o.id] || P.acento) : nmRgba(P.suave, 0.3); ctx.lineWidth = marc && prog > 0.95 ? 2 : 1;
-      var dx = L.dx;   // os degraus: mais largos embaixo (numa escada estreita, menos recuo)
-      ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(xx + dx, yy, wc - dx, passo - 4, 5); else ctx.rect(xx + dx, yy, wc - dx, passo - 4); ctx.fill(); ctx.stroke();
-      var fsN = Math.max(7.5, Math.min(10.5, (passo - 4) * 0.9)), fsP = Math.max(7, Math.min(9, (passo - 4) * 0.8));
-      ctx.fillStyle = P.suave; ctx.font = '600 ' + fsP + 'px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillText(String(o.c.prioridade), xx + dx + 5, yy + (passo - 4) / 2);
-      ctx.fillStyle = P.texto; Q3.Desenho.textoQueCabe(ctx, o.c.nome, xx + dx + 19, yy + (passo - 4) / 2, wc - dx - 23, { tam: fsN, min: 7, linhas: 1 });
+      var li = ol.children[k], g = ativos.filter(function (x) { return x.id === o.id; })[0];
+      var papel = g ? (g.papel === 'sufixo' ? 'sufixo' : g.prefixo || 'prefixo') : '';
+      li.classList.remove('esc-marcado'); void li.offsetWidth;   // tirar e pôr a classe reinicia a animação
+      li.querySelector('.esc-papel').textContent = papel;
+      if (g) {
+        li.style.setProperty('--cor', cores[o.id] || '');
+        // o ponto sobe do pé da coluna (o último degrau dela) até este degrau
+        li.style.setProperty('--sobe', ((porCol - 1 - k % porCol) * ((li.offsetHeight || 18) + 2)) + 'px');
+        li.classList.add('esc-marcado');
+      } else { li.style.removeProperty('--cor'); li.style.removeProperty('--sobe'); }
+      li.setAttribute('aria-label', 'Prioridade ' + o.c.prioridade + ': ' + o.c.nome + (g ? '. Neste composto: ' + (g.papel === 'sufixo' ? 'o sufixo' : 'o prefixo ' + papel) : ''));
     });
-    // os grupos do composto sobem do pé da escada até o seu degrau
-    ativos.forEach(function (g, j) {
-      var k = classes.findIndex(function (o) { return o.id === g.id; }); if (k < 0) return;
-      var L = lugar(k), alvo = L.y + (passo - 4) / 2, pe = y + h, yy = pe + (alvo - pe) * prog, rot = g.papel === 'sufixo' ? 'sufixo' : g.prefixo;
-      if (cols === 1) {
-        var cx = x + w + 14 + 0 * j;
-        ctx.fillStyle = cores[g.id] || P.acento; ctx.beginPath(); ctx.arc(cx, yy, 6, 0, Math.PI * 2); ctx.fill();
-        if (prog > 0.95) { ctx.fillStyle = P.texto; ctx.font = '700 10px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillText(rot, cx + 9, yy); }
-        return;
-      }
-      /* em colunas, a vizinha está à direita: o ponto sobe pela ponta do próprio degrau, e o papel (sufixo ou
-         prefixo) vem numa etiqueta sobre o fim do degrau — o degrau já está contornado com a cor da função */
-      var px = L.x + wc - 9;
-      ctx.fillStyle = cores[g.id] || P.acento; ctx.beginPath(); ctx.arc(px, yy, 5, 0, Math.PI * 2); ctx.fill();
-      if (prog > 0.95 && rot) {
-        ctx.font = '700 9.5px system-ui, sans-serif'; ctx.textAlign = 'right';
-        var tw = ctx.measureText(rot).width + 8, ex = px - 8 - tw;
-        ctx.fillStyle = nmRgba(P.painel, 0.97); ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(ex, yy - 7, tw, 14, 4); else ctx.rect(ex, yy - 7, tw, 14); ctx.fill();
-        ctx.fillStyle = P.texto; ctx.fillText(rot, px - 12, yy + 0.5);
-      }
-    });
-    ctx.restore();
   }
 
+  /* a conferência (ou o pedido de prever tudo antes), no alto dos Resultados */
+  retorno() { return this._ret; }
+
+  /* o que fazer agora, para o espaço escolhido */
+  proximoPasso() {
+    var self = this, e = this.espacos[this.sel];
+    if (!this.espacos.some(Boolean)) return 'Comece pela Biblioteca: sorteie compostos reais, ou digite uma fórmula estrutural e ponha no espaço.';
+    if (!e) return 'Este espaço está vazio: toque noutro cartão da doca, ou ponha uma estrutura nele pela Biblioteca.';
+    var abertos = this.espacos.filter(function (x) { return x && x.estado !== 'certo' && x.estado !== 'fora'; });
+    if (!abertos.length) return 'Toda a bancada conferida. Sorteie outros compostos na Biblioteca.';
+    if (e.estado === 'fora') return 'Esta estrutura está fora do escopo do módulo (o motivo está abaixo). Toque noutro cartão da doca.';
+    if (e.estado === 'certo') return 'Nome certo: veja na escada a função que virou sufixo e as que viraram prefixo. Toque noutro cartão da doca.';
+    if (e.estado === 'rever') return 'A rever: mexa no nome em Nome completo e confira de novo.';
+    if (!this._completa(e.prev)) return 'Monte o nome completo desta estrutura em Nome completo. A escada abaixo diz qual grupo vira o sufixo.';
+    var faltam = abertos.filter(function (x) { return !self._completa(x.prev); }).length;
+    return faltam ? 'Previsão feita. Toque noutro cartão da doca (falta' + (faltam > 1 ? 'm ' + faltam : ' 1') + ').' : 'Todas as previsões feitas: toque em Conferir as previsões, em Nome completo.';
+  }
+
+  /* A FICHA do espaço escolhido: o sinal do cartão em palavras, a fórmula e, com o nome certo, os nomes e onde
+     o composto aparece */
   resultados() {
-    var e = this.espacos[this.sel];
-    var l = [{ l: 'Espaço', v: String(this.sel + 1) }, { l: 'Fórmula molecular', v: e ? e.formula : '—' }];
-    if (e && e.comum && e.estado === 'certo') l.push({ l: 'Nome comum', v: e.comum.comum });
-    if (e && e.estado === 'certo') l.push({ l: 'Nome IUPAC', v: e.r.nome });
+    var e = this.espacos[this.sel], M2 = NomeadorCadeias.prototype;
+    var sit = { certo: 'nome certo ✓', rever: 'a rever ↺', fora: 'fora do escopo ⊘', previsto: 'previsão feita •', '': 'sem previsão' };
+    var l = [{ l: 'Espaço', v: (this.sel + 1) + ' de ' + NC_ESPACOS }];
+    if (this.contador) l.push({ l: 'Compostos', v: this.contador });
+    if (!e) { l.push({ l: 'Situação', v: 'vazio' }); return l; }
+    l.push({ l: 'Situação', v: sit[M2._sinalDe.call(this, e)], cls: e.estado === 'certo' ? 'val-ok' : e.estado === 'rever' ? 'val-warn' : '' });
+    l.push({ l: 'Fórmula molecular', v: e.formula });
+    if (e.estado === 'certo') {
+      l.push({ l: 'Nome IUPAC', v: e.r.nome });
+      if (e.comum) {
+        l.push({ l: 'Nome comum', v: e.comum.comum });
+        l.push({ l: 'Onde aparece', v: e.comum.onde.charAt(0).toUpperCase() + e.comum.onde.slice(1) + '.', cls: 'val-texto' });
+      }
+    }
+    if (e.estado === 'fora' && e.r && e.r.motivo) l.push({ l: 'Motivo', v: e.r.motivo, cls: 'val-texto' });
     return l;
   }
-  overlay() { return 'Prioridade · espaço ' + (this.sel + 1); }
+  overlay() {
+    var e = this.espacos[this.sel], sit = { certo: 'nome certo', rever: 'a rever', fora: 'fora do escopo', previsto: 'previsão feita', '': '' };
+    var t = e ? sit[NomeadorCadeias.prototype._sinalDe.call(this, e)] : 'vazio';
+    return 'espaço ' + (this.sel + 1) + (t ? ' · ' + t : '');
+  }
 }

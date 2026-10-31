@@ -300,19 +300,23 @@ class BancadaOptica {
     if (this.fonte === 'desenhar') { this.editor.desenhar(ctx, W, H); return; }
     var m = this.mol; if (!m) return;
     var P = Q3.Desenho.paleta(), lado = this.sep, ap = R3.ap, self = this;
-    var fitLado = Math.min(W * 0.46 / (2 * m.raio), H * 0.84 / (2 * m.raio)), fitSobre = Math.min(W * 0.9 / (2 * m.raio), H * 0.84 / (2 * m.raio));
+    /* O ENQUADRAMENTO começa abaixo da faixa da pílula do modo (ui/moldura-cena.js): antes, a molécula se centrava
+       na altura toda, e numa cena baixa (até 360 px) os átomos de cima passavam por baixo da pílula. A folga de 6%
+       é para o giro: a molécula nunca sai do quadro, em nenhuma orientação (m.raio é a distância máxima ao centro). */
+    var L = Q3.Moldura ? Q3.Moldura.livre(W, H, false) : { x: 0, y: H * 0.08, w: W, h: H * 0.84 }, hU = L.h * 0.94;
+    var fitLado = Math.min(W * 0.46 / (2 * m.raio), hU / (2 * m.raio)), fitSobre = Math.min(W * 0.9 / (2 * m.raio), hU / (2 * m.raio));
     var fit = fitLado * lado + fitSobre * (1 - lado), minimo = W < 520 ? 22 : 28;
     var recAntes = this.recorte;
     this.recorte = fit < minimo && !this.verTudo;                  // não cabe em tamanho de leitura: o RECORTE
     if (recAntes !== this.recorte || this._fitVisto === undefined) { this._fitVisto = true; this._sync(); }   // o aviso no painel acompanha, na hora
     var esc = (this.recorte ? minimo : Math.min(fit, 110)) * this.zoom;
     var roi = this.recorte ? m.roi : [0, 0, 0], roiE = [-roi[0], roi[1], roi[2]];
-    var cxO = W / 2 - lado * W * 0.25, cxE = W / 2 + lado * W * 0.25, cy = H / 2;
-    // o plano do espelho (lado a lado)
+    var cxO = W / 2 - lado * W * 0.25, cxE = W / 2 + lado * W * 0.25, cy = L.y + L.h / 2;
+    // o plano do espelho (lado a lado), na altura da área livre
     if (lado > 0.05) {
       var g0 = ctx.createLinearGradient(W / 2 - 14, 0, W / 2 + 14, 0);
       g0.addColorStop(0, biRgba(P.acento, 0)); g0.addColorStop(0.5, biRgba(P.acento, 0.22 * lado)); g0.addColorStop(1, biRgba(P.acento, 0));
-      ctx.fillStyle = g0; ctx.fillRect(W / 2 - 14, H * 0.06, 28, H * 0.88);
+      ctx.fillStyle = g0; ctx.fillRect(W / 2 - 14, L.y, 28, L.h);
     }
     // os itens das duas moléculas, juntos, do fundo para a frente
     var itens = [], sc = [];
@@ -521,7 +525,10 @@ class BancadaOptica {
     }).join('');
     return '<p class="ctrl-label">No polarímetro</p><ul class="op-sinais">' + linhas + '</ul>';
   }
+  /* desenhando, o próximo passo é a dica do editor (antes escrita no pé da cena) e a ficha é a do desenho */
+  proximoPasso() { return this.ativo && this.fonte === 'desenhar' ? this.editor.proximoPasso() + ' Para terminar, toque em Levar o desenho para o estudo, no card Molécula.' : ''; }
   resultados() {
+    if (this.fonte === 'desenhar') return this.editor.resultados();
     var m = this.mol, out = [];
     if (!m) return [{ l: 'Molécula', v: '—' }];
     out.push({ l: 'Molécula', v: m.nome || 'sem nome' });

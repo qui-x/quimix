@@ -331,6 +331,10 @@ body.wide-spacing * {
 .app-main{ flex:1; display:flex; overflow:hidden; height:calc(100vh - var(--header-h)); height:calc(100dvh - var(--header-h)); }
 
 .sidebar {
+  /* relativa: ancora a alça de redimensionar (absoluta). No celular, a gaveta de baixo troca isto por
+     position: fixed (bloco do celular, mais abaixo). Antes era um position:relative INLINE gravado pelo
+     script ao abrir no computador — e o inline vencia o CSS do celular (ver ui/offcanvas-mobile.js). */
+  position: relative;
   background:var(--bg-panel);
   overflow-y:auto;
   overflow-x: hidden;
@@ -602,6 +606,7 @@ body.light-mode .overlay-label{ background:rgba(255,255,255,.85); }
   }
   .sidebar--right.mobile-open { transform: translateY(0); }
   .sidebar--right::before {
+    order: -10;   /* a alça fica no topo mesmo quando um modo reordena os painéis da gaveta */
     content: ''; display: block; width: 36px; height: 4px; border-radius: 2px;
     background: var(--border); margin: .5rem auto .25rem;
   }
@@ -1192,7 +1197,7 @@ body.high-contrast .sidebar-lock-hint{ border:2px solid var(--hc-fg) !important;
   .sidebar.is-collapsed .rail-toggle { display: none; }
 
   /* ── recolhida: fora do fluxo, canvas cresce ──────────────────
-     O !important NÃO é enfeite. O sidebar-resizer.js grava
+     O !important NÃO é enfeite (e fica, por garantia, mesmo depois de o redimensionador deixar de gravar o inline: a posição relativa agora vem da regra .sidebar). O sidebar-resizer.js grava
      `style="position:relative"` INLINE em cada sidebar, para ancorar a
      alça de arrastar (só quando o CSS base deixa a sidebar static — é o
      caso de todo o 2º e 3º ano). Inline vence qualquer regra de folha,
