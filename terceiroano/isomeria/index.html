@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+  <meta name="description" content="Encha uma bancada com estruturas de mesma fórmula e compare duas a duas: fórmulas diferentes, a mesma molécula ou isômeros — de cadeia, posição, função, metameria ou tautomeria."/>
+  <title>SIIS — Simulador Interativo de Isomeria</title>
+  <link rel="stylesheet" href="css/styleisomeria.css"/>
+</head>
+<body>
+
+  <!-- Camada de simulação de daltonismo (backdrop-filter, nunca no body) -->
+  <div id="colorblindOverlay" aria-hidden="true"></div>
+  <!-- ══ FILTROS DE DALTONISMO ══════════════════════════════════════
+       O a11y.js aplica `backdrop-filter: url(#f-<tipo>)` no
+       #colorblindOverlay. Sem estes <filter> declarados NESTE
+       documento, a URL aponta para um id inexistente e o navegador
+       ignora em silencio — sem erro no console. Era o caso aqui: o
+       overlay existia, o CSS existia, mas os filtros nao. A simulacao
+       de daltonismo simplesmente nao acontecia.
+
+       Matrizes: Brettel para as tres dicromacias e Rec.601
+       (0.299/0.587/0.114) para acromatopsia. Identicas as das outras
+       paginas — ha uma fonte unica de verdade no projeto.
+       ══════════════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="f-protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-acromatopsia">
+        <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <nav class="skip-nav" aria-label="Atalhos de navegação">
+    <a href="#sidebar-left"  class="skip-link">Pular para menus e informações</a>
+    <a href="#sim-canvas"    class="skip-link">Pular para a simulação</a>
+    <a href="#sidebar-right" class="skip-link">Pular para os controles</a>
+  </nav>
+
+  <div id="sr-live"           class="sr-only" aria-live="polite"    aria-atomic="true"></div>
+  <div id="sr-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+  <header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexterceiroano.html" aria-label="Voltar aos simuladores do 3º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>3º Ano</span>
+      </a>
+      <button class="header-logo" id="btn-app-logo" aria-label="Logo do SIIS — toque para uma curiosidade química">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" width="22" height="22">
+          <path d="M12 3l7 4.5v9L12 21l-7-4.5v-9L12 3z"/>
+          <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+      <div>
+        <h1>SIIS</h1>
+        <p class="header-sub">Simulador Interativo de Isomeria</p>
+      </div>
+    </div>
+
+    <button type="button" class="mobile-menu-btn" id="mobile-menu-btn"
+      aria-label="Abrir controles da simulação" aria-expanded="false" aria-controls="sidebar-right"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
+  </header>
+
+  <!-- ════════ BARRA DE MODOS (MOBILE) ════════
+       Só aparece em telas estreitas — substitui a gaveta esquerda (☰)
+       por uma barra rolável sempre visível, na MESMA ordem/dados de
+       SIM_DATA.MODES. Preenchida em _buildModeTabsMobile() (mesmo
+       arquivo). O botão "mobile-info-btn" foi removido de propósito:
+       esta barra assume essa função no mobile. -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Modos do simulador" aria-orientation="horizontal"></nav>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+  <div class="keyboard-hints" role="note" aria-label="Atalhos de teclado disponíveis">
+    <kbd>Alt+1–3</kbd> Modos &nbsp;
+    <kbd>Enter/Espaço</kbd> Ação no canvas
+  </div>
+
+  <main class="app-main" id="main-content" role="main">
+
+    <aside class="sidebar sidebar--left" id="sidebar-left"
+           aria-label="Menus, listagens e informações do simulador">
+      <!-- ════════ MODOS (um painel-acordeão por modo, gerado de SIM_DATA.MODES) ════════ -->
+      <div id="model-list" aria-label="Modos disponíveis, cada um com painel próprio"></div>
+    </aside>
+
+    <div class="canvas-wrap">
+      <canvas id="sim-canvas" tabindex="0" role="img"
+              aria-label="Desenho do modo selecionado"
+              aria-describedby="canvas-desc"></canvas>
+      <p id="canvas-desc" class="sr-only">
+        Área de desenho com a estrutura de um composto real, onde os átomos de cada grupo funcional são pintados com a cor da função.
+      </p>
+      <!-- INDICADOR DE MODO ATIVO (padrão SILQ) — a pílula fica ESCONDIDA
+           enquanto nenhum modo está ativo: o canvas começa puro. Ao ativar
+           um modo, a classe .mode-on aparece e mostra ícone + nome + ✕. -->
+      <div class="canvas-overlay" id="mode-indicator">
+        <span class="overlay-label" id="overlay-label">
+          <span class="overlay-icon" id="overlay-icon" aria-hidden="true"></span>
+          <span class="overlay-text" id="overlay-text">SIIS</span>
+          <button type="button" class="overlay-clear" id="overlay-clear"
+                  aria-label="Desativar o modo ativo" title="Desativar o modo ativo">✕</button>
+        </span>
+      </div>
+      <div class="canvas-hint" aria-hidden="true" id="canvas-hint">Escolha um modo ao lado e clique em "Ativar" para iniciar a simulação.</div>
+      <div class="fps-counter" aria-hidden="true" id="fps-counter">-- fps</div>
+    </div>
+
+    <aside class="sidebar sidebar--right" id="sidebar-right"
+           aria-label="Controles da simulação">
+
+      <!-- Mensagem de "tudo trancado" — mesmo padrão do 1º ano. -->
+      <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+        <svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <p>Ative um modo à esquerda para liberar os controles.</p>
+      </div>
+
+      <!-- ════════ RESUMO DO MODO (MOBILE) ════════
+           Só usado dentro do bottom sheet mobile — no desktop essa
+           informação já aparece no acordeão da sidebar esquerda, então
+           aqui fica escondida (ver CSS). Populado por
+           _syncMobileModeUI() a partir do mesmo SIM_DATA.MODES. -->
+      <div class="mode-summary-mobile" id="mode-summary-mobile" hidden>
+        <button type="button" class="mode-summary-toggle" id="mode-summary-toggle"
+                aria-expanded="false" aria-controls="mode-summary-body">
+          <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="11"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span> Sobre este modo
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="mode-summary-body" id="mode-summary-body"></div>
+      </div>
+
+      <!-- ════════ MÓDULO 1 — ISOMERIA CONSTITUCIONAL ════════ -->
+      <section class="panel" id="panel-bi-bancada" data-owner hidden aria-labelledby="hdr-bi-banc">
+        <button type="button" class="panel-header" id="hdr-bi-banc" aria-expanded="true" aria-controls="body-bi-banc">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+          <span class="panel-label">Bancada</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-bi-banc" role="region" aria-labelledby="hdr-bi-banc">
+          <div id="bi-grupo-bancada">
+            <p class="bi-secao bi-secao--primeira">Gerar pela fórmula molecular</p>
+            <label class="sr-only" for="bi-molecular">Fórmula molecular</label>
+            <input type="text" id="bi-molecular" class="gf-busca" placeholder="ex.: C4H8" autocomplete="off" spellcheck="false">
+            <div class="action-row"><button type="button" class="action-btn is-primario" data-action="bi-gerar">Gerar isômeros</button></div>
+            <p class="hint-text" id="bi-nota" aria-live="polite"></p>
+            <p class="bi-secao">Pôr uma estrutura sua</p>
+            <label class="ctrl-label" for="bi-estrutural" id="bi-rotulo-destino">Fórmula estrutural</label>
+            <input type="text" id="bi-estrutural" class="gf-busca" placeholder="ex.: CH≡C-CH3" autocomplete="off" spellcheck="false">
+            <div class="nm-simbolos" role="group" aria-label="Inserir símbolo na fórmula">
+              <button type="button" class="nm-simbolo" data-simbolo="-" aria-label="ligação simples">–</button>
+              <button type="button" class="nm-simbolo" data-simbolo="=" aria-label="ligação dupla">=</button>
+              <button type="button" class="nm-simbolo" data-simbolo="≡" aria-label="ligação tripla (atalho: digite -=)" title="ligação tripla — ou digite -= (uma σ e duas π)">≡</button>
+              <button type="button" class="nm-simbolo" data-simbolo="(" aria-label="abre ramificação">(</button>
+              <button type="button" class="nm-simbolo" data-simbolo=")" aria-label="fecha ramificação">)</button>
+            </div>
+            <div class="action-row">
+              <button type="button" class="action-btn" data-action="bi-por">Pôr na bancada</button>
+              <button type="button" class="action-btn" data-action="bi-desenhar">Desenhar no editor</button>
+            </div>
+            <div class="action-row bi-rodape">
+              <button type="button" class="action-btn" data-action="bi-esvaziar">Esvaziar seleção</button>
+              <button type="button" class="action-btn" data-action="bi-limpar">Limpar a bancada</button>
+            </div>
+          </div>
+          <div id="bi-grupo-desenho" hidden>
+            <p class="bi-secao bi-secao--primeira">Desenhando no editor</p>
+            <div class="action-row"><button type="button" class="action-btn is-primario" data-action="bi-levar">Levar o desenho para a bancada</button></div>
+            <div class="action-row"><button type="button" class="action-btn" data-action="bi-voltar">Voltar à bancada sem levar</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-bi-representacao" data-owner hidden aria-labelledby="hdr-bi-rep">
+        <button type="button" class="panel-header" id="hdr-bi-rep" aria-expanded="true" aria-controls="body-bi-rep">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 11l7.6-4M8.2 13l7.6 4"/></svg></span>
+          <span class="panel-label">Representação</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-bi-rep" role="region" aria-labelledby="hdr-bi-rep">
+          <div class="opt-grid" id="bi-vista-grid" data-group="bi-vista" role="listbox" aria-label="Forma de representar as estruturas da bancada"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-bg-prioridades" data-owner hidden aria-labelledby="hdr-bg-prio">
+        <button type="button" class="panel-header" id="hdr-bg-prio" aria-expanded="true" aria-controls="body-bg-prio">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h6"/></svg></span>
+          <span class="panel-label">Prioridades</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-bg-prio" role="region" aria-labelledby="hdr-bg-prio">
+          <div id="bg-prioridades" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-bg-laboratorio" data-owner hidden aria-labelledby="hdr-bg-lab">
+        <button type="button" class="panel-header" id="hdr-bg-lab" aria-expanded="true" aria-controls="body-bg-lab">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/><path d="M7.5 15h9"/></svg></span>
+          <span class="panel-label">Laboratório</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-bg-lab" role="region" aria-labelledby="hdr-bg-lab">
+          <div id="bg-laboratorio" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-bi-comparar" data-owner hidden aria-labelledby="hdr-bi-comp">
+        <button type="button" class="panel-header" id="hdr-bi-comp" aria-expanded="true" aria-controls="body-bi-comp">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v18M16 3v18"/><path d="M3 8h5M16 16h5"/></svg></span>
+          <span class="panel-label">Comparar</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-bi-comp" role="region" aria-labelledby="hdr-bi-comp">
+          <p class="hint-text" id="bi-selecao" aria-live="polite">A: — · B: —</p>
+          <div class="action-row"><button type="button" class="action-btn is-primario" data-action="bi-comparar" disabled>Comparar</button></div>
+          <div id="bi-dados" hidden aria-live="polite"></div>
+        </div>
+      </section>
+
+
+<!-- ════════ CONSTRUÇÃO LIVRE (editor herdado do SIQC; o Módulo 1 mostra estes painéis na fonte Construir) ════════
+           Um único painel de CONTROLES: só o que o aluno muda. O que a
+           cadeia É (os quatro critérios, a classe de cada carbono) mora em
+           Resultados — calculado da estrutura, nunca repetido aqui. -->
+      <section class="panel" id="panel-op-molecula" data-owner hidden aria-labelledby="hdr-op-mol">
+        <button type="button" class="panel-header" id="hdr-op-mol" aria-expanded="true" aria-controls="body-op-mol">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/></svg></span>
+          <span class="panel-label">Molécula</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-op-mol" role="region" aria-labelledby="hdr-op-mol">
+          <div id="op-grupo-estudo">
+            <p class="hint-text" id="op-atual" aria-live="polite"></p>
+            <p class="bi-secao bi-secao--primeira">Da biblioteca</p>
+            <label class="sr-only" for="op-busca">Buscar na biblioteca</label>
+            <input type="search" id="op-busca" class="gf-busca" placeholder="Buscar: nome, uso (aroma, remédio…)" autocomplete="off" spellcheck="false" aria-controls="op-lista" aria-describedby="op-contagem">
+            <p class="hint-text" id="op-contagem" aria-live="polite"></p>
+            <ul class="op-lista" id="op-lista" role="listbox" aria-label="Compostos da biblioteca"></ul>
+            <p class="bi-secao">Uma molécula sua</p>
+            <label class="ctrl-label" for="op-estrutural">Fórmula estrutural</label>
+            <input type="text" id="op-estrutural" class="gf-busca" placeholder="ex.: CH3-CH(OH)-COOH" autocomplete="off" spellcheck="false">
+            <p class="hint-text op-erro" id="op-erro" aria-live="polite"></p>
+            <div class="action-row">
+              <button type="button" class="action-btn" data-action="op-estudar">Estudar esta fórmula</button>
+              <button type="button" class="action-btn" data-action="op-desenhar">Desenhar no editor</button>
+            </div>
+          </div>
+          <div id="op-grupo-desenho" hidden>
+            <p class="bi-secao bi-secao--primeira">Desenhando no editor</p>
+            <div class="action-row"><button type="button" class="action-btn is-primario" data-action="op-levar">Levar o desenho para o estudo</button></div>
+            <div class="action-row"><button type="button" class="action-btn" data-action="op-voltar">Voltar sem levar</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-op-prever" data-owner hidden aria-labelledby="hdr-op-prev">
+        <button type="button" class="panel-header" id="hdr-op-prev" aria-expanded="true" aria-controls="body-op-prev">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></span>
+          <span class="panel-label">Prever</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-op-prev" role="region" aria-labelledby="hdr-op-prev">
+          <div id="op-prever" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-op-espelho" data-owner hidden aria-labelledby="hdr-op-esp">
+        <button type="button" class="panel-header" id="hdr-op-esp" aria-expanded="true" aria-controls="body-op-esp">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M8 7l-4 5 4 5M16 7l4 5-4 5"/></svg></span>
+          <span class="panel-label">Espelho</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-op-esp" role="region" aria-labelledby="hdr-op-esp">
+          <div id="op-espelho" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-op-config" data-owner hidden aria-labelledby="hdr-op-cfg">
+        <button type="button" class="panel-header" id="hdr-op-cfg" aria-expanded="true" aria-controls="body-op-cfg">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M21 3v6h-6"/></svg></span>
+          <span class="panel-label">Configuração</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-op-cfg" role="region" aria-labelledby="hdr-op-cfg">
+          <div id="op-config" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-construcao" data-owner hidden aria-labelledby="hdr-cons">
+        <button type="button" class="panel-header" id="hdr-cons" aria-expanded="true" aria-controls="body-cons">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="16.5" r="2.2"/><circle cx="12" cy="7" r="2.2"/><circle cx="18.5" cy="16.5" r="2.2"/><path d="M6.8 14.6 10.7 8.9M13.3 8.9l3.9 5.7"/></svg></span>
+          <span class="panel-label">Construção</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-cons" role="region" aria-labelledby="hdr-cons">
+          <p class="ctrl-label">Elemento a anexar</p>
+          <div class="seg seg-paleta" data-group="elemento" role="group" aria-label="Elemento a anexar">
+            <span class="paleta-rotulo" aria-hidden="true">cadeia</span>
+            <button type="button" class="seg-btn" data-value="C" aria-pressed="true" aria-label="Carbono">C</button><button type="button" class="seg-btn" data-value="Si" aria-pressed="false" aria-label="Silício">Si</button><button type="button" class="seg-btn" data-value="N" aria-pressed="false" aria-label="Nitrogênio">N</button><button type="button" class="seg-btn" data-value="O" aria-pressed="false" aria-label="Oxigênio">O</button><button type="button" class="seg-btn" data-value="S" aria-pressed="false" aria-label="Enxofre">S</button><button type="button" class="seg-btn" data-value="P" aria-pressed="false" aria-label="Fósforo">P</button>
+            <span class="paleta-rotulo" aria-hidden="true">halogênios</span>
+            <button type="button" class="seg-btn" data-value="F" aria-pressed="false" aria-label="Flúor">F</button><button type="button" class="seg-btn" data-value="Cl" aria-pressed="false" aria-label="Cloro">Cl</button><button type="button" class="seg-btn" data-value="Br" aria-pressed="false" aria-label="Bromo">Br</button><button type="button" class="seg-btn" data-value="I" aria-pressed="false" aria-label="Iodo">I</button>
+            <span class="paleta-rotulo" aria-hidden="true">metais</span>
+            <button type="button" class="seg-btn" data-value="Na" aria-pressed="false" aria-label="Sódio">Na</button><button type="button" class="seg-btn" data-value="K" aria-pressed="false" aria-label="Potássio">K</button><button type="button" class="seg-btn" data-value="Mg" aria-pressed="false" aria-label="Magnésio">Mg</button>
+          </div>
+          <p class="ctrl-label">Ferramenta</p>
+          <div class="seg" data-group="ferramenta" role="group" aria-label="Ferramenta">
+            <button type="button" class="seg-btn" data-value="anexar" aria-pressed="true">Anexar</button>
+            <button type="button" class="seg-btn" data-value="ligar" aria-pressed="false">Ligar</button>
+            <button type="button" class="seg-btn" data-value="apagar" aria-pressed="false">Apagar</button>
+            <button type="button" class="seg-btn" data-value="cunha" aria-pressed="false">Cunha</button>
+          </div>
+          <!-- Com a ferramenta Cunha: para onde a ligação tocada aponta. Só aparece com ela ativa. -->
+          <div id="grupo-cunha" hidden>
+            <p class="ctrl-label">A ligação tocada…</p>
+            <div class="seg" data-group="cunhaTipo" role="group" aria-label="Para onde a ligação tocada aponta">
+              <button type="button" class="seg-btn" data-value="frente" aria-pressed="true" aria-label="Vem para a frente, cunha cheia"><svg viewBox="0 0 24 12" width="1.6em" height="0.8em" aria-hidden="true"><path d="M2 6 22 1.5v9z" fill="currentColor"/></svg> Frente</button>
+              <button type="button" class="seg-btn" data-value="tras" aria-pressed="false" aria-label="Vai para trás, cunha tracejada"><svg viewBox="0 0 24 12" width="1.6em" height="0.8em" aria-hidden="true"><path d="M4 5.2V6.8" stroke="currentColor" stroke-width="1.6"/><path d="M8 4.4V7.6" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.6V8.4" stroke="currentColor" stroke-width="1.6"/><path d="M16 2.8V9.2" stroke="currentColor" stroke-width="1.6"/><path d="M20 1.8V10.2" stroke="currentColor" stroke-width="1.6"/></svg> Trás</button>
+              <button type="button" class="seg-btn" data-value="plano" aria-pressed="false" aria-label="Fica no plano, traço simples"><svg viewBox="0 0 24 12" width="1.6em" height="0.8em" aria-hidden="true"><path d="M2 6h20" stroke="currentColor" stroke-width="2"/></svg> No plano</button>
+            </div>
+          </div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="cad-desfazer">Desfazer</button>
+            <button type="button" class="action-btn" data-action="cad-snap">Snap Literatura</button>
+            <button type="button" class="action-btn" data-action="cad-limpar">Limpar</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-representacao" data-owner hidden aria-labelledby="hdr-rep">
+        <button type="button" class="panel-header" id="hdr-rep" aria-expanded="true" aria-controls="body-rep">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="m2 13 10 5 10-5"/><path d="m2 18 10 5 10-5" opacity=".55"/></svg></span>
+          <span class="panel-label">Representação</span>
+          <span class="panel-badge">6</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-rep" role="region" aria-labelledby="hdr-rep">
+          <div class="opt-grid cols-1" id="vista-grid" data-group="vista" role="listbox"
+               aria-label="Forma de representar a cadeia"></div>
+          <p class="ctrl-label">Tensão angular entre as nuvens</p>
+          <div class="seg" data-group="tensao" role="group" aria-label="Tensão angular entre as nuvens eletrônicas" aria-describedby="tensao-dica">
+            <button type="button" class="seg-btn" data-value="on" aria-pressed="false">Ligada</button>
+            <button type="button" class="seg-btn" data-value="off" aria-pressed="true">Desligada</button>
+          </div>
+          <p class="sr-only" id="tensao-dica">Ligada: pares isolados, duplas e grupos volumosos ocupam mais espaço e mudam os ângulos. Desligada: ângulos ideais.</p>
+        </div>
+      </section>
+
+
+      <!-- ════════ RESULTADOS (sempre visível, independe do modo) ════════ -->
+      <section class="panel" aria-labelledby="hdr-result">
+        <button type="button" class="panel-header" id="hdr-result" aria-expanded="true" aria-controls="body-result">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
+          <span class="panel-label">Resultados</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-result" role="region" aria-labelledby="hdr-result">
+          <dl class="data-grid" id="result-grid" aria-live="polite" aria-atomic="true"></dl>
+          <canvas id="result-chart" class="result-chart" hidden aria-label="Gráfico auxiliar do modo atual"></canvas>
+        </div>
+      </section>
+
+    </aside>
+
+  </main>
+
+  <!-- ════════ MODAL — INFORMAÇÕES DO MODO (1ª ATIVAÇÃO, MOBILE) ════════ -->
+  <div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+       aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+    <div class="mode-info-modal" id="modeInfoModal">
+      <div class="mode-info-header">
+        <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+        <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+        <button type="button" class="mode-info-close" id="modeInfoClose"
+                aria-label="Fechar informações do modo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+      </div>
+      <div class="mode-info-body" id="modeInfoBody"></div>
+    </div>
+  </div>
+
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+  <!-- ═══ ORDEM DE CARGA — não reordenar ═══
+       a11y → core → data → ui → simulation → init.
+       Escopo global compartilhado entre as tags: cada arquivo
+       conta com o que os anteriores declararam. -->
+  <script src="js/a11y/anuncios.js"></script>
+  <script src="js/core/formatacao.js"></script>
+  <script src="js/core/grafo-molecular.js"></script>
+  <script src="js/core/geometria-molecular.js"></script>
+  <script src="js/core/geometria-3d.js"></script>
+  <script src="js/core/lewis.js"></script>
+  <script src="js/core/smiles.js"></script>
+  <script src="js/core/classificacao-cadeias.js"></script>
+  <script src="js/core/grupos-funcionais.js"></script>
+  <script src="js/core/formula-condensada.js"></script>
+  <script src="js/core/nomenclatura.js"></script>
+  <script src="js/core/nomenclatura-completa.js"></script>
+  <script src="js/core/isomeros-gerais.js"></script>
+  <script src="js/core/estereo.js"></script>
+  <script src="js/data/dadosisomeria.js"></script>
+  <script src="js/render/desenho-molecula.js"></script>
+  <script src="js/render/representacoes.js"></script>
+  <script src="js/ui/kit-desenho.js"></script>
+  <script src="js/view3d/camera-orbital.js"></script>
+  <script src="js/view3d/navegacao-3d.js"></script>
+  <script src="js/simulation/editor-cadeias.js"></script>
+  <script src="js/simulation/bancada-isomeria.js"></script>
+  <script src="js/simulation/bancada-geometrica.js"></script>
+  <script src="js/data/biblioteca-optica.js"></script>
+  <script src="js/core/optica.js"></script>
+  <script src="js/simulation/bancada-optica.js"></script>
+  <script src="js/simulation/mecanica.js"></script>
+  <script src="js/init/app.js"></script>
+  <script src="js/ui/offcanvas-mobile.js"></script>
+
+  <!-- ═══ TOUR GUIADO — motor genérico na raiz + roteiro deste simulador ═══
+       Antes do trilho: o trilho escuta coachmark:inicio/fim para sair de
+       cena durante o tour, e o motor precisa existir quando o tour começa. -->
+  <script src="../../coachmark.js"></script>
+  <script src="js/a11y/tour.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'isomeria', bp: 1100 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+  <meta name="description" content="SITQ — Simulador Interativo de Termoquímica: calorímetro Q=mcΔT, curva de aquecimento da água, diagramas endo/exo, Lei de Hess e energia de ligação com moléculas em projeção 3D. Acessível WCAG 2.1 AA."/>
+  <title>SITQ — Simulador Interativo de Termoquímica</title>
+  <link rel="stylesheet" href="css/styletermoquimica.css"/>
+</head>
+<body>
+
+  <!-- Camada de simulação de daltonismo: overlay fixo, sem conteúdo,
+       sem capturar clique (pointer-events:none). O filtro é aplicado
+       via backdrop-filter — não no body/html, para não quebrar o
+       posicionamento de elementos fixed/absolute do simulador.
+       Mesmo contrato usado no hub (index.html) e no SIMA. -->
+  <div id="colorblindOverlay" aria-hidden="true"></div>
+  <!-- ══ FILTROS DE DALTONISMO ══════════════════════════════════════
+       O a11y.js aplica `backdrop-filter: url(#f-<tipo>)` no
+       #colorblindOverlay. Sem estes <filter> declarados NESTE
+       documento, a URL aponta para um id inexistente e o navegador
+       ignora em silencio — sem erro no console. Era o caso aqui: o
+       overlay existia, o CSS existia, mas os filtros nao. A simulacao
+       de daltonismo simplesmente nao acontecia.
+
+       Matrizes: Brettel para as tres dicromacias e Rec.601
+       (0.299/0.587/0.114) para acromatopsia. Identicas as das outras
+       paginas — ha uma fonte unica de verdade no projeto.
+       ══════════════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="f-protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-acromatopsia">
+        <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <nav class="skip-nav" aria-label="Atalhos de navegação">
+    <a href="#sidebar-left"  class="skip-link">Pular para menus e informações</a>
+    <a href="#sim-canvas"    class="skip-link">Pular para a simulação</a>
+    <a href="#sidebar-right" class="skip-link">Pular para os controles</a>
+  </nav>
+
+  <div id="sr-live"           class="sr-only" aria-live="polite"    aria-atomic="true"></div>
+  <div id="sr-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+  <header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexsegundoano.html" aria-label="Voltar aos simuladores do 2º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>2º Ano</span>
+      </a>
+      <button class="header-logo" id="btn-app-logo" aria-label="Logo do SITQ — toque para uma curiosidade termoquímica">
+        <!-- Termômetro + chama: identidade do SITQ -->
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M12 5.5a3 3 0 0 1 6 0v12.2a6 6 0 1 1-6 0Z"/>
+          <circle cx="15" cy="23" r="3.1" fill="currentColor" stroke="none" opacity=".95"/>
+          <line x1="15" y1="20.5" x2="15" y2="10" stroke-width="2.2" opacity=".9"/>
+          <path d="M24.5 12.5c1.9-2 .9-3.9-.2-5 .3 1.5-.4 2.2-1.2 2.9-.9.8-1.6 1.9-1 3.3.6 1.3 2.3 1.7 3.4.8" stroke-width="1.3" opacity=".85"/>
+        </svg>
+      </button>
+      <div>
+        <h1>SITQ</h1>
+        <p class="header-sub">Simulador Interativo de Termoquímica</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button type="button" class="mobile-menu-btn" id="mobile-info-btn"
+        aria-label="Abrir menus e informações" aria-expanded="false" aria-controls="sidebar-left"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16" /><path d="M4 12h16" /><path d="M4 19h16" /></svg></button>
+      <button type="button" class="mobile-menu-btn" id="mobile-menu-btn"
+        aria-label="Abrir controles da simulação" aria-expanded="false" aria-controls="sidebar-right"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h4" /><path d="M12 21v-9" /><path d="M12 8V3" /><path d="M17 16h4" /><path d="M19 12V3" /><path d="M19 21v-5" /><path d="M3 14h4" /><path d="M5 10V3" /><path d="M5 21v-7" /></svg></button>
+    </div>
+  </header>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+  <div class="keyboard-hints" role="note" aria-label="Atalhos de teclado disponíveis">
+    <kbd>Alt+1–6</kbd> Modos &nbsp;
+    <kbd>Enter/Espaço</kbd> Ação no gráfico &nbsp;
+    <kbd>←→↑↓</kbd> Girar moléculas 3D
+  </div>
+
+  <main class="app-main" id="main-content" role="main">
+
+    <aside class="sidebar sidebar--left" id="sidebar-left"
+           aria-label="Menus, listagens e informações do simulador">
+
+      <!-- ════════ MODOS (um painel-acordeão por modo) ════════ -->
+
+      <section class="panel" data-mode-card="calor" aria-labelledby="hdr-mode-calor">
+        <button type="button" id="hdr-mode-calor" class="panel-header" aria-expanded="false" aria-controls="body-mode-calor">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" /></svg></span>
+          <span class="panel-label">Calorímetro</span>
+          <span class="panel-badge">Q=m·c·ΔT</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-calor" role="region" aria-labelledby="hdr-mode-calor">
+          <button type="button" class="action-btn mode-activate-btn" data-mode="calor" aria-pressed="false">
+            <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Ativar Calorímetro
+          </button>
+          <p class="mode-define">Mede o calor sensível trocado por cada substância — e, para água e etanol, também a mudança de fase: o béquer mostra sólido e líquido (ou líquido e vapor) coexistindo durante a transição.</p>
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Fórmula</span><span class="fact-value">Q = m·c·ΔT</span></div>
+            <div class="fact-cell"><span class="fact-label">Água (c)</span><span class="fact-value">4,186 J/g·°C</span></div>
+            <div class="fact-cell"><span class="fact-label">Mudança de fase</span><span class="fact-value">água e etanol</span></div>
+            <div class="fact-cell"><span class="fact-label">Substâncias</span><span class="fact-value">18 disponíveis</span></div>
+          </div>
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Interações do canvas</p>
+            <p>Escolha uma substância e aqueça ou resfrie: acompanhe o Q calculado a partir de massa, calor específico e ΔT. Para água e etanol, atravesse a fusão ou a ebulição e veja as fases coexistindo.</p>
+          </div>
+          <div class="recommended">
+            <p class="recommended-title">Recomendados</p>
+            <div class="chip-row"><button type="button" class="chip" data-modulo="calor" data-substancia="Água líquida">Água líquida</button><button type="button" class="chip" data-modulo="calor" data-substancia="Ferro">Ferro</button><button type="button" class="chip" data-modulo="calor" data-substancia="Chumbo">Chumbo</button><button type="button" class="chip" data-modulo="calor" data-substancia="Mercúrio">Mercúrio</button></div>
+          </div>
+          <p class="hint-text">Meça o calor absorvido ou liberado por dezoito substâncias; água e etanol também atravessam fusão e ebulição, mostrando a coexistência de fases no béquer.</p>
+        </div>
+      </section>
+
+      <section class="panel" data-mode-card="curva" aria-labelledby="hdr-mode-curva">
+        <button type="button" id="hdr-mode-curva" class="panel-header" aria-expanded="false" aria-controls="body-mode-curva">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h6v6" /><path d="m22 7-8.5 8.5-5-5L2 17" /></svg></span>
+          <span class="panel-label">Curva de Aquecimento</span>
+          <span class="panel-badge">Q=m·L</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-curva" role="region" aria-labelledby="hdr-mode-curva">
+          <button type="button" class="action-btn mode-activate-btn" data-mode="curva" aria-pressed="false">
+            <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Ativar Curva de Aquecimento
+          </button>
+          <p class="mode-define">Durante a fusão e a ebulição a temperatura trava: toda a energia vira calor latente pra desmontar as ligações entre moléculas.</p>
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Substâncias</span><span class="fact-value">2 disponíveis</span></div>
+            <div class="fact-cell"><span class="fact-label">L vaporização</span><span class="fact-value">2260 J/g (água)</span></div>
+            <div class="fact-cell"><span class="fact-label">Fusão (água)</span><span class="fact-value">0 °C</span></div>
+            <div class="fact-cell"><span class="fact-label">Ebulição (água)</span><span class="fact-value">100 °C</span></div>
+          </div>
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Interações do canvas</p>
+            <p>Escolha água ou etanol e aqueça do sólido ao vapor: nos dois patamares — fusão e ebulição — a temperatura para de subir e as duas fases coexistem.</p>
+          </div>
+          <p class="hint-text">Escolha a substância e aqueça do sólido ao vapor: nos patamares de fusão e ebulição a temperatura não muda, mas as fases coexistem até a transição terminar.</p>
+        </div>
+      </section>
+
+      <section class="panel" data-mode-card="perfil" aria-labelledby="hdr-mode-perfil">
+        <button type="button" id="hdr-mode-perfil" class="panel-header" aria-expanded="false" aria-controls="body-mode-perfil">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 3 4 8 5-5 5 15H2L8 3z" /></svg></span>
+          <span class="panel-label">Endo × Exo</span>
+          <span class="panel-badge">ΔH ⇄ Ea</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-perfil" role="region" aria-labelledby="hdr-mode-perfil">
+          <button type="button" class="action-btn mode-activate-btn" data-mode="perfil" aria-pressed="false">
+            <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Ativar Endo × Exo
+          </button>
+          <p class="mode-define">O diagrama de entalpia mostra a barreira Ea até o complexo ativado: produtos mais baixos que reagentes = reação exotérmica.</p>
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Exotérmica</span><span class="fact-value">ΔH &lt; 0</span></div>
+            <div class="fact-cell"><span class="fact-label">Endotérmica</span><span class="fact-value">ΔH &gt; 0</span></div>
+            <div class="fact-cell"><span class="fact-label">Catalisador</span><span class="fact-value">abaixa Ea, não muda ΔH</span></div>
+            <div class="fact-cell"><span class="fact-label">Reações</span><span class="fact-value">7 disponíveis</span></div>
+          </div>
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Interações do canvas</p>
+            <p>Escolha uma reação real e veja o diagrama de energia, com a barreira Ea e o efeito do catalisador.</p>
+          </div>
+          <div class="recommended">
+            <p class="recommended-title">Recomendados</p>
+            <div class="chip-row"><button type="button" class="chip" data-modulo="perfil" data-reacao="Combustão do metano">Combustão do metano</button><button type="button" class="chip" data-modulo="perfil" data-reacao="Fotossíntese">Fotossíntese</button><button type="button" class="chip" data-modulo="perfil" data-reacao="Decomposição do calcário">Decomposição do calcário</button></div>
+          </div>
+          <p class="hint-text">Reproduza sete reações reais no diagrama de entalpia, com energia de ativação, complexo ativado e catalisador.</p>
+        </div>
+      </section>
+
+      <section class="panel" data-mode-card="hess" aria-labelledby="hdr-mode-hess">
+        <button type="button" id="hdr-mode-hess" class="panel-header" aria-expanded="false" aria-controls="body-mode-hess">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z" /></svg></span>
+          <span class="panel-label">Lei de Hess</span>
+          <span class="panel-badge">ΣΔH · 1840</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-hess" role="region" aria-labelledby="hdr-mode-hess">
+          <button type="button" class="action-btn mode-activate-btn" data-mode="hess" aria-pressed="false">
+            <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Ativar Lei de Hess
+          </button>
+          <p class="mode-define">A entalpia é função de estado: ΔH depende só do início e do fim, então equações termoquímicas se somam como equações algébricas.</p>
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Autor</span><span class="fact-value">Germain Hess</span></div>
+            <div class="fact-cell"><span class="fact-label">Ano</span><span class="fact-value">1840</span></div>
+            <div class="fact-cell"><span class="fact-label">Regra</span><span class="fact-value">inverter troca o sinal</span></div>
+            <div class="fact-cell"><span class="fact-label">Exercícios</span><span class="fact-value">5 disponíveis</span></div>
+          </div>
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Interações do canvas</p>
+            <p>Combine as etapas dadas — invertendo e multiplicando quando preciso — até chegar ao ΔH da equação-alvo.</p>
+          </div>
+          <p class="hint-text">Inverta e multiplique equações termoquímicas para chegar ao ΔH de reações que não podem ser medidas diretamente.</p>
+        </div>
+      </section>
+
+      <section class="panel" data-mode-card="ligacao" aria-labelledby="hdr-mode-ligacao">
+        <button type="button" id="hdr-mode-ligacao" class="panel-header" aria-expanded="false" aria-controls="body-mode-ligacao">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1" /><path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5Z" /><path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5Z" /></svg></span>
+          <span class="panel-label">Energia de Ligação</span>
+          <span class="panel-badge">E_lig · 3D</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-ligacao" role="region" aria-labelledby="hdr-mode-ligacao">
+          <button type="button" class="action-btn mode-activate-btn" data-mode="ligacao" aria-pressed="false">
+            <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Ativar Energia de Ligação
+          </button>
+          <p class="mode-define">Romper ligação sempre absorve energia; formar ligação sempre libera. A diferença entre as somas estima o ΔH da reação.</p>
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Fórmula</span><span class="fact-value">ΔH≈ΣE(rompidas)−ΣE(formadas)</span></div>
+            <div class="fact-cell"><span class="fact-label">N≡N</span><span class="fact-value">945 kJ/mol (tripla)</span></div>
+            <div class="fact-cell"><span class="fact-label">Fase</span><span class="fact-value">gasosa</span></div>
+            <div class="fact-cell"><span class="fact-label">Reações</span><span class="fact-value">4 disponíveis</span></div>
+          </div>
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Interações do canvas</p>
+            <p>Escolha uma reação e explore as moléculas em 3D giratório, comparando ligações rompidas e formadas.</p>
+          </div>
+          <div class="recommended">
+            <p class="recommended-title">Recomendados</p>
+            <div class="chip-row"><button type="button" class="chip" data-modulo="ligacao" data-reacao="Combustão do metano">Combustão do metano</button><button type="button" class="chip" data-modulo="ligacao" data-reacao="Síntese da amônia">Síntese da amônia</button><button type="button" class="chip" data-modulo="ligacao" data-reacao="Síntese da água">Síntese da água</button></div>
+          </div>
+          <p class="hint-text">Estime o ΔH pela energia das ligações rompidas e formadas, com moléculas em projeção tridimensional giratória.</p>
+        </div>
+      </section>
+
+      <!-- ════════ MÓDULO 6 — ESPONTANEIDADE (NOVO) ════════
+           Fecha a lacuna de entropia e energia livre: antes nao havia nada
+           no SITQ sobre por que um processo endotermico pode ser espontaneo. -->
+      <section class="panel" data-mode-card="gibbs" aria-labelledby="hdr-mode-gibbs">
+        <button type="button" id="hdr-mode-gibbs" class="panel-header" aria-expanded="false" aria-controls="body-mode-gibbs">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" /></svg></span>
+          <span class="panel-label">Espontaneidade (ΔG)</span>
+          <span class="panel-badge">ΔG = ΔH − TΔS</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-gibbs" role="region" aria-labelledby="hdr-mode-gibbs">
+          <button type="button" class="action-btn mode-activate-btn" data-mode="gibbs" aria-pressed="false">
+            <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Ativar Espontaneidade
+          </button>
+          <p class="mode-define">ΔH sozinho não decide nada: o gelo derrete espontaneamente <strong>absorvendo</strong> calor. Quem decide é ΔG = ΔH − T·ΔS.</p>
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Fórmula</span><span class="fact-value">ΔG = ΔH − T·ΔS</span></div>
+            <div class="fact-cell"><span class="fact-label">ΔG &lt; 0</span><span class="fact-value">espontâneo</span></div>
+            <div class="fact-cell"><span class="fact-label">ΔG = 0</span><span class="fact-value">equilíbrio</span></div>
+            <div class="fact-cell"><span class="fact-label">T inversão</span><span class="fact-value">ΔH/ΔS</span></div>
+          </div>
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Interações do canvas</p>
+            <p>ΔG é desenhado como uma <strong>reta</strong> em função de T, com coeficiente angular −ΔS. Mova a temperatura e veja em que ponto ela cruza o zero.</p>
+          </div>
+          <div class="recommended">
+            <p class="recommended-title">Recomendados</p>
+            <div class="chip-row"><button type="button" class="chip" data-modulo="gibbs" data-reacao="Fusão do gelo">Fusão do gelo</button><button type="button" class="chip" data-modulo="gibbs" data-reacao="Decomposição do calcário">Decomposição do calcário</button><button type="button" class="chip" data-modulo="gibbs" data-reacao="Fotossíntese">Fotossíntese</button></div>
+          </div>
+          <p class="hint-text">Os quatro pares de sinais de ΔH e ΔS dão quatro comportamentos — e só dois deles dependem da temperatura.</p>
+        </div>
+      </section>
+
+    </aside>
+
+    <div class="canvas-wrap">
+      <canvas id="sim-canvas" tabindex="0" role="img"
+              aria-label="Simulação animada do modo termoquímico selecionado"
+              aria-describedby="canvas-desc"></canvas>
+      <p id="canvas-desc" class="sr-only">
+        Simulação interativa. No Calorímetro, um béquer com termômetro mostra
+        a amostra trocando calor. Na Curva de Aquecimento, o gráfico
+        temperatura por calor exibe os patamares de fusão e ebulição da água.
+        Em Endo × Exo, o diagrama de entalpia mostra reagentes, complexo
+        ativado e produtos. Na Lei de Hess, níveis de entalpia formam o ciclo
+        entre estado inicial e final. Em Energia de Ligação, moléculas em
+        projeção 3D giram mostrando as ligações rompidas e formadas.
+      </p>
+      <!-- INDICADOR DE MODO ATIVO (padrão SILQ) — a pílula fica ESCONDIDA
+           enquanto nenhum modo está ativo: o canvas começa puro. Ao ativar
+           um modo, a classe .mode-on aparece e mostra ícone + nome + ✕. -->
+      <div class="canvas-overlay" id="mode-indicator">
+        <span class="overlay-label" id="overlay-label">
+          <span class="overlay-icon" id="overlay-icon" aria-hidden="true"></span>
+          <span class="overlay-text" id="overlay-text">Calorímetro · Água líquida</span>
+          <button type="button" class="overlay-clear" id="overlay-clear"
+                  aria-label="Desativar o modo ativo" title="Desativar o modo ativo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+        </span>
+      </div>
+      <div class="canvas-hint" aria-hidden="true" id="canvas-hint">Escolha um modo ao lado e clique em "Ativar" para iniciar a simulação.</div>
+      <div class="fps-counter" aria-hidden="true" id="fps-counter">-- fps</div>
+    </div>
+
+    <aside class="sidebar sidebar--right" id="sidebar-right"
+           aria-label="Controles da simulação">
+
+      <!-- Mensagem de "tudo trancado" — mesmo padrão do 1º ano. -->
+      <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+        <svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <p>Ative um modo à esquerda — <strong>Calorímetro</strong>, <strong>Curva de Aquecimento</strong>, <strong>Endo × Exo</strong>, <strong>Lei de Hess</strong>, <strong>Energia de Ligação</strong> ou <strong>Espontaneidade (ΔG)</strong> — para liberar os controles e os resultados.</p>
+      </div>
+
+      <!-- ════════ MODO 1 — CALORÍMETRO ════════ -->
+      <section class="panel" id="panel-calor" hidden aria-labelledby="hdr-calor">
+        <button type="button" class="panel-header" id="hdr-calor" aria-expanded="true" aria-controls="body-calor">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" /></svg></span>
+          <span class="panel-label">Substâncias</span>
+          <span class="panel-badge">18</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-calor" role="region" aria-labelledby="hdr-calor">
+          <div class="subst-grid" id="subst-grid" role="listbox" aria-label="Substâncias disponíveis com seus calores específicos"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-controles" hidden aria-labelledby="hdr-controles">
+        <button type="button" class="panel-header" id="hdr-controles" aria-expanded="true" aria-controls="body-controles">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h4" /><path d="M12 21v-9" /><path d="M12 8V3" /><path d="M17 16h4" /><path d="M19 12V3" /><path d="M19 21v-5" /><path d="M3 14h4" /><path d="M5 10V3" /><path d="M5 21v-7" /></svg></span>
+          <span class="panel-label">Controles</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-controles" role="region" aria-labelledby="hdr-controles">
+          <div class="slider-row">
+            <label for="calor-massa">Massa</label>
+            <input type="range" id="calor-massa" min="10" max="1000" step="10" value="200"/>
+            <output id="out-calor-massa" for="calor-massa">200 g</output>
+          </div>
+          <div class="slider-row">
+            <label for="calor-ti">T inicial</label>
+            <input type="range" id="calor-ti" min="-20" max="120" step="1" value="20"/>
+            <output id="out-calor-ti" for="calor-ti">20 °C</output>
+          </div>
+          <div class="slider-row">
+            <label for="calor-tf">T final</label>
+            <input type="range" id="calor-tf" min="-20" max="120" step="1" value="80"/>
+            <output id="out-calor-tf" for="calor-tf">80 °C</output>
+          </div>
+
+          <div class="action-row">
+            <button class="action-btn" id="btn-calor-run"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Trocar calor</button>
+            <button class="action-btn" id="btn-calor-reset"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg></span> Reiniciar</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 2 — CURVA DE AQUECIMENTO ════════ -->
+      <section class="panel" id="panel-curva" aria-labelledby="hdr-curva" hidden>
+        <button type="button" class="panel-header" id="hdr-curva" aria-expanded="true" aria-controls="body-curva">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" /></svg></span>
+          <span class="panel-label">Substância e Aquecimento</span>
+          <span class="panel-badge">2</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-curva" role="region" aria-labelledby="hdr-curva">
+          <div class="subst-grid" id="curva-subst-grid" role="listbox" aria-label="Substâncias disponíveis com seus pontos de fusão e ebulição"></div>
+          <div class="slider-row">
+            <label for="curva-massa">Massa</label>
+            <input type="range" id="curva-massa" min="50" max="500" step="10" value="100"/>
+            <output id="out-curva-massa" for="curva-massa">100 g</output>
+          </div>
+          <div class="slider-row">
+            <label for="curva-ti">T inicial</label>
+            <input type="range" id="curva-ti" min="-30" max="119" step="1" value="-20"/>
+            <output id="out-curva-ti" for="curva-ti">−20 °C</output>
+          </div>
+          <div class="slider-row">
+            <label for="curva-tf">T final</label>
+            <input type="range" id="curva-tf" min="-29" max="130" step="1" value="120"/>
+            <output id="out-curva-tf" for="curva-tf">120 °C</output>
+          </div>
+          <div class="action-row">
+            <button class="action-btn" id="btn-curva-run"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Aquecer</button>
+            <button class="action-btn" id="btn-curva-reset"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg></span> Reiniciar</button>
+          </div>
+          <p class="hint-text" id="curva-hint">Nos patamares o termômetro trava: todo o calor vira calor latente, e as duas fases coexistem até a transição terminar.</p>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 3 — DIAGRAMAS ENDO × EXO ════════ -->
+      <section class="panel" id="panel-perfil" aria-labelledby="hdr-perfil" hidden>
+        <button type="button" class="panel-header" id="hdr-perfil" aria-expanded="true" aria-controls="body-perfil">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 3 4 8 5-5 5 15H2L8 3z" /></svg></span>
+          <span class="panel-label">Reações e Catalisador</span>
+          <span class="panel-badge">7</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-perfil" role="region" aria-labelledby="hdr-perfil">
+          <div class="model-list" id="perfil-list" role="listbox" aria-label="Reações químicas disponíveis para o diagrama de energia"></div>
+          <p class="hint-text" id="perfil-desc"></p>
+          <div class="shell-btns" role="group" aria-label="Opções do diagrama">
+            <button class="shell-btn" id="btn-perfil-cat" aria-pressed="false"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2" /><path d="M6.453 15h11.094" /><path d="M8.5 2h7" /></svg> Catalisador</button>
+          </div>
+          <button class="action-btn" id="btn-perfil-run"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Reproduzir reação</button>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 4 — LEI DE HESS ════════ -->
+      <section class="panel" id="panel-hess" aria-labelledby="hdr-hess" hidden>
+        <button type="button" class="panel-header" id="hdr-hess" aria-expanded="true" aria-controls="body-hess">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="16" height="20" x="4" y="2" rx="2" /><line x1="8" x2="16" y1="6" y2="6" /><line x1="16" x2="16" y1="14" y2="18" /><path d="M16 10h.01" /><path d="M12 10h.01" /><path d="M8 10h.01" /><path d="M12 14h.01" /><path d="M8 14h.01" /><path d="M12 18h.01" /><path d="M8 18h.01" /></svg></span>
+          <span class="panel-label">Montagem das Etapas</span>
+          <span class="panel-badge">5</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-hess" role="region" aria-labelledby="hdr-hess">
+          <div class="shell-btns" id="hess-select" role="group" aria-label="Escolher exercício da Lei de Hess"></div>
+
+          <div class="hess-alvo">
+            <span class="hess-alvo-rot">Equação-alvo</span>
+            <span class="hess-alvo-eq" id="hess-alvo-eq">— <b>ΔH = ?</b></span>
+          </div>
+
+          <div class="hess-steps" id="hess-steps"></div>
+
+          <div class="hess-sum" aria-live="polite">
+            <span>Σ atual: <b id="hess-sum-val">0 kJ</b></span>
+            <span class="status-badge" id="hess-status">aguardando</span>
+          </div>
+
+          <div class="action-row">
+            <button class="action-btn" id="btn-hess-check"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg></span> Somar equações</button>
+            <button class="action-btn" id="btn-hess-sol"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /><path d="M9 18h6" /><path d="M10 22h4" /></svg></span> Ver solução</button>
+          </div>
+          <button class="action-btn" id="btn-hess-reset"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg></span> Reiniciar exercício</button>
+          <p class="hint-text" id="hess-dica"></p>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 5 — ENERGIA DE LIGAÇÃO (3D) ════════ -->
+      <section class="panel" id="panel-ligacao" aria-labelledby="hdr-ligacao" hidden>
+        <button type="button" class="panel-header" id="hdr-ligacao" aria-expanded="true" aria-controls="body-ligacao">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg></span>
+          <span class="panel-label">Reação e Projeção 3D</span>
+          <span class="panel-badge">4</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-ligacao" role="region" aria-labelledby="hdr-ligacao">
+          <div class="model-list" id="ligacao-list" role="listbox" aria-label="Reações disponíveis para cálculo por energia de ligação"></div>
+          <p class="hint-text" id="ligacao-obs"></p>
+          <div class="shell-btns" role="group" aria-label="Opções da cena 3D">
+            <button class="shell-btn" id="btn-lig-inverter" aria-pressed="false">⇄ Inverter reação</button>
+            <button class="shell-btn" id="btn-lig-girar" aria-pressed="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg> Giro automático</button>
+            <button class="shell-btn" id="btn-lig-rotulos" aria-pressed="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" /><circle cx="7.5" cy="7.5" r=".5" fill="currentColor" /></svg> Rótulos</button>
+          </div>
+          <p class="hint-text">Arraste sobre o canvas (ou use as setas do teclado) para girar as moléculas em 3D.</p>
+        </div>
+      </section>
+
+      <!-- ════════ RESULTADOS (sempre visível, independe do modo) ════════ -->
+      <section class="panel" aria-labelledby="hdr-result">
+        <button type="button" class="panel-header" id="hdr-result" aria-expanded="true" aria-controls="body-result">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21v-6" /><path d="M12 21V9" /><path d="M19 21V3" /></svg></span>
+          <span class="panel-label">Resultados</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-result" role="region" aria-labelledby="hdr-result">
+          <dl class="data-grid" id="result-grid" aria-live="polite" aria-atomic="true"></dl>
+        </div>
+      </section>
+
+      <!-- ENERGIAS MEDIAS DE LIGACAO — movido da sidebar ESQUERDA para a
+           DIREITA. Padrao do projeto: a esquerda contem SOMENTE os paineis
+           de modulo (os 5 modos). Esta e uma tabela de consulta ligada ao
+           modo "Energia de Ligacao" via PAINEIS_POR_MODO, que a mostra e
+           esconde por getElementById — independe da coluna onde ela esta. -->
+      <section class="panel" id="panel-tabela" aria-labelledby="hdr-tabela" hidden>
+        <button type="button" class="panel-header" id="hdr-tabela" aria-expanded="false" aria-controls="body-tabela">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg></span>
+          <span class="panel-label">Energias Médias de Ligação</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body collapsed" id="body-tabela" role="region" aria-labelledby="hdr-tabela">
+          <div class="bond-table" id="bond-table" aria-label="Tabela de energias médias de ligação em quilojoules por mol"></div>
+          <p class="energy-formula-note">Valores médios em kJ/mol, fase gasosa (Atkins). C=O refere-se à ligação no CO₂.</p>
+        </div>
+      </section>
+
+      <!-- ════════ CONTROLES DO MODO 6 — ESPONTANEIDADE ════════ -->
+      <section class="panel" id="panel-gibbs" aria-labelledby="hdr-gibbs" hidden>
+        <button type="button" class="panel-header" id="hdr-gibbs" aria-expanded="true" aria-controls="body-gibbs">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" /></svg></span>
+          <span class="panel-label">Reação e Temperatura</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-gibbs" role="region" aria-labelledby="hdr-gibbs">
+          <div class="model-list" id="gibbs-list" role="listbox"
+               aria-label="Reações com entalpia e entropia conhecidas"></div>
+
+          <div class="slider-row">
+            <label for="gibbs-t">Temperatura</label>
+            <input type="range" id="gibbs-t" min="1" max="1500" step="1" value="298"
+                   aria-label="Temperatura absoluta em kelvin"/>
+            <output id="out-gibbs-t" for="gibbs-t">298 K (25 °C)</output>
+          </div>
+          <p class="hint-text">A escala é <strong>kelvin</strong>: ΔG = ΔH − T·ΔS só vale em temperatura absoluta.</p>
+
+          <div class="action-row">
+            <button class="action-btn" id="gibbs-inversao">
+              <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg></span> Ir à T de inversão
+            </button>
+            <button class="action-btn" id="gibbs-25">
+              <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg></span> Voltar a 298 K
+            </button>
+          </div>
+
+          <p class="info-text" id="gibbs-desc"></p>
+        </div>
+      </section>
+
+    </aside>
+
+  </main>
+
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+  <script src="js/data/dadostermoquimica.js"></script>
+  <script src="js/data/dados-desestruturados.js"></script>
+  <script src="js/core/namespace.js"></script>
+  <script src="js/a11y/preferencias.js"></script>
+  <script src="js/a11y/anuncios.js"></script>
+  <script src="js/core/formatacao.js"></script>
+  <script src="js/core/canvas-escala.js"></script>
+  <script src="js/ui/icones-canvas.js"></script>
+  <script src="js/simulation/apoio-fisica.js"></script>
+  <script src="js/simulation/motor-3d.js"></script>
+  <script src="js/simulation/mecanica.js"></script>
+  <script src="js/init/app.js"></script>
+
+  <!-- ═══ TOUR GUIADO (COACHMARK) — boas-vindas + por módulo ═══ -->
+  <script src="../../coachmark.js"></script>
+  <script src="js/a11y/tour.js"></script>
+  <script src="js/ui/offcanvas-mobile.js"></script>
+  <script src="js/ui/sidebar-resizer.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'termoquimica', bp: 1100 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

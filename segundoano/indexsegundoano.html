@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark" data-colorblind="none" data-reading="off" data-contrast="off" data-spacing="off" data-motion="off">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<title>QuímiX — 2º Ano</title>
+<!-- Precisa vir ANTES do a11y.js: o script roda na hora (síncrono) e
+     já tenta trocar o favicon pela variante clara/escura certa: se o
+     <link> ainda não existir no DOM nesse momento, não acha nada pra
+     trocar. -->
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../favicon-180.png">
+<link rel="shortcut icon" href="../favicon.ico">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../a11y.js"></script>
+<!-- Fontes auto-hospedadas (antes vinham do Google Fonts por CDN) —
+     ver vendor/fonts/fontes-locais.css. Funciona 100% offline depois
+     da primeira visita, sem depender de fonts.googleapis.com. -->
+<link rel="stylesheet" href="../vendor/fonts/fontes-locais.css">
+<link rel="stylesheet" href="stylesegundoano.css">
+</head>
+<body>
+
+<a href="#conteudo" class="skip-link">Pular para o conteúdo principal</a>
+
+<!-- Os controles de acessibilidade não ficam mais aqui: eles vivem só
+     no painel de seleção de ano (index.html). Esta página apenas LÊ o
+     estado que chega pela URL (?theme=...&contrast=...&...) e aplica,
+     igual a qualquer simulador integrado — ver scriptsegundoano.js. -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <filter id="f-protanopia">
+      <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+    </filter>
+    <filter id="f-deuteranopia">
+      <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+    </filter>
+    <filter id="f-tritanopia">
+      <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+    </filter>
+    <filter id="f-acromatopsia">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+    </filter>
+  </defs>
+</svg>
+
+<div id="colorblindOverlay" aria-hidden="true"></div>
+
+<div class="shell" id="shell">
+
+  <div class="top-nav">
+    <a class="back-link" href="../index.html" aria-label="Voltar à Central de Simuladores">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+      <span>Central</span>
+    </a>
+<div class="brand">
+      <h1 class="brand-name">
+        <span class="qm-sr-only">QuímiX — 2º Ano</span>
+        <span aria-hidden="true">Qu<span class="i-bond">ı<svg class="i-bond-accent" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <defs>
+                  <linearGradient id="qm-i-bond-grad" x1="0" y1="1" x2="1" y2="0">
+                    <stop offset="0" stop-color="#00e5ff"/>
+                    <stop offset="1" stop-color="#ff2a8d"/>
+                  </linearGradient>
+                </defs>
+                <line x1="4" y1="16.5" x2="15" y2="4.5" stroke="url(#qm-i-bond-grad)" stroke-width="2.3" stroke-linecap="round"/>
+                <circle cx="4" cy="16.5" r="2.1" fill="#00c2e6"/>
+                <circle cx="4" cy="16.5" r="0.8" fill="#ffffff"/>
+                <circle cx="15" cy="4.5" r="2.8" fill="#ff2a8d"/>
+                <circle cx="15" cy="4.5" r="1" fill="#ffffff"/>
+              </svg></span>mi</span>
+      </h1>
+      <span class="brand-mark-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" width="100%" height="100%">
+          <defs>
+          <filter id="qm-glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="12" result="blur1" />
+          <feGaussianBlur stdDeviation="24" result="blur2" />
+          <feMerge>
+          <feMergeNode in="blur2" />
+          <feMergeNode in="blur1" />
+          <feMergeNode in="SourceGraphic" />
+          </feMerge>
+          </filter>
+          <filter id="qm-glow-pink" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="12" result="blur1" />
+          <feGaussianBlur stdDeviation="24" result="blur2" />
+          <feMerge>
+          <feMergeNode in="blur2" />
+          <feMergeNode in="blur1" />
+          <feMergeNode in="SourceGraphic" />
+          </feMerge>
+          </filter>
+          <filter id="qm-node-glow-cyan" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="5" result="blur" />
+          <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+          </feMerge>
+          </filter>
+          <filter id="qm-node-glow-pink" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="5" result="blur" />
+          <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+          </feMerge>
+          </filter>
+          <clipPath id="qm-left-half">
+          <rect x="0" y="0" width="450" height="650" />
+          </clipPath>
+          <clipPath id="qm-right-half">
+          <rect x="450" y="0" width="450" height="650" />
+          </clipPath>
+          </defs>
+          
+          <line x1="450" y1="50" x2="450" y2="600" stroke="#4a5568" stroke-width="1.5" />
+          
+          <g clip-path="url(#qm-left-half)">
+          <path d="M 265,100 L 370,100 L 450,270 L 530,100 L 635,100 L 495,325 L 635,550 L 530,550 L 450,380 L 370,550 L 265,550 L 405,325 Z" fill="none" stroke="#00e5ff" stroke-width="28" opacity="0.65" filter="url(#qm-glow-cyan)" />
+          </g>
+          
+          <g clip-path="url(#qm-right-half)">
+          <path d="M 265,100 L 370,100 L 450,270 L 530,100 L 635,100 L 495,325 L 635,550 L 530,550 L 450,380 L 370,550 L 265,550 L 405,325 Z" fill="none" stroke="#ff2a8d" stroke-width="28" opacity="0.65" filter="url(#qm-glow-pink)" />
+          </g>
+          
+          <path d="M 265,100 L 370,100 L 450,270 L 530,100 L 635,100 L 495,325 L 635,550 L 530,550 L 450,380 L 370,550 L 265,550 L 405,325 Z" fill="currentColor" stroke="#4a5568" stroke-width="4" stroke-linejoin="miter" stroke-miterlimit="10" />
+          
+          <g stroke="#4a5568" stroke-width="2.5" stroke-linecap="round">
+          <line x1="380" y1="180" x2="433" y2="325" />
+          <line x1="380" y1="470" x2="433" y2="325" />
+          <line x1="520" y1="180" x2="467" y2="325" />
+          <line x1="520" y1="470" x2="467" y2="325" />
+          </g>
+          
+          <circle cx="380" cy="180" r="7" fill="#00d2ff" filter="url(#qm-node-glow-cyan)" />
+          <circle cx="380" cy="180" r="2.5" fill="currentColor" />
+          <circle cx="380" cy="470" r="7" fill="#00d2ff" filter="url(#qm-node-glow-cyan)" />
+          <circle cx="380" cy="470" r="2.5" fill="currentColor" />
+          <circle cx="433" cy="325" r="7" fill="#00d2ff" filter="url(#qm-node-glow-cyan)" />
+          <circle cx="433" cy="325" r="2.5" fill="currentColor" />
+          
+          <circle cx="520" cy="180" r="7" fill="#ff3385" filter="url(#qm-node-glow-pink)" />
+          <circle cx="520" cy="180" r="2.5" fill="currentColor" />
+          <circle cx="520" cy="470" r="7" fill="#ff3385" filter="url(#qm-node-glow-pink)" />
+          <circle cx="520" cy="470" r="2.5" fill="currentColor" />
+          <circle cx="467" cy="325" r="7" fill="#ff3385" filter="url(#qm-node-glow-pink)" />
+          <circle cx="467" cy="325" r="2.5" fill="currentColor" />
+          
+          <line x1="433" y1="325" x2="260" y2="325" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="260" cy="325" r="22" fill="none" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="260" cy="325" r="13" fill="none" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="260" cy="325" r="7" fill="#8b5cf6" filter="url(#qm-node-glow-cyan)" />
+          <circle cx="260" cy="325" r="2.5" fill="currentColor" />
+          
+          <polyline points="245,310 200,210 110,210" fill="none" stroke="#4a5568" stroke-width="2.5" stroke-linejoin="round" />
+          <polyline points="245,340 200,440 110,440" fill="none" stroke="#4a5568" stroke-width="2.5" stroke-linejoin="round" />
+          
+          <circle cx="200" cy="210" r="14" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="200" cy="210" r="6" fill="#00d2ff" filter="url(#qm-node-glow-cyan)" />
+          <circle cx="200" cy="210" r="2" fill="currentColor" />
+          
+          <circle cx="110" cy="210" r="14" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="110" cy="210" r="6" fill="#00d2ff" filter="url(#qm-node-glow-cyan)" />
+          <circle cx="110" cy="210" r="2" fill="currentColor" />
+          
+          <circle cx="200" cy="440" r="14" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="200" cy="440" r="6" fill="#ff3385" filter="url(#qm-node-glow-pink)" />
+          <circle cx="200" cy="440" r="2" fill="currentColor" />
+          
+          <circle cx="110" cy="440" r="11" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          
+          <line x1="467" y1="325" x2="575" y2="325" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="575" cy="325" r="6" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          
+          <line x1="575" y1="325" x2="535" y2="260" stroke="#4a5568" stroke-width="2.5" />
+          <line x1="575" y1="325" x2="535" y2="390" stroke="#4a5568" stroke-width="2.5" />
+          
+          <line x1="585" y1="319" x2="640" y2="319" stroke="#4a5568" stroke-width="2.5" />
+          <line x1="585" y1="331" x2="640" y2="331" stroke="#4a5568" stroke-width="2.5" />
+          
+          <line x1="640" y1="325" x2="720" y2="210" stroke="#4a5568" stroke-width="2.5" />
+          <line x1="640" y1="325" x2="720" y2="440" stroke="#4a5568" stroke-width="2.5" />
+          
+          <circle cx="720" cy="210" r="14" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="720" cy="210" r="6" fill="#ff3385" filter="url(#qm-node-glow-pink)" />
+          <circle cx="720" cy="210" r="2" fill="currentColor" />
+          
+          <circle cx="720" cy="440" r="11" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          </svg>
+      </span>
+          <span class="brand-suffix" aria-hidden="true">— 2º Ano</span>
+    </div>
+  </div>
+  <main id="conteudo">
+    <section class="grid" id="grid" aria-label="Lista de simuladores do 2º ano">
+
+      <a class="year-card" href="gases/index.html" data-file="gases/index.html" aria-describedby="desc-sigas">
+        <div class="year-card-preview">
+          <iframe class="year-card-preview-frame" data-src="gases/index.html" title="Prévia ao vivo de Simulador Interativo de Gases" tabindex="-1" aria-hidden="true" loading="lazy"></iframe>
+        </div>
+        <span class="year-card-sigla">SIGAS</span>
+        <h3 class="year-card-nome">Simulador Interativo de Gases</h3>
+        <p class="year-card-desc" id="desc-sigas">Estude as transformações gasosas no pistão, a equação de Clapeyron, a difusão pela Lei de Graham e a teoria cinética dos gases.</p>
+        <span class="year-card-cta">Abrir simulador <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+
+      <a class="year-card" href="solucoes/index.html" data-file="solucoes/index.html" aria-describedby="desc-sisol">
+        <div class="year-card-preview">
+          <iframe class="year-card-preview-frame" data-src="solucoes/index.html" title="Prévia ao vivo de Simulador Interativo de Soluções" tabindex="-1" aria-hidden="true" loading="lazy"></iframe>
+        </div>
+        <span class="year-card-sigla">SISOL</span>
+        <h3 class="year-card-nome">Simulador Interativo de Soluções</h3>
+        <p class="year-card-desc" id="desc-sisol">Classifique misturas, prepare e dilua soluções e explore curvas reais de solubilidade — do dia a dia ao laboratório.</p>
+        <span class="year-card-cta">Abrir simulador <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+
+      <a class="year-card" href="termoquimica/index.html" data-file="termoquimica/index.html" aria-describedby="desc-sitq">
+        <div class="year-card-preview">
+          <iframe class="year-card-preview-frame" data-src="termoquimica/index.html" title="Prévia ao vivo de Simulador Interativo de Termoquímica" tabindex="-1" aria-hidden="true" loading="lazy"></iframe>
+        </div>
+        <span class="year-card-sigla">SITQ</span>
+        <h3 class="year-card-nome">Simulador Interativo de Termoquímica</h3>
+        <p class="year-card-desc" id="desc-sitq">Use o calorímetro, a curva de aquecimento da água, diagramas endo/exo, a Lei de Hess e a energia de ligação em 3D.</p>
+        <span class="year-card-cta">Abrir simulador <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+
+      <a class="year-card" href="cinetica/index.html" data-file="cinetica/index.html" aria-describedby="desc-sicq">
+        <div class="year-card-preview">
+          <iframe class="year-card-preview-frame" data-src="cinetica/index.html" title="Prévia ao vivo de Simulador Interativo de Cinética Química" tabindex="-1" aria-hidden="true" loading="lazy"></iframe>
+        </div>
+        <span class="year-card-sigla">SICQ</span>
+        <h3 class="year-card-nome">Simulador Interativo de Cinética Química</h3>
+        <p class="year-card-desc" id="desc-sicq">Veja colisões efetivas, curvas de consumo de reagente e o efeito do catalisador na energia de ativação.</p>
+        <span class="year-card-cta">Abrir simulador <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+
+      <a class="year-card" href="equilibrio/index.html" data-file="equilibrio/index.html" aria-describedby="desc-sieq">
+        <div class="year-card-preview">
+          <iframe class="year-card-preview-frame" data-src="equilibrio/index.html" title="Prévia ao vivo de Simulador Interativo de Equilíbrio Químico e Iônico" tabindex="-1" aria-hidden="true" loading="lazy"></iframe>
+        </div>
+        <span class="year-card-sigla">SIEQ</span>
+        <h3 class="year-card-nome">Simulador Interativo de Equilíbrio Químico e Iônico</h3>
+        <p class="year-card-desc" id="desc-sieq">Atinja o equilíbrio, aplique Le Chatelier, compare Q com K, percorra a escala de pH e titule ácido com base.</p>
+        <span class="year-card-cta">Abrir simulador <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+
+      <a class="year-card" href="eletroquimica/index.html" data-file="eletroquimica/index.html" aria-describedby="desc-siel">
+        <div class="year-card-preview">
+          <iframe class="year-card-preview-frame" data-src="eletroquimica/index.html" title="Prévia ao vivo de Simulador Interativo de Eletroquímica" tabindex="-1" aria-hidden="true" loading="lazy"></iframe>
+        </div>
+        <span class="year-card-sigla">SIEL</span>
+        <h3 class="year-card-nome">Simulador Interativo de Eletroquímica</h3>
+        <p class="year-card-desc" id="desc-siel">Monte pilhas, calcule ΔE°, teste a espontaneidade, faça eletrólise e aplique as leis de Faraday na galvanoplastia.</p>
+        <span class="year-card-cta">Abrir simulador <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+
+      <a class="year-card" href="radioatividade/index.html" data-file="radioatividade/index.html" aria-describedby="desc-sirad">
+        <div class="year-card-preview">
+          <iframe class="year-card-preview-frame" data-src="radioatividade/index.html" title="Prévia ao vivo de Simulador Interativo de Radioatividade" tabindex="-1" aria-hidden="true" loading="lazy"></iframe>
+        </div>
+        <span class="year-card-sigla">SIRAD</span>
+        <h3 class="year-card-nome">Simulador Interativo de Radioatividade</h3>
+        <p class="year-card-desc" id="desc-sirad">Compare as emissões alfa, beta e gama, acompanhe a meia-vida de isótopos reais e controle uma fissão nuclear em cadeia.</p>
+        <span class="year-card-cta">Abrir simulador <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+
+      <a class="year-card" href="coligativas/index.html" data-file="coligativas/index.html" aria-describedby="desc-sipc">
+        <div class="year-card-preview">
+          <iframe class="year-card-preview-frame" data-src="coligativas/index.html" title="Prévia ao vivo de Simulador Interativo de Propriedades Coligativas" tabindex="-1" aria-hidden="true" loading="lazy"></iframe>
+        </div>
+        <span class="year-card-sigla">SIPC</span>
+        <h3 class="year-card-nome">Simulador Interativo de Propriedades Coligativas</h3>
+        <p class="year-card-desc" id="desc-sipc">Meça pressão de vapor, misturas de líquidos voláteis, ebulioscopia, crioscopia, osmose e a Lei de Henry.</p>
+        <span class="year-card-cta">Abrir simulador <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+
+    </section>
+  </main>
+  <!-- Havia aqui uma segunda tag de fechamento de main, duplicada: o
+       elemento ja fecha na linha acima. Removida. -->
+
+  <footer class="foot">
+    <span> desenvolvido por <b>Thiago Weslei - Licenciando em Química</b></span>
+    <span>Laboratório Virtual</span>
+  </footer>
+</div>
+
+<div vw class="enabled" id="vlibrasWidget">
+  <div vw-access-button class="active"></div>
+  <div vw-plugin-wrapper>
+    <div class="vw-plugin-top-wrapper"></div>
+  </div>
+</div>
+
+<script src="scriptsegundoano.js"></script>
+
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>
+

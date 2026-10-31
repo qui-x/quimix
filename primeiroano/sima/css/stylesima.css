@@ -1,0 +1,1546 @@
+
+/* =====================================================================
+   ALTO CONTRASTE — CONTRAPARTE PARA O TEMA CLARO
+   ---------------------------------------------------------------------
+   BUG: as regras de alto contraste deste arquivo usam #ff0 (amarelo) para
+   texto/borda e #000 para o fundo do estado ativo. Isso funciona sobre
+   fundo escuro (19.56:1), mas o alto contraste tambem pode ser ligado
+   JUNTO com o tema claro — e ai o amarelo cai para 1.03:1 sobre o fundo
+   claro. Ficava literalmente invisivel. Medido no Chromium: a combinacao
+   claro+contraste tinha MAIS texto abaixo de 3:1 do que o tema claro
+   sozinho, ou seja, o modo de acessibilidade piorava a legibilidade.
+
+   SOLUCAO: as duas cores viram variaveis. No tema escuro seguem amarelo
+   e preto; no tema claro viram azul-escuro (#0000cc) e branco, que
+   cumprem o mesmo papel com 10.15:1 sobre o fundo claro. O azul saturado
+   e a escolha classica de alto contraste em fundo claro, equivalente ao
+   amarelo em fundo escuro.
+
+   As regras abaixo desta secao passam a usar var(--hc-fg) e var(--hc-bg)
+   em vez dos valores fixos.
+   ===================================================================== */
+body.high-contrast                { --hc-fg:#ff0;     --hc-bg:#000;     }
+/* CLARO + ALTO CONTRASTE: o bloco body.high-contrast deste arquivo
+   redefine a paleta de fundo para tons ESCUROS (--bg-void: #000) — ou seja,
+   o alto contraste sobrepoe o tema claro de proposito, porque e um
+   esquema visual proprio. Por isso NAO invertemos para azul aqui: o
+   fundo continua escuro, e azul-escuro sobre preto daria 1.68:1.
+   Amarelo sobre preto (19.56:1) segue sendo o par correto. */
+body.high-contrast.light-mode     { --hc-fg:#ff0;     --hc-bg:#000;     }
+/* =====================================================================
+   ALTURA DE VIEWPORT: dvh com fallback vh
+   ---------------------------------------------------------------------
+   PROBLEMA: no Safari do iOS e no Chrome do Android, 100vh e a altura da
+   tela COM a barra de endereco escondida — a maior possivel. Quando a
+   barra esta visivel (o estado normal ao abrir a pagina), a casca do app
+   fica mais alta que a area visivel e o rodape do canvas cai abaixo da
+   dobra. Como .app-main tem overflow:hidden, nao ha rolagem para
+   alcancar o pedaco perdido: ele simplesmente desaparece. E como 100vh e
+   estatico, nao reage quando a barra aparece ou some.
+
+   SOLUCAO: dvh (dynamic viewport height) acompanha a barra do navegador.
+   Cada altura aparece DUAS vezes neste arquivo:
+
+       height: calc(100vh  - var(--header-h));   <- fallback
+       height: calc(100dvh - var(--header-h));   <- navegadores modernos
+
+   Navegador que nao entende dvh simplesmente ignora a segunda declaracao
+   e fica com a primeira. Navegador moderno usa a segunda, que vem
+   depois. Nenhum @supports e necessario: e a cascata normal do CSS.
+
+   Por que dvh e nao svh: estes simuladores tem overflow:hidden e nao
+   rolam, entao o dvh nao causa o tremor de reflow que provoca em paginas
+   rolaveis — e o canvas aproveita a tela inteira quando a barra some.
+   ===================================================================== */
+
+/* ================================================================
+   SIMA — style.css  |  Simulador Interativo dos Modelos Atômicos
+   WCAG 2.1 AA: contrastes ≥4.5:1, foco visível 3px, skip-links
+   ================================================================ */
+
+:root {
+  --bg-void:       #080c14;
+  --bg-panel:      #0c1520;
+  --bg-panel2:     #101c2b;
+  --bg-hover:      #172334;
+  --border:        #1c2e44;
+  --border-glow:   #498C99;
+  --border-active: #7AE9FF;
+
+  --accent-main: #7AE9FF;
+  --accent-cyan:   #00d4ff;
+  --accent-amber:  #f59e0b;
+  --header-accent: #7AE9FF;
+
+  --text-primary:   #ddeaf8;
+  --text-secondary: #7a9ab8;
+  --text-muted:     #6c8eae;  /* era #3d566e: 2,08–2,57:1 nas superfícies; agora ≥4,61:1 em todas, inclusive --bg-hover */
+
+  /* Paleta de categorias — réplica EXATA do CATEGORY_INFO do SILQ
+     (mesma fonte usada pela legenda lá: cor sólida por categoria,
+     usada aqui apenas na legenda — as células da tabela usam a cor
+     INDIVIDUAL de cada elemento, vinda do array ELEMENTS). */
+  --cat-alkali:     #ef4444; /* Metal Alcalino */
+  --cat-alkaline:   #fb923c; /* Metal Alc.-Terroso */
+  --cat-transition: #60a5fa; /* Metal de Transição */
+  --cat-metal:      #94a3b8; /* Metal Pós-Trans. */
+  --cat-metalloid:  #2dd4bf; /* Semimetal */
+  --cat-nonmetal:   #4ade80; /* Ametal */
+  --cat-noble:      #7dd3fc; /* Gás Nobre */
+  --cat-lanthanide: #fbbf24; /* Lantanídeo */
+  --cat-actinide:   #34d399; /* Actinídeo */
+
+  --font-main: 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Consolas','Monaco', monospace;
+  --font-scale: 1;
+
+  --header-h:  54px;
+  --radius:    8px;
+  --radius-sm: 5px;
+}
+
+body.high-contrast {
+  --bg-void:       #000;
+  --bg-panel:      #000;
+  --bg-panel2:     #111;
+  --bg-hover:      #222;
+  --border:        #fff;
+  --border-glow:   var(--hc-fg);
+  --border-active: var(--hc-fg);
+  --text-primary:  #fff;
+  --text-secondary:#eee;
+  --text-muted:    #bbb;
+  --accent-main: var(--hc-fg);
+  --accent-cyan:   #0ff;
+  --accent-amber:  var(--hc-fg);
+}
+body.high-contrast .pt-cell          { border: 1px solid #444; }
+body.high-contrast .pt-cell.selected { border-color:var(--hc-fg); box-shadow:0 0 0 2px var(--hc-fg); }
+body.high-contrast .model-btn.active { border-color:var(--hc-fg); }
+body.high-contrast .header-brand h1,
+body.high-contrast .header-logo{ animation:pulse-logo-sima 3s ease-in-out infinite; }
+
+*,*::before,*::after{ box-sizing:border-box;margin:0;padding:0; }
+html,body{ height:100%;overflow:hidden; }
+body{
+  font-family:var(--font-main);
+  background:var(--bg-void);
+  color:var(--text-primary);
+  display:flex; flex-direction:column;
+  font-size:calc(14px * var(--font-scale));
+  line-height:1.5;
+  transition: filter .25s ease, background .25s, color .25s;
+}
+
+.skip-nav{ position:absolute; top:0; left:0; z-index:9999; }
+.skip-link{
+  position:absolute; transform:translateY(-100%);
+  background:var(--accent-main); color:#000;
+  padding:.4rem .9rem; border-radius:0 0 var(--radius) 0;
+  font-weight:700; font-size:.85rem; text-decoration:none;
+  transition:transform .15s;
+}
+.skip-link:focus{ transform:translateY(0); outline:3px solid #fff; outline-offset:2px; }
+
+
+.sr-only{
+  position:absolute;width:1px;height:1px;overflow:hidden;
+  clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+
+:focus-visible{ outline:3px solid var(--accent-main); outline-offset:2px; }
+*:focus:not(:focus-visible){ outline:none; }
+
+.keyboard-hints{
+  position:absolute; top:-100%; left:0; right:0;
+  background:var(--bg-panel2); border-bottom:1px solid var(--border);
+  padding:.3rem .8rem; font-size:.65rem; color:var(--text-muted);
+  display:flex; gap:.8rem; flex-wrap:wrap;
+}
+.skip-link:focus ~ .keyboard-hints,
+.keyboard-hints:focus-within{ top:var(--header-h); }
+kbd{
+  background:var(--bg-hover); border:1px solid var(--border);
+  border-radius:3px; padding:.05rem .3rem;
+  font-family:var(--font-mono); font-size:.6rem; color:var(--text-secondary);
+}
+
+.app-header{
+  height:var(--header-h); background:var(--bg-panel);
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 1.1rem; flex-shrink:0;
+}
+.header-brand{ display:flex; align-items:center; gap:.6rem; min-width:0; }
+.header-brand > div{ min-width:0; }
+.header-back{
+  display:flex; align-items:center; gap:.3rem;
+  color:var(--text-secondary); text-decoration:none;
+  font-size:.78rem; font-weight:600; letter-spacing:.02em;
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  padding:.3rem .55rem; margin-right:.5rem; flex-shrink:0;
+}
+.header-back:hover{ color:var(--text-primary); border-color:var(--border-glow); }
+.header-logo{
+  font-size:1.4rem; color:var(--header-accent); animation:pulse-logo 3s ease-in-out infinite; display:flex;
+  border:none; background:transparent; padding:.15rem; border-radius:8px; cursor:pointer;
+  align-items:center; justify-content:center; transition:transform .15s, background .15s;
+}
+.header-logo svg{ width:1.4rem; height:1.4rem; }
+.header-logo:hover{ background:rgba(79,195,224,.1); transform:scale(1.08); }
+.header-logo:focus-visible{ outline:2px solid var(--header-accent); outline-offset:1px; }
+/* O logo NUNCA muda de aparência por causa do Easter Egg — o modo
+   passa despercebido visualmente; o ciano padrão do simulador
+   (--header-accent) é mantido em qualquer modelo selecionado. */
+@keyframes pulse-logo{
+  0%,100%{ filter:drop-shadow(0 0 5px var(--header-accent)); }
+  50%     { filter:drop-shadow(0 0 14px var(--header-accent)); }
+}
+@media(prefers-reduced-motion:reduce){ .header-logo{ animation:pulse-logo-sima 3s ease-in-out infinite; } .header-brand h1{ animation:pulse-logo-sima-txt 3s ease-in-out infinite; } }
+.header-brand h1{
+  font-size:1rem; font-weight:700; letter-spacing:.06em;
+  color:var(--header-accent); animation:pulse-text 3s ease-in-out infinite;
+}
+@keyframes pulse-text{
+  0%,100%{ text-shadow:0 0 5px var(--header-accent); }
+  50%     { text-shadow:0 0 14px var(--header-accent); }
+}
+.header-sub{ font-size:.62rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+
+/* ── Gaveta mobile ────────────────────────────────────────────────
+   O SIMA era o unico dos 20 simuladores sem os botoes de sidebar em
+   tela estreita: ele EMPILHAVA as colunas e a pagina rolava. Funcionava,
+   mas divergia dos outros 19 — e num celular o aluno nao tinha como
+   chamar um painel de volta sem rolar a pagina inteira.
+   Mesmo estilo e mesmos nomes de classe dos outros modulos. */
+.header-actions{ display:flex; align-items:center; gap:.4rem; }
+.mobile-menu-btn{
+  display:none; background:var(--bg-panel2); border:1px solid var(--border);
+  color:var(--text-secondary); border-radius:var(--radius-sm); padding:.3rem .55rem;
+  font-size:.9rem; cursor:pointer;
+}
+.mobile-menu-btn:hover{ color:var(--text-primary); border-color:var(--border-glow); }
+.mobile-backdrop{
+  position:fixed; inset:0; z-index:90;
+  background:rgba(0,0,0,.58); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);
+}
+.mobile-backdrop[hidden]{ display:none; }
+
+.a11y-bar{ display:flex; align-items:center; gap:.22rem; flex-wrap:nowrap; }
+.a11y-btn{
+  padding:.28rem .55rem;
+  border:1px solid var(--border); background:var(--bg-panel2);
+  color:var(--text-secondary); cursor:pointer;
+  font-family:var(--font-main); font-size:.72rem; font-weight:500;
+  border-radius:var(--radius-sm);
+  white-space:nowrap; transition:all .15s;
+  line-height:1;
+}
+.a11y-btn:hover{ background:var(--bg-hover); color:var(--text-primary); border-color:var(--border-glow); }
+.a11y-btn[aria-pressed="true"]{ background:rgba(122,233,255,.18); color:var(--accent-main); border-color:var(--accent-main); }
+.a11y-btn--icon{ width:32px; padding:.28rem 0; display:flex; align-items:center; justify-content:center; font-size:.85rem; }
+
+body.light-mode{
+  --bg-void:       #f0f4f8;
+  --bg-panel:      #e4eaf2;
+  --bg-panel2:     #d8e2ee;
+  --bg-hover:      #ccd6e6;
+  --border:        #9badc4;
+  --border-glow:   #015966;
+  --border-active: #017283;
+  --text-primary:  #0d1a2e;
+  --text-secondary:#2c4a6e;
+  --text-muted:    #465d76;  /* era #5a7898: 3,13–4,15:1; agora ≥4,64:1. Mesma matiz, só mais escuro */
+  --accent-main: #017283;
+  --accent-amber:  #92400e;
+  --header-accent: #017283;
+}
+
+div[vw] { filter: none !important; }
+
+body.simple-read *,
+body.simple-read *::before,
+body.simple-read *::after{ animation:none!important; transition:none!important; }
+body.simple-read{
+  --font-scale:1.08;
+  --text-primary:  #e8f4ff;
+  --text-secondary:#a0c0e0;
+}
+body.simple-read .periodic-table .pt-cell:hover{ transform:none; }
+body.simple-read .canvas-wrap canvas{ filter:contrast(1.15) brightness(1.05); }
+
+/* ═══════════════════════════════════════════════════════════════
+   DALTONISMO — Overlay com backdrop-filter (mesma técnica do hub)
+   O filtro SVG é aplicado num <div id="colorblindOverlay"> fixo,
+   com pointer-events:none — nunca no body/html, para não quebrar
+   elementos position:fixed/absolute do simulador (canvas, painéis,
+   tooltips). O JS (applyColorblindOverlay) alterna o backdrop-filter
+   do overlay de acordo com o parâmetro ?colorblind= recebido da
+   Central de Simuladores. Os 4 filtros SVG (f-protanopia,
+   f-deuteranopia, f-tritanopia, f-acromatopsia) estão no HTML.
+   ═══════════════════════════════════════════════════════════════ */
+#colorblindOverlay{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.app-main{ flex:1; display:flex; overflow:hidden; height:calc(100vh - var(--header-h)); height:calc(100dvh - var(--header-h)); }
+
+.sidebar {
+  /* A largura e a borda saem das variantes --left/--right abaixo, como nos
+     12 modulos do 2o/3o ano. Antes havia uma unica sidebar de 38%. */
+  min-width: 250px; max-width: 480px;
+  background:var(--bg-panel);
+  overflow-y:auto;
+  overflow-x: hidden;
+  display:flex; flex-direction:column; gap:.4rem;
+  padding:.5rem;
+  flex-shrink:0;
+  scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+}
+
+/* esquerda: SOMENTE os paineis de modulo (os 5 modelos atomicos) */
+.sidebar--left  { width: var(--swl, 300px); border-right:1px solid var(--border); }
+/* direita: tabela periodica, dados do modelo e controles dos experimentos */
+.sidebar--right { width: var(--swr, 330px); border-left:1px solid var(--border); }
+
+.panel{
+  border-radius:10px; overflow:hidden; flex-shrink:0; min-width:0;
+  border:1px solid var(--border); background:var(--bg-panel2);
+  transition:border-color .2s, box-shadow .2s;
+}
+.panel:has(.panel-header[aria-expanded="true"]){
+  border-color: rgba(122,233,255,.4);
+  box-shadow: 0 0 0 1px rgba(122,233,255,.12);
+}
+.panel-header{
+  width:100%; display:flex; align-items:center; gap:.5rem;
+  padding:.56rem .7rem;
+  background:transparent; border:none;
+  color:var(--text-primary); cursor:pointer;
+  font-family:var(--font-main); font-size:.8rem; font-weight:700;
+  letter-spacing:.2px; text-align:left;
+  transition:background .15s, color .15s;
+  border-radius:10px; user-select:none;
+}
+.panel-header:hover{ background:rgba(122,233,255,.08); color:var(--accent-main); }
+.panel-header[aria-expanded="true"]{
+  background:linear-gradient(135deg, rgba(122,233,255,.14), rgba(122,233,255,.05));
+  color:var(--accent-main);
+  border-radius:10px 10px 0 0;
+  border-bottom:1px solid rgba(122,233,255,.2);
+}
+.panel-header:focus-visible{ outline:2px solid var(--accent-main); outline-offset:-2px; border-radius:10px; }
+.panel-icon{ font-size:.95rem; flex-shrink:0; line-height:1; }
+.panel-label{ flex:1; }
+.panel-badge{
+  font-size:.6rem; font-weight:700;
+  background:rgba(122,233,255,.2); color:var(--accent-main);
+  border-radius:10px; padding:1px 6px; min-width:18px; text-align:center; flex-shrink:0;
+}
+.panel-header[aria-expanded="true"] .panel-badge{ background:rgba(122,233,255,.35); }
+
+.chevron{ font-size:.68rem; flex-shrink:0; transition:transform .22s cubic-bezier(.4,0,.2,1); color:var(--text-muted); }
+.panel-header[aria-expanded="true"] .chevron{ transform:rotate(180deg); color:var(--accent-main); }
+.panel-body{
+  padding:0 .7rem .65rem; overflow:hidden; min-width:0;
+  max-height:2000px;
+  transition:max-height .3s cubic-bezier(.4,0,.2,1), padding .25s ease, opacity .25s ease;
+  opacity:1;
+  display:flex; flex-direction:column; gap:.48rem;
+  background:transparent;
+}
+.panel-body.collapsed{
+  max-height:0 !important; padding-top:0 !important; padding-bottom:0 !important;
+  opacity:0; pointer-events:none;
+}
+
+.model-list{ display:flex; flex-direction:column; gap:.26rem; }
+.model-btn{
+  display:grid; grid-template-columns:38px 1fr; grid-template-rows:auto auto;
+  column-gap:.45rem; padding:.46rem .6rem;
+  border:1px solid var(--border); background:transparent;
+  color:var(--text-secondary); border-radius:var(--radius-sm);
+  cursor:pointer; text-align:left; font-family:var(--font-main);
+  transition:all .14s; width:100%;
+}
+.model-btn:hover{ background:var(--bg-hover); border-color:var(--border-glow); color:var(--text-primary); }
+.model-btn.active{ background:rgba(122,233,255,.1); border-color:var(--accent-main); }
+.model-year{ grid-row:1/3; font-family:var(--font-mono); font-size:.55rem; color:var(--text-muted); align-self:center; }
+.model-name{ grid-column:2; font-size:.77rem; font-weight:600; }
+.model-btn.active .model-name{ color:var(--accent-main); }
+.model-sub{ grid-column:2; font-size:.6rem; color:var(--text-muted); }
+
+.pt-search-bar{ margin:6px 0 5px; }
+.pt-wrapper{ margin:2px 0 4px; }
+.pt-search-row{ display:flex; align-items:center; gap:.4rem; }
+.pt-search{
+  flex:1; padding:.38rem .6rem;
+  background:var(--bg-void); border:1px solid var(--border);
+  border-radius:var(--radius-sm); color:var(--text-primary);
+  font-family:var(--font-main); font-size:.78rem; outline:none;
+  transition:border-color .2s;
+}
+.pt-search::placeholder{ color:var(--text-muted); }
+.pt-search:focus{ border-color:var(--border-active); }
+.pt-count{ font-size:.58rem; color:var(--text-muted); font-family:var(--font-mono); white-space:nowrap; }
+
+/* Legenda — réplica de .pt-legend-row do SILQ: fonte menor (.58rem),
+   margem superior em vez de margem nos dois lados, dentro do mesmo
+   container da busca. */
+.mol-cat-tabs.pt-legend-row{ display:flex; flex-wrap:wrap; gap:3px 7px; margin-top:6px; font-size:.58rem; }
+.mol-cat-btn{
+  display:flex; align-items:center; gap:.32rem;
+  padding:2px 4px; border:none; background:transparent;
+  color:var(--text-secondary); font-size:.66rem; font-weight:500;
+  cursor:pointer; transition:color .15s; font-family:var(--font-main);
+}
+.mol-cat-btn[hidden]{ display:none; }
+.mol-cat-btn:hover{ color:var(--text-primary); }
+/* Estado ativo: sublinhado sutil, sem virar um "chip" grande de botão —
+   a legenda permanece informativa, não uma barra de abas proeminente. */
+.mol-cat-btn.active-cat{ color:var(--text-primary); font-weight:700; }
+.mol-cat-btn.active-cat .legend-dot{ box-shadow:0 0 0 2px rgba(255,255,255,.4); }
+.mol-cat-btn.dimmed{ opacity:.3; }
+/* "Todas" não representa uma cor de categoria — fica como texto simples */
+.mol-cat-btn[data-cat="all"]{ font-weight:700; }
+.legend-dot{
+  display:inline-block; width:9px; height:9px; border-radius:2px;
+  flex-shrink:0;
+}
+.legend-dot[hidden]{ display:none; }
+.legend-dot[data-cat="alkali"]      { background:var(--cat-alkali); }
+.legend-dot[data-cat="alkaline"]    { background:var(--cat-alkaline); }
+.legend-dot[data-cat="transition"]  { background:var(--cat-transition); }
+.legend-dot[data-cat="metal"]       { background:var(--cat-metal); }
+.legend-dot[data-cat="metalloid"]   { background:var(--cat-metalloid); }
+.legend-dot[data-cat="nonmetal"]    { background:var(--cat-nonmetal); }
+.legend-dot[data-cat="noble"]       { background:var(--cat-noble); }
+.legend-dot[data-cat="lanthanide"]  { background:var(--cat-lanthanide); }
+.legend-dot[data-cat="actinide"]    { background:var(--cat-actinide); }
+
+.periodic-table {
+  display: grid; grid-template-columns: repeat(18, minmax(0, 1fr)); gap: 2px;
+  width: 100%; min-width: 0;
+  margin: 0 .35rem; /* respiro p/ o zoom de hover/foco não ser cortado nas bordas */
+  /* Sem rolagem: a tabela sempre cabe na largura da sidebar.
+     As células deixam de ser forçadas a aspect-ratio:1 — em telas
+     estreitas elas ficam levemente retangulares (mais largas que
+     altas) em vez de empurrar a grade para fora e gerar overflow. */
+}
+/* Lantanídeos/Actinídeos — grid separado de 15 colunas (Z 57-71 e
+   89-103), com pequena margem acima que os afasta visualmente da
+   tabela principal, igual à referência (não mais uma linha de gap
+   vazia "57-71" ocupando uma célula inteira de altura). */
+.periodic-table-extra {
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  /* Alinha a coluna 1 do bloco-f com a coluna 3 da tabela principal
+     (onde La/Ac apareceriam) — réplica exata do cálculo do SILQ:
+     desloca a grade por 2 larguras de coluna + gap. */
+  padding-left: calc(2 * (100% / 18 + 2px));
+}
+/* Rótulo "57–71 Lantanídeos · 89–103 Actinídeos" acima do bloco-f,
+   também alinhado pela mesma régua de 2 colunas — réplica do
+   .pt-fblock-label do SILQ. */
+.pt-fblock-label{
+  display:grid; grid-template-columns:1fr 1fr;
+  font-size:.56rem; color:var(--text-muted);
+  padding:3px 0 2px calc(2 * (100% / 18 + 2px));
+  gap:2px; margin-top:.3rem;
+}
+.pt-fblock-label[hidden]{ display:none; }
+.pt-fblock-label span{ text-align:center; }
+.pt-cell{
+  aspect-ratio: 1 / 0.82; border-radius:3px; border:1px solid rgba(255,255,255,.15);
+  cursor:pointer; min-width:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  transition:transform .12s, box-shadow .12s, opacity .2s, border-color .12s;
+  position:relative; padding:1px; user-select:none; overflow:hidden;
+}
+.pt-cell:hover{ transform:scale(1.22); box-shadow:0 0 12px 2px rgba(255,255,255,.35); z-index:20; border-color:rgba(255,255,255,.75); }
+.pt-cell:focus-visible{ outline:none; transform:scale(1.22); box-shadow:0 0 0 3px var(--accent-main), 0 0 12px 2px rgba(122,233,255,.5); z-index:20; border-color:var(--accent-main); }
+.pt-cell.selected{ box-shadow:0 0 0 3px var(--accent-main), 0 0 10px 2px rgba(122,233,255,.6); border-color:var(--accent-main); z-index:10; }
+/* dimmed/highlighted — réplica exata do comportamento de filtro do
+   SILQ: dimmed reduz opacidade (célula continua clicável), highlighted
+   destaca com glow violeta quando corresponde à busca/filtro ativo. */
+.pt-cell.dimmed{ opacity:.15; }
+.pt-cell.highlighted{ opacity:1!important; box-shadow:0 0 8px 2px var(--accent-main); border-color:var(--accent-main); }
+/* Elementos ainda não descobertos no ano do modelo atômico selecionado
+   — permanecem na grade (preserva a posição correta na tabela) mas
+   ficam visualmente neutros/esmaecidos e não interativos, distintos do
+   estado "dimmed" do filtro de busca/categoria. */
+.pt-cell.undiscovered{
+  background:var(--bg-panel2)!important; opacity:.35;
+  cursor:not-allowed; filter:grayscale(.6);
+}
+.pt-cell.undiscovered .c-sym, .pt-cell.undiscovered .c-num{ color:var(--text-muted)!important; text-shadow:none; }
+/* A cor de fundo de cada célula vem via inline style (cor individual
+   do elemento, igual ao SILQ) — getContrastColor() já define a cor do
+   texto certa (preto ou branco) conforme a luminância do fundo. */
+.pt-cell .c-num{ font-size:clamp(.3rem,1vw,.4rem); line-height:1; opacity:.75; font-weight:500; }
+.pt-cell .c-sym{ font-size:clamp(.5rem,1.6vw,.68rem); font-weight:800; line-height:1.05; }
+.pt-cell .c-name{ display:none; } /* nome completo só aparece no card de detalhe abaixo da tabela */
+.pt-gap{ aspect-ratio: 1 / 0.82; }
+
+.element-card{
+  display:flex; align-items:center; gap:.6rem; padding:.5rem .65rem;
+  background:var(--bg-void); border:1px solid var(--border); border-radius:var(--radius-sm);
+}
+.el-card-symbol{ font-family:var(--font-mono); font-size:1.55rem; font-weight:700; color:var(--accent-main); min-width:42px; text-align:center; }
+.el-card-info{ display:flex; flex-direction:column; gap:.08rem; min-width:0; }
+.el-card-name  { font-size:.8rem; font-weight:600; color:var(--text-primary); }
+.el-card-detail{ font-size:.62rem; color:var(--text-secondary); font-family:var(--font-mono); }
+.el-card-mass  { font-size:.58rem; color:var(--text-muted); font-family:var(--font-mono); }
+
+.hint-text{ font-size:.69rem; color:var(--text-secondary); line-height:1.45; }
+.energy-formula{ font-family:var(--font-mono); font-size:.72rem; color:var(--accent-main); letter-spacing:.02em; }
+.shell-btns{ display:flex; gap:.28rem; flex-wrap:wrap; }
+.ruth-launch-row{ display:flex; gap:.4rem; flex-wrap:wrap; }
+.ruth-launch-row .action-btn{ flex:1; min-width:120px; }
+.shell-btn{
+  padding:.28rem .5rem; border:1px solid var(--border); background:transparent;
+  color:var(--text-secondary); border-radius:var(--radius-sm);
+  cursor:pointer; font-family:var(--font-mono); font-size:.7rem; transition:all .13s;
+}
+.shell-btn:hover{ background:var(--bg-hover); color:var(--text-primary); border-color:var(--border-glow); }
+
+.action-btn{
+  padding:.38rem .65rem; display:flex; align-items:center; gap:.3rem; justify-content:center;
+  border:1px solid var(--accent-main); background:rgba(122,233,255,.12);
+  color:var(--accent-main); border-radius:var(--radius-sm);
+  cursor:pointer; font-size:.74rem; font-family:var(--font-main); transition:all .14s;
+}
+.action-btn:hover{ background:rgba(122,233,255,.26); box-shadow:0 0 10px rgba(122,233,255,.3); }
+.photon-log{
+  display:flex; flex-direction:column; gap:.17rem; max-height:100px; overflow-y:auto;
+  font-family:var(--font-mono); font-size:.6rem;
+  scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+}
+.photon-entry{
+  padding:.12rem .32rem; border-radius:3px;
+  border-left:2px solid var(--accent-main);
+  background:rgba(122,233,255,.06); color:var(--text-secondary);
+  animation:fadeIn .2s ease;
+}
+@keyframes fadeIn{ from{opacity:0;transform:translateX(-4px);}to{opacity:1;transform:none;} }
+
+.info-text{ font-size:.7rem; color:var(--text-secondary); line-height:1.55; }
+.data-grid{ display:flex; flex-direction:column; }
+.data-row{ display:flex; justify-content:space-between; align-items:baseline; padding:.23rem 0; border-bottom:1px solid rgba(28,46,68,.6); }
+.data-row:last-child{ border-bottom:none; }
+.data-label{ font-size:.64rem; color:var(--text-muted); }
+.data-value{ font-family:var(--font-mono); font-size:.69rem; color:var(--accent-amber); font-weight:600; text-align:right; }
+
+.canvas-wrap{
+  flex:1; position:relative; overflow:hidden; background:var(--bg-void);
+  /* BUG CORRIGIDO: a borda que acompanha o modelo ativo (ver regra
+     mais abaixo) usava box-shadow sólido — pedido: usar o mesmo
+     estilo tracejado do SILQ/SIFI (border dashed transparente por
+     padrão, colorido quando ativo), pra ficar visualmente igual em
+     todos os simuladores. */
+  border:2px dashed transparent; border-radius:13px;
+  transition:border-color .25s;
+}
+#sim-canvas{ display:block; width:100%; height:100%; }
+#sim-canvas:focus-visible{ outline:3px solid var(--accent-main); outline-offset:-3px; }
+.canvas-overlay{ position:absolute; top:.72rem; left:50%; transform:translateX(-50%); pointer-events:none; }
+.overlay-label{
+  display:inline-block; background:rgba(8,12,20,.82);
+  border:1px solid var(--border); color:var(--text-secondary);
+  font-family:var(--font-mono); font-size:.67rem;
+  padding:.22rem .75rem; border-radius:20px;
+  backdrop-filter:blur(4px); letter-spacing:.04em; white-space:nowrap;
+}
+.fps-counter{ position:absolute; bottom:.5rem; right:.65rem; font-family:var(--font-mono); font-size:.58rem; color:var(--text-muted); }
+
+.mode-tabs-mobile, .mode-summary-mobile { display: none; }
+@media (max-width: 960px) {
+  .sidebar { min-width: 220px; max-width: 320px; }
+  .sidebar--left  { width: var(--swl, 260px); }
+  .sidebar--right { width: var(--swr, 280px); }
+}
+@media (max-width: 900px) {
+  /* GAVETA (substituiu o empilhamento). As duas sidebars saem do fluxo e
+     deslizam por cima do canvas: a esquerda (modelos atomicos) entra pela
+     esquerda, a direita (controles) pela direita. O canvas passa a ocupar
+     a altura toda, entao o aluno ve a simulacao inteira e chama o painel
+     que precisa. Identico ao padrao dos outros 19 simuladores.
+     Para voltar ao empilhamento, basta restaurar este bloco: as regras
+     antigas nao dependiam de JS nenhum. */
+  .mobile-menu-btn { display:flex !important; align-items:center; justify-content:center; }
+  /* sidebar esquerda (modelos) fica ESCONDIDA no mobile — a barra de
+     modelos rolável (.mode-tabs-mobile, logo abaixo) assume essa função. */
+  .sidebar--left { display: none; }
+
+  /* sidebar direita (controles) vira um BOTTOM SHEET: sobe da base da
+     tela em vez de entrar pela lateral. */
+  .sidebar--right {
+    position: fixed; z-index: 100;
+    left: 0; right: 0; bottom: 0; top: auto;
+    width: auto; max-width: none; min-width: 0;
+    height: auto; max-height: 75vh;
+    border: none; border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,.55);
+    transform: translateY(105%);
+    transition: transform .25s ease;
+    overflow-y: auto;
+    padding-top: .35rem;
+  }
+  .sidebar--right.mobile-open { transform: translateY(0); }
+  .sidebar--right::before {
+    content: ''; display: block; width: 36px; height: 4px; border-radius: 2px;
+    background: var(--border); margin: .5rem auto .25rem;
+  }
+  /* A altura vem do PAI, não de uma conta própria. A regra antiga era
+     height: calc(100dvh - var(--header-h)) — só que no mobile a barra de
+     modos rolável (.mode-tabs-mobile, ~53px) fica entre o cabeçalho e o
+     .app-main. O canvas saía 53px mais alto que o pai, que tem
+     overflow:hidden: o rodapé do desenho (eixo X, legendas) era cortado.
+     Medido em navegador: 790px de canvas num pai de 737px. Esticando até
+     o pai (align-self:stretch), a altura já desconta a barra sozinha. */
+  .canvas-wrap { width: 100%; flex: 1 1 auto; align-self: stretch; min-height: 300px; }
+  .sidebar-resizer { display: none; }   /* alca de redimensionar nao faz sentido na gaveta */
+  .a11y-bar { gap: .15rem; }
+  .a11y-btn { padding: .25rem .4rem; font-size: .65rem; }
+  .keyboard-hints { display: none; }
+
+  .mode-tabs-mobile {
+    display: flex; gap: .4rem; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: .5rem .6rem; background: var(--bg-panel); border-bottom: 1px solid var(--border);
+    scrollbar-width: thin;
+  }
+  .mode-tab {
+    flex: none; display: flex; align-items: center; gap: .3rem;
+    padding: .4rem .7rem; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--bg-elevated, transparent); color: var(--text-secondary);
+    font-size: .78rem; white-space: nowrap; cursor: pointer; min-height: 36px;
+  }
+  .mode-tab .icon { width: 1em; height: 1em; }
+  .mode-tab[aria-selected="true"] {
+    border-color: var(--accent-main); color: var(--text-primary);
+    background: color-mix(in srgb, var(--accent-main) 18%, transparent);
+  }
+
+  .mode-summary-mobile { display: block; border-bottom: 1px dashed var(--border); margin: 0 .6rem .5rem; padding-bottom: .5rem; }
+  .mode-summary-toggle {
+    width: 100%; display: flex; align-items: center; gap: .4rem; text-align: left;
+    background: none; border: none; color: var(--text-secondary); font-size: .82rem;
+    padding: .3rem 0; cursor: pointer;
+  }
+  .mode-summary-toggle .chevron { margin-left: auto; transition: transform .15s ease; }
+  .mode-summary-toggle[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+  .mode-summary-body { display: none; padding: .3rem .1rem .1rem; font-size: .8rem; color: var(--text-secondary); }
+  .mode-summary-body.open { display: block; }
+}
+
+.mode-info-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.72); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+  opacity: 0; visibility: hidden; transition: opacity .2s, visibility .2s;
+}
+.mode-info-overlay.aberto { opacity: 1; visibility: visible; }
+.mode-info-modal {
+  background: var(--bg-panel2); border: 1px solid var(--border); border-radius: var(--radius);
+  width: min(420px, 94vw); max-height: 80vh; max-height: 80dvh; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 56px rgba(0,0,0,.6);
+  transform: scale(.94) translateY(10px);
+  transition: transform .22s cubic-bezier(.34,1.56,.64,1);
+}
+.mode-info-overlay.aberto .mode-info-modal { transform: scale(1) translateY(0); }
+.mode-info-header {
+  display: flex; align-items: center; gap: .6rem; padding: .9rem 1rem;
+  background: var(--bg-panel); border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.mode-info-icon { font-size: 1.3rem; color: var(--accent-main); flex-shrink: 0; display: flex; }
+.mode-info-icon .icon { width: 1.2em; height: 1.2em; }
+.mode-info-title { flex: 1; margin: 0; font-size: 1.02rem; color: var(--text-primary); }
+.mode-info-close {
+  background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--text-secondary);
+  min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+.mode-info-close:hover, .mode-info-close:focus-visible {
+  background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent-main);
+  outline: 2px solid var(--accent-main); outline-offset: 2px;
+}
+.mode-info-body { padding: 1rem; overflow-y: auto; font-size: .88rem; color: var(--text-secondary); }
+.mode-info-body .mode-define { color: var(--text-primary); margin: 0 0 .6rem; line-height: 1.5; }
+@media (pointer: coarse) { .mode-info-close { min-width: 44px; min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .mode-info-modal { transition: none; } }
+@media (max-width: 400px) {
+  .shell-btns, .model-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(65px, 1fr)); gap: .2rem; }
+  .model-btn { grid-template-columns: 1fr; grid-template-rows: auto auto; padding: .4rem; text-align: center; }
+  .model-year { grid-row: 1; margin-bottom: 2px; }
+  .model-name { grid-column: 1; font-size: .7rem; }
+  .model-sub { grid-column: 1; display: none; }
+  /* Tabela periódica: reduz gap/margem para ganhar espaço útil por
+     célula em telas muito estreitas, evitando que o texto (Z/símbolo)
+     fique espremido ou force qualquer overflow. */
+  .periodic-table { gap: 1px; margin: 0 .15rem; }
+  .pt-cell { aspect-ratio: 1 / 0.95; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   NOVOS ESTILOS — adições para os 5 pedidos de melhoria
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Bohr: seletores de camada origem/destino ── */
+.bohr-shell-select-row {
+  display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+}
+.bohr-select {
+  padding: .3rem .45rem;
+  background: var(--bg-void); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: .76rem;
+}
+.bohr-select:focus-visible { outline: 2px solid var(--accent-main); outline-offset: 1px; }
+
+/* ════════════════════════════════════════════════════════════════
+   EASTER EGGS — dois, um por modelo (Rutherford/espalhamento e
+   Bohr/saltos quânticos), ambos acionados exclusivamente pelo logo
+   do cabeçalho (#btn-app-logo). Os painéis de controle (#egg-panel-
+   rutherford, #egg-panel-bohr) vivem DENTRO da sidebar, reaproveitando
+   o componente padrão de acordeão (.panel/.panel-header/.panel-body)
+   — não têm CSS próprio, ficam ocultos via [hidden] nativo (a classe
+   .panel não define `display` explicitamente, então não há conflito
+   de especificidade com o atributo). No caso do Rutherford, o canvas
+   principal também recebe a classe BEM "sim-canvas--egg-mode" para
+   alternar sua própria renderização.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Borda/glow sutil no canvas para sinalizar visualmente que o modo
+   histórico está ativo — feedback de estado sem texto sobreposto. */
+.sim-canvas--egg-mode{
+  box-shadow: inset 0 0 0 2px rgba(122,233,255,.45), 0 0 24px rgba(122,233,255,.18);
+}
+@media(prefers-reduced-motion:reduce){ .sim-canvas--egg-mode{ animation:none; } }
+
+.egg-counters{ margin:.4rem 0 0; }
+
+/* =====================================================================
+   MENU DE MÓDULOS — RÉPLICA DO SILQ
+   ---------------------------------------------------------------------
+   Geometria copiada 1:1 do stylesilq.css (.panel / .panel-header /
+   .bond-mode-btn / .bond-type-desc / .bond-info-grid / .bond-interactions
+   / .ion-pair-chip / .bond-type-note): mesmos raios, paddings, tamanhos
+   de fonte, pesos, transições e o sufixo "✓ ativo".
+
+   A ÚNICA diferença é a cor de acento, que aqui sai de --accent-main
+   (identidade do SIMA) no lugar de --accent (verde do SILQ). Cada modelo
+   atômico ainda recebe a sua própria cor, do mesmo jeito que no SILQ
+   covalente/iônica/metálica têm cores distintas.
+   ===================================================================== */
+
+/* =====================================================================
+   ÍCONES SVG (substituem os emojis) — ver <defs> de <symbol> no topo
+   do indexsima.html. stroke/fill:currentColor herda a cor do texto ao
+   redor; width/height:1em acompanha o tamanho da fonte do elemento-pai,
+   então o mesmo ícone fica pequeno num badge e maior num botão sem
+   precisar de regra própria para cada contexto.
+   ===================================================================== */
+.icon{
+  width:1em; height:1em; display:inline-block;
+  vertical-align:-.125em; flex-shrink:0;
+}
+.panel-icon .icon,
+.mode-note-icon .icon,
+.overlay-icon .icon{ width:1.05em; height:1.05em; vertical-align:-.15em; }
+
+/* acento local: violeta do SIMA no papel do --accent do SILQ */
+.panel--mode{
+  --mod: var(--accent-main);
+  --mod-rgb: 122,233,255;   /* = #4FD1EC, acento do SIMA */
+}
+/* cor por modelo — equivalente a .panel--covalente/--ionica/--metalica.
+   Estes tons sao para o TEMA ESCURO. As variantes claras vem logo abaixo. */
+.panel--mode[data-mode-card="dalton"]     { --mod:#94a3b8; --mod-rgb:148,163,184; }
+.panel--mode[data-mode-card="thomson"]    { --mod:#fbbf24; --mod-rgb:251,191,36;  }
+.panel--mode[data-mode-card="rutherford"] { --mod:#4fc3f7; --mod-rgb:79,195,247;  }
+.panel--mode[data-mode-card="bohr"]       { --mod:#4ade80; --mod-rgb:74,222,128;  }
+.panel--mode[data-mode-card="quantum"]    { --mod:#a78bfa; --mod-rgb:167,139,250; }
+
+/* ---------------------------------------------------------------------
+   TEMA CLARO — variantes das cores por modelo
+   ---------------------------------------------------------------------
+   BUG CORRIGIDO (erro meu, da rodada da estetica SILQ): eu declarei as
+   cinco cores por modelo so para fundo escuro e nunca escrevi o par
+   claro. No tema claro os badges e chips ficavam com o tom vibrante
+   sobre o fundo rgb(216,226,238) — contraste medido no Chromium:
+
+       thomson  #fbbf24  ->  1.27:1     praticamente invisivel
+       bohr     #4ade80  ->  1.33:1
+       ruther.  #4fc3f7  ->  1.53:1
+       dalton   #94a3b8  ->  1.96:1
+       quantum  #a78bfa  ->  2.08:1
+
+   Os tons abaixo preservam o MATIZ de cada modelo (o aluno continua
+   associando Bohr ao verde, Thomson ao ambar) e apenas reduzem a
+   luminosidade ate cruzar 4.5:1 — o minimo WCAG para texto normal.
+   Verifiquei tambem que os cinco continuam distinguiveis entre si.
+
+       dalton   #54657e  ->  4.53:1
+       thomson  #815e02  ->  4.53:1
+       ruther.  #076a97  ->  4.56:1
+       bohr     #157237  ->  4.59:1
+       quantum  #6a3af7  ->  4.50:1
+   --------------------------------------------------------------------- */
+body.light-mode .panel--mode[data-mode-card="dalton"]     { --mod:#54657e; --mod-rgb:84,101,126;  }
+body.light-mode .panel--mode[data-mode-card="thomson"]    { --mod:#815e02; --mod-rgb:129,94,2;    }
+body.light-mode .panel--mode[data-mode-card="rutherford"] { --mod:#076a97; --mod-rgb:7,106,151;   }
+body.light-mode .panel--mode[data-mode-card="bohr"]       { --mod:#157237; --mod-rgb:21,114,55;   }
+body.light-mode .panel--mode[data-mode-card="quantum"]    { --mod:#6a3af7; --mod-rgb:106,58,247;  }
+body.light-mode .panel--mode                              { --mod:#017283; --mod-rgb:1,114,131;  }
+
+/* a pilula do canvas usa as mesmas variaveis, via #mode-indicator */
+body.light-mode #mode-indicator[data-mode="dalton"]     { --mod:#54657e; --mod-rgb:84,101,126;  }
+body.light-mode #mode-indicator[data-mode="thomson"]    { --mod:#815e02; --mod-rgb:129,94,2;    }
+body.light-mode #mode-indicator[data-mode="rutherford"] { --mod:#076a97; --mod-rgb:7,106,151;   }
+body.light-mode #mode-indicator[data-mode="bohr"]       { --mod:#157237; --mod-rgb:21,114,55;   }
+body.light-mode #mode-indicator[data-mode="quantum"]    { --mod:#6a3af7; --mod-rgb:106,58,247;  }
+
+/* ---------- painel ---------- */
+.panel--mode{
+  border-radius:10px;
+  overflow:hidden;
+  border:1px solid var(--border);
+  background:var(--bg-panel2);
+  transition:border-color .2s, box-shadow .2s;
+}
+.panel--mode:has(.panel-header[aria-expanded="true"]){
+  border-color:rgba(var(--mod-rgb),.4);
+  box-shadow:0 0 0 1px rgba(var(--mod-rgb),.12);
+}
+
+/* ---------- cabeçalho ---------- */
+.panel--mode .panel-header{
+  width:100%; display:flex; align-items:center; gap:8px;
+  padding:9px 11px;
+  background:transparent; border:none; cursor:pointer;
+  color:var(--text-primary);
+  font-size:.8rem; font-weight:700; text-align:left;
+  transition:background .15s, color .15s;
+  border-radius:10px; user-select:none;
+}
+.panel--mode .panel-header:hover{
+  background:rgba(var(--mod-rgb),.08);
+  color:var(--mod);
+}
+.panel--mode .panel-header[aria-expanded="true"]{
+  background:linear-gradient(135deg, rgba(var(--mod-rgb),.14), rgba(var(--mod-rgb),.05));
+  color:var(--mod);
+  border-radius:10px 10px 0 0;
+  border-bottom:1px solid rgba(var(--mod-rgb),.2);
+}
+.panel--mode .panel-header:focus-visible{
+  outline:2px solid var(--mod); outline-offset:-2px; border-radius:10px;
+}
+.panel--mode .panel-icon{ font-size:.95rem; flex-shrink:0; line-height:1; }
+.panel--mode .panel-label{ flex:1; letter-spacing:.2px; }
+.panel--mode .panel-badge{
+  font-size:.6rem; font-weight:700;
+  background:rgba(var(--mod-rgb),.2); color:var(--mod);
+  border-radius:10px; padding:1px 6px; min-width:18px;
+  text-align:center; flex-shrink:0;
+}
+.panel--mode .panel-header[aria-expanded="true"] .panel-badge{ background:rgba(var(--mod-rgb),.35); }
+.panel--mode .chevron{
+  width:16px; height:16px; flex-shrink:0;
+  transition:transform .22s cubic-bezier(.4,0,.2,1);
+  color:var(--text-muted);
+}
+.panel--mode .panel-header[aria-expanded="true"] .chevron{
+  transform:rotate(180deg); color:var(--mod);
+}
+
+/* ---------- corpo ---------- */
+.panel--mode .panel-body{
+  padding:0 11px 10px; overflow:hidden;
+  max-height:2000px; opacity:1;
+  transition:max-height .3s cubic-bezier(.4,0,.2,1), padding .25s ease, opacity .25s ease;
+}
+.panel--mode .panel-body.collapsed{
+  max-height:0 !important; padding-top:0; padding-bottom:0; opacity:0;
+}
+
+/* ---------- selo "Ativo" no cabeçalho ---------- */
+.mode-active-tag{
+  display:none;
+  font-size:.55rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  padding:1px 5px; border-radius:10px;
+  background:rgba(var(--mod-rgb),.25); color:var(--mod); flex-shrink:0;
+}
+.panel--mode:has(.mode-activate-btn[aria-pressed="true"]) .mode-active-tag{ display:inline-block; }
+
+/* ---------- botão Ativar/Desativar (= .bond-mode-btn) ---------- */
+.mode-activate-btn{
+  display:flex; align-items:center; gap:8px; width:100%;
+  padding:8px 12px; margin:8px 0 10px;
+  border-radius:8px;
+  border:1.5px solid var(--border);
+  background:var(--bg-panel);
+  color:var(--text-primary);
+  font-size:.75rem; font-weight:700;
+  cursor:pointer; transition:all .18s; text-align:left;
+}
+/* HINT DE HOVER — idêntico ao SILQ: borda, fundo e texto viram a cor do módulo */
+.mode-activate-btn:hover{
+  border-color:var(--mod);
+  background:rgba(var(--mod-rgb),.08);
+  color:var(--mod);
+}
+.mode-activate-btn[aria-pressed="true"]{
+  background:rgba(var(--mod-rgb),.15);
+  border-color:var(--mod);
+  color:var(--mod);
+  box-shadow:0 0 0 3px rgba(var(--mod-rgb),.2);
+}
+/* sufixo "· ativo" — mesma ideia do SILQ, sem símbolo de checkmark:
+   pontuação tipográfica simples no lugar do dingbat "✓". */
+.mode-activate-btn[aria-pressed="true"]::after{
+  content:' · ativo';
+  font-size:.65rem; font-weight:600; opacity:.8; margin-left:auto;
+}
+.mode-activate-btn:focus-visible{ outline:2px solid var(--mod); outline-offset:2px; }
+
+/* dot colorido (= .bond-mode-btn-dot) */
+.mode-dot{
+  width:10px; height:10px; border-radius:50%; flex-shrink:0;
+  background:var(--mod); box-shadow:0 0 6px var(--mod);
+}
+
+/* ---------- descrição breve (= .bond-type-desc) ---------- */
+.mode-define{
+  font-size:.7rem; color:var(--text-secondary); line-height:1.5;
+  margin:0 0 10px; padding:6px 8px;
+  background:var(--bg-panel);
+  border-left:3px solid var(--mod);
+  border-radius:0 6px 6px 0;
+}
+.mode-define strong{ color:var(--text-primary); }
+
+/* ---------- fatos-chave (= .bond-info-grid) ---------- */
+.fact-grid{ display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:10px; }
+.fact-cell{
+  background:var(--bg-panel); border:1px solid var(--border);
+  border-radius:7px; padding:6px 8px;
+}
+.fact-label{
+  display:block; font-size:.58rem; font-weight:700; color:var(--text-muted);
+  text-transform:uppercase; letter-spacing:.4px; margin-bottom:2px;
+}
+.fact-value{ display:block; font-size:.72rem; font-weight:700; color:var(--text-primary); }
+
+/* ---------- interações do canvas (= .bond-interactions) ---------- */
+.canvas-interactions{
+  margin:10px 0 6px; border:1px solid var(--border);
+  border-radius:8px; overflow:hidden;
+}
+.canvas-interactions-title{
+  margin:0; font-size:.6rem; font-weight:700;
+  text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted);
+  padding:5px 10px; background:var(--bg-panel);
+  border-bottom:1px solid var(--border);
+}
+.canvas-interactions p:not(.canvas-interactions-title){
+  margin:0; padding:7px 10px; font-size:.68rem; line-height:1.5; color:var(--text-secondary);
+}
+.canvas-interactions strong{ color:var(--text-primary); }
+.canvas-interactions em{ color:var(--text-primary); font-style:normal; font-weight:600; }
+
+/* ---------- recomendados + chips (= .ion-pair-chip) ---------- */
+.recommended{ margin-top:8px; }
+.recommended-title{
+  margin:0 0 4px; font-size:.6rem; font-weight:700;
+  text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted);
+}
+.chip-row{ display:flex; flex-wrap:wrap; gap:5px; }
+.chip{
+  font-size:.68rem; font-weight:700; padding:3px 8px; border-radius:12px;
+  background:rgba(var(--mod-rgb),.12); color:var(--mod);
+  border:1px solid rgba(var(--mod-rgb),.3); cursor:pointer;
+  font-family:inherit; line-height:normal;
+}
+/* Chips agora são <button> clicáveis (antes eram <span> decorativo) —
+   clicar carrega o elemento na tabela periódica, ativando o modelo
+   primeiro se ainda não estiver ligado (ver eventos.js). */
+.chip:hover{ background:rgba(var(--mod-rgb),.22); }
+.chip:focus-visible{ outline:2px solid var(--mod); outline-offset:1px; }
+
+/* ---------- nota (= .bond-type-note) ---------- */
+.mode-note{
+  display:flex; align-items:flex-start; gap:6px;
+  font-size:.65rem; color:var(--text-secondary); line-height:1.45;
+  background:rgba(var(--mod-rgb),.06);
+  border:1px solid rgba(var(--mod-rgb),.18);
+  border-radius:6px; padding:6px 8px; margin:8px 0 0;
+}
+.mode-note strong{ color:var(--text-primary); }
+.mode-note-icon{ flex-shrink:0; }
+.mode-note--warning{
+  background:rgba(245,158,11,.08);
+  border-color:rgba(245,158,11,.3);
+  color:var(--text-secondary);
+  margin-top:5px;
+}
+
+/* ---------- responsivo e toque (= mesmas quebras do SILQ) ---------- */
+@media(max-width:900px){
+  .panel--mode .panel-header{ padding:7px 9px; font-size:.76rem; }
+}
+@media(pointer:coarse){
+  .panel--mode .panel-header{ min-height:44px; }
+  .mode-activate-btn{ min-height:44px; }
+}
+@media(max-width:520px){ .fact-grid{ grid-template-columns:1fr; } }
+
+/* ---------- alto contraste ---------- */
+body.high-contrast .panel--mode{ border:2px solid var(--hc-fg) !important; }
+body.high-contrast .fact-cell,
+body.high-contrast .canvas-interactions,
+body.high-contrast .mode-note,
+body.high-contrast .chip{ border:2px solid var(--hc-fg) !important; background:var(--hc-bg) !important; color:#fff !important; }
+body.high-contrast .fact-label,
+body.high-contrast .canvas-interactions-title,
+body.high-contrast .recommended-title{ color:var(--hc-fg) !important; }
+body.high-contrast .mode-activate-btn{ border:2px solid var(--hc-fg) !important; color:var(--hc-fg) !important; }
+body.high-contrast .mode-activate-btn[aria-pressed="true"]{ background:var(--hc-fg) !important; color:var(--hc-bg) !important; }
+body.high-contrast .mode-active-tag{ background:var(--hc-fg) !important; color:var(--hc-bg) !important; }
+body.high-contrast .mode-define{ border-left-color:var(--hc-fg) !important; }
+body.high-contrast .mode-dot{ background:var(--hc-fg) !important; }
+
+/* ---------- leitura simples ---------- */
+/* CORRECAO: estas regras foram escritas com "body.simple-read",
+   nome copiado do SILQ antigo. O a11y.js liga "body.simple-read"
+   (sem o "ing"). Estavam inertes. */
+body.simple-read .mode-define,
+body.simple-read .canvas-interactions p,
+body.simple-read .mode-note{ line-height:1.75; font-size:.74rem; }
+body.simple-read .fact-value{ font-size:.75rem; }
+
+/* ---------------------------------------------------------------------
+   SIMA AGORA É TOGGLE — canvas puro por padrão
+   ---------------------------------------------------------------------
+   O SIMA passou a ter o mesmo contrato do SILQ: abre SEM modelo ativo
+   (sim.model = null), canvas em branco, e clicar no modelo já ativo o
+   desativa. Antes ele era um seletor exclusivo, sempre com um modelo
+   renderizado.
+
+   Por isso o hover sobre o modelo ativo agora avisa "desativar".
+   --------------------------------------------------------------------- */
+.mode-activate-btn[aria-pressed="true"]:hover::after{ content:' · desativar'; opacity:1; }
+
+/* =====================================================================
+   INDICADOR DE MODELO ATIVO NO CANVAS — PADRÃO SILQ
+   ---------------------------------------------------------------------
+   Réplica de .bond-mode-indicator do stylesilq.css. A pílula usa a MESMA
+   cor do painel do modelo ativo, via data-mode no wrapper — do mesmo jeito
+   que no SILQ o indicador troca entre .mode--covalent / --ionic / --metallic.
+
+   Diferença do SIMA: como sempre existe um modelo renderizado, a pílula
+   fica sempre visível e não tem botão ✕ (ver nota do seletor exclusivo
+   mais acima neste arquivo).
+   ===================================================================== */
+
+/* canvas puro por padrão: sem modelo ativo a pílula não existe na tela */
+#mode-indicator{ display:none; }
+#mode-indicator.mode-on{ display:block; }
+
+/* dica exibida enquanto nenhum modelo está ativo */
+.canvas-hint{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  pointer-events:none; text-align:center; max-width:80%;
+  font-size:.82rem; font-style:italic; color:var(--text-muted); line-height:1.5;
+}
+.canvas-hint[hidden]{ display:none; }
+
+/* botão ✕ da pílula (= #bond-mode-indicator-clear do SILQ) */
+.overlay-clear{
+  background:none; border:none; cursor:pointer; color:inherit;
+  font-size:.75rem; padding:0 0 0 4px; opacity:.7; line-height:1;
+  transition:opacity .15s;
+}
+.overlay-clear:hover{ opacity:1; }
+.overlay-clear:focus-visible{ outline:2px solid currentColor; outline-offset:2px; border-radius:3px; }
+
+#mode-indicator{ --mod:var(--accent-main); --mod-rgb:122,233,255; }
+#mode-indicator[data-mode="dalton"]     { --mod:#94a3b8; --mod-rgb:148,163,184; }
+#mode-indicator[data-mode="thomson"]    { --mod:#fbbf24; --mod-rgb:251,191,36;  }
+#mode-indicator[data-mode="rutherford"] { --mod:#4fc3f7; --mod-rgb:79,195,247;  }
+#mode-indicator[data-mode="bohr"]       { --mod:#4ade80; --mod-rgb:74,222,128;  }
+#mode-indicator[data-mode="quantum"]    { --mod:#a78bfa; --mod-rgb:167,139,250; }
+
+#mode-indicator.mode-on .overlay-label{
+  display:inline-flex; align-items:center; gap:7px;
+  padding:5px 12px 5px 10px;
+  border-radius:20px;
+  border:1.5px solid rgba(var(--mod-rgb),.6);
+  background:rgba(var(--mod-rgb),.18);
+  color:var(--mod);
+  font-family:var(--font-main);
+  font-size:.72rem; font-weight:700; letter-spacing:0;
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  box-shadow:0 2px 12px rgba(0,0,0,.4);
+  white-space:nowrap;
+  transition:border-color .2s, background .2s, color .2s;
+}
+#mode-indicator .overlay-icon{ line-height:1; flex-shrink:0; }
+#mode-indicator .overlay-text{ overflow:hidden; text-overflow:ellipsis; }
+
+/* borda do canvas acompanha a cor do modelo (= #canvas.mode-* do SILQ) */
+.canvas-wrap:has(#mode-indicator.mode-on){
+  border-color: rgba(var(--mod-rgb),.5);
+}
+
+/* Só .light-mode: é a classe que o a11y.js liga. Eu havia escrito as duas
+   por precaução, mas .theme-light nunca existe (era do SILQ antigo). */
+body.light-mode #mode-indicator.mode-on .overlay-label{
+  background:rgba(var(--mod-rgb),.16);
+}
+body.high-contrast #mode-indicator.mode-on .overlay-label{
+  background:var(--hc-bg) !important; border:2px solid var(--hc-fg) !important; color:var(--hc-fg) !important;
+}
+
+/* detalhe dinâmico da pílula — mesma cor, peso menor, para o nome do modo
+   continuar sendo a informação principal */
+.overlay-detail{ font-weight:500; opacity:.78; }
+
+
+/* =====================================================================
+   FOCO NO MODULO ATIVO — os outros modulos ficam ocultos
+   ---------------------------------------------------------------------
+   Regra pedida: ao ATIVAR um modulo, os demais desaparecem da coluna da
+   esquerda. Sem nenhum ativo, todos voltam a aparecer.
+
+   Implementado so em CSS, com :has() — nenhuma linha de JS nova. O
+   seletor le o mesmo aria-pressed que o setMode/clearMode ja mantem:
+
+     1. a coluna CONTEM algum botao Ativar pressionado?
+     2. entao esconde todo painel de modulo que NAO contenha um.
+
+   Quando o modulo e desativado (clique no proprio botao ou no ✕ da
+   pilula do canvas), o aria-pressed volta a "false", a condicao 1 deixa
+   de valer e a regra inteira para de se aplicar — todos reaparecem
+   sozinhos, sem estado extra para sincronizar.
+
+   display:none (e nao visibility/opacity) tira os painteis ocultos
+   tambem do foco por teclado e da leitura de tela — o correto, ja que
+   naquele momento eles nao estao disponiveis.
+   ===================================================================== */
+
+#sidebar-left:has(.mode-activate-btn[aria-pressed="true"])
+  .panel--mode:not(:has(.mode-activate-btn[aria-pressed="true"])):not(.is-solo) {
+  display: none;
+}
+
+/* EXCEÇÃO: o card aberto pelo TRILHO (.is-solo) aparece mesmo com outro
+   módulo ativo. Sem isso, o trilho mostrava o ícone do módulo mas abria
+   um card VAZIO (o painel escondido por esta regra) — e não havia como
+   trocar de módulo pela barra recolhida. */
+
+
+/* ---------------------------------------------------------------------
+   SKIP-LINK — contraste corrigido
+   ---------------------------------------------------------------------
+   Medido no Chromium com o link em foco (ele vive em left:-9999px e so
+   aparece ao receber foco, por isso a medicao exige focus()).
+
+   O fundo do skip-link vem do acento do simulador, e o acento MUDA no
+   tema claro — normalmente escurecendo. Com o texto fixo, o par deixava
+   de contrastar em um dos dois temas. As regras abaixo declaram o texto
+   por tema, com o valor que a medicao mostrou ser o melhor.
+   --------------------------------------------------------------------- */
+body.light-mode .skip-link{ color:#fff; }   /* 8.98:1 */
+
+/* =====================================================================
+   CLARO + ALTO CONTRASTE — PRECEDENCIA CORRIGIDA
+   ---------------------------------------------------------------------
+   BUG: `body.high-contrast` e `body.light-mode` tem a MESMA
+   especificidade (0,1,1). Quando os dois estao ativos, vence o que
+   aparece por ultimo no arquivo — e neste CSS o bloco do tema claro vem
+   DEPOIS do bloco de alto contraste. Resultado medido no Chromium:
+
+       contraste        body bg = rgb(0,0,0)        -> 0 textos <3:1
+       claro+contraste  body bg = rgb(240,244,248)  -> varios <3:1
+
+   Ou seja: com os dois ligados, o fundo voltava a ser CLARO enquanto os
+   acentos continuavam amarelos (#ff0), que existem para fundo escuro.
+   O modo de acessibilidade piorava a legibilidade.
+
+   CORRECAO: reafirmar a paleta de alto contraste num seletor de
+   especificidade maior (0,2,1). Assim o alto contraste vence o tema
+   claro, que e o comportamento correto — alto contraste e um esquema
+   visual proprio, nao um ajuste sobre o tema.
+   ===================================================================== */
+
+/* Reafirma a paleta de alto contraste com especificidade (0,2,1),
+   para ela vencer body.light-mode (0,1,1), que neste arquivo aparece
+   DEPOIS e por isso ganhava no empate. */
+body.high-contrast.light-mode {
+  --bg-void:       #000;
+  --bg-panel:      #000;
+  --bg-panel2:     #111;
+  --bg-hover:      #222;
+  --border:        #fff;
+  --border-glow:   var(--hc-fg);
+  --border-active: var(--hc-fg);
+  --text-primary:  #fff;
+  --text-secondary:#eee;
+  --text-muted:    #bbb;
+  --accent-main: var(--hc-fg);
+  --accent-cyan:   #0ff;
+  --accent-amber:  var(--hc-fg);
+}
+
+/* =====================================================================
+   MENU DO MODELO ATIVO — REALCE (padrao replicado do SICQ)
+   ---------------------------------------------------------------------
+   Mesma lacuna do SILQ: o painel ja se realcava ao ser ABERTO, nunca ao
+   ser ATIVADO. A pilula e a borda do canvas ja acompanhavam o modelo
+   ativo; faltava o cartao na coluna da esquerda.
+
+   Usa --mod-rgb, a cor do MODELO ATOMICO (Dalton, Thomson, Rutherford,
+   Bohr, quantico) — nao o acento do modulo. Cada modelo tem a sua cor em
+   toda a interface e este realce apenas segue a mesma convencao.
+
+   Vem depois da regra do painel aberto, de proposito: quando o modelo
+   esta aberto E ativo, o realce mais forte (ativo) vence na cascata.
+   ===================================================================== */
+.panel--mode:has(.mode-activate-btn[aria-pressed="true"]){
+  border-color:rgba(var(--mod-rgb),.55);
+  background:rgba(var(--mod-rgb),.06);
+  box-shadow:0 0 0 1px rgba(var(--mod-rgb),.2);
+}
+body.light-mode .panel--mode:has(.mode-activate-btn[aria-pressed="true"]){
+  background:rgba(var(--mod-rgb),.08);
+}
+body.high-contrast .panel--mode:has(.mode-activate-btn[aria-pressed="true"]){
+  border-color:var(--hc-fg); background:none; box-shadow:0 0 0 2px var(--hc-fg);
+}
+
+/* =====================================================================
+   REDUCAO DE MOVIMENTO — TOGGLE DO PAINEL DE ACESSIBILIDADE
+   ---------------------------------------------------------------------
+   Este arquivo ja respeitava @media (prefers-reduced-motion: reduce), que
+   le a preferencia do SISTEMA OPERACIONAL. Mas o a11y.js tambem oferece um
+   botao proprio, que liga a classe .reduce-motion no <body> — e nenhuma
+   regra aqui escutava essa classe. Resultado: quem desligasse animacao
+   pelo painel do site continuava vendo tudo animar.
+   Mesmo bloco que os 12 simuladores do 2o e 3o ano ja usam.
+   ===================================================================== */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after{ animation:none!important; transition-duration:.01ms!important; }
+
+
+/* ═══ BARRA DE ROLAGEM — estilo consistente (auto-inserido) ═══ */
+/* Troca a barra de rolagem padrão do sistema (cinza, quadrada) por uma
+   fina e na cor do tema — aplicado de forma GERAL (seletor *) pra
+   cobrir sidebars, bottom sheet, barras de aba e qualquer área com
+   rolagem que ainda não tinha estilo próprio. Onde já existe uma regra
+   mais específica em algum lugar do arquivo (ex.: .modal-body::-webkit-
+   scrollbar), ela continua valendo — seletor de classe é mais
+   específico que o universal, então nada muda para quem já tinha
+   estilo. As cores usam var(--border)/var(--accent-main): como essas
+   variáveis já mudam sozinhas por tema (claro/escuro/alto contraste),
+   a barra de rolagem acompanha automaticamente, sem regra extra. */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--accent-main); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* ════════════════════════════════════════════════════════════════
+   COACHMARK — balão flutuante do tour guiado (ver js/coachmark.js e
+   js/a11y/tour.js). Mesma estética já usada nos outros simuladores,
+   adaptada aos tokens do SIMA (--bg-panel, --border-glow, --text-*).
+   ════════════════════════════════════════════════════════════════ */
+.coach-overlay{ position:fixed; inset:0; z-index:500; }
+.coach-spot{
+  position:fixed; z-index:501; border-radius:10px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.65);
+  border:2px solid var(--accent-cyan);
+  pointer-events:none;
+  transition:top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+}
+.coach-overlay:has(.coach-spot[hidden])::before{
+  content:''; position:fixed; inset:0; z-index:501; background:rgba(0,0,0,.65);
+}
+.coach-balao{
+  position:fixed; z-index:502; width:min(320px, 88vw);
+  background:var(--bg-panel); border:1px solid var(--border); border-radius:10px;
+  padding:18px 18px 14px; box-shadow:0 20px 48px rgba(0,0,0,.5);
+  transition:top .25s ease, left .25s ease;
+}
+.coach-balao--centro{ position:fixed; top:50% !important; left:50% !important; transform:translate(-50%,-50%); }
+.coach-pular{
+  position:absolute; top:10px; right:12px;
+  background:none; border:none; color:var(--text-secondary); font-size:12px; cursor:pointer;
+  padding:4px 6px; border-radius:6px;
+}
+.coach-pular:hover{ color:var(--text-primary); background:rgba(255,255,255,.08); }
+.coach-titulo{ font-weight:700; font-size:16px; color:var(--text-primary); margin:4px 30px 8px 0; }
+.coach-texto{ font-size:13.5px; color:var(--text-secondary); line-height:1.55; margin:0 0 16px; }
+.coach-rodape{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.coach-pontos{ display:flex; gap:5px; }
+.coach-ponto{ width:6px; height:6px; border-radius:50%; background:var(--border); }
+.coach-ponto--ativo{ background:var(--accent-cyan); width:16px; border-radius:3px; }
+.coach-botoes{ display:flex; gap:8px; }
+.coach-btn{ font-weight:600; font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer; transition:filter .2s, background .2s; }
+.coach-btn--voltar{ background:transparent; border:1px solid var(--border); color:var(--text-secondary); }
+.coach-btn--voltar:hover{ background:rgba(255,255,255,.08); }
+.coach-btn--avancar{ background:var(--accent-cyan); border:1px solid var(--accent-cyan); color:#04141A; }
+.coach-btn--avancar:hover{ filter:brightness(1.1); }
+@media (max-width:480px){
+  .coach-balao{ padding:16px 16px 12px; }
+  .coach-rodape{ flex-direction:column; align-items:stretch; gap:12px; }
+  .coach-botoes{ justify-content:space-between; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   MENSAGEM "TUDO TRANCADO" — mesmo padrão do SIEM/SIME: cadeado +
+   lista dos modelos + o que libera. Só aparece com nenhum modelo
+   ativo (mesma condição do #mode-indicator.mode-on já usada em
+   outras regras deste arquivo).
+   ════════════════════════════════════════════════════════════════ */
+.sidebar-lock-hint{
+  display:none;
+  align-items:flex-start; gap:.5rem;
+  padding:.6rem .65rem; margin-bottom:.4rem;
+  border:1px dashed var(--border); border-radius:8px;
+  background:var(--bg-panel2); color:var(--text-secondary);
+  font-size:.72rem; line-height:1.55;
+}
+.sidebar-lock-hint svg{ flex-shrink:0; margin-top:.1em; color:var(--accent-main); }
+.sidebar-lock-hint strong{ color:var(--text-primary); }
+body:not(:has(#mode-indicator.mode-on)) .sidebar-lock-hint{ display:flex; }
+body.high-contrast .sidebar-lock-hint{ border:2px solid var(--hc-fg) !important; color:var(--hc-fg) !important; }
+
+
+/* ════════════════════════════════════════════════════════════════
+   TRILHO RECOLHÍVEL DAS SIDEBARS  ·  somente desktop (> 900px)
+   ────────────────────────────────────────────────────────────────
+   Bloco acrescentado por ferramenta; nenhuma regra acima foi tocada.
+   Tudo aqui vive dentro de @media (min-width: 901px). Abaixo
+   disso vale o layout mobile que já existia — bottom sheet para os
+   controles, barra de modos rolável no lugar da sidebar esquerda —
+   e nada daqui chega a ser aplicado.
+
+   Três estados por sidebar:
+     (1) fixada    → como sempre foi, no fluxo
+     (2) recolhida → sai do fluxo; um trilho de 56px fica no lugar
+     (3) flutuante → volta por cima do canvas, SEM empurrá-lo
+
+   O estado (3) é position:absolute de propósito: elemento absoluto
+   não participa do flex, então o canvas não muda de largura ao abrir
+   um painel — e nada é remedido nem reconstruído no meio de uma
+   simulação em andamento.
+
+   Cores, raios e sombras saem de variáveis já definidas no topo
+   deste arquivo, então tema claro e leitura simplificada valem sem
+   regra extra. As exceções de alto contraste vêm no fim, no mesmo
+   padrão do resto da folha.
+   ════════════════════════════════════════════════════════════════ */
+@media (min-width: 901px) {
+
+  /* Âncora do flutuante: a classe é posta pelo JS no pai REAL de cada
+     sidebar. Não dá para fixar em .app-main — em parte dos simuladores
+     do 1º ano o #main-content é o próprio canvas e as sidebars são
+     irmãs dele, e num deles não existe container nomeado nenhum. */
+  .rail-host { position: relative; }
+
+  /* ── o trilho ─────────────────────────────────────────────── */
+  .rail {
+    display: flex; flex-direction: column; align-items: center;
+    gap: .3rem; width: 56px; flex-shrink: 0; padding: .5rem 0;
+    background: var(--rail-bg, var(--bg-panel, #0c1520));
+    overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar { width: 0; }
+  .rail[hidden] { display: none; }
+  .rail--left  { border-right: 1px solid var(--rail-borda, var(--border, #1c2e44)); }
+  .rail--right { border-left:  1px solid var(--rail-borda, var(--border, #1c2e44)); }
+  .rail-sep {
+    width: 24px; height: 1px; flex-shrink: 0;
+    background: var(--rail-borda, var(--border, #1c2e44)); margin: .15rem 0 .25rem;
+  }
+
+  /* ── botões ───────────────────────────────────────────────── */
+  .rail-btn {
+    position: relative; width: 40px; height: 40px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid transparent; border-radius: var(--radius, 10px);
+    background: transparent; color: var(--rail-fg-suave, var(--text-secondary, #9ab));
+    cursor: pointer; padding: 0;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .rail-btn[hidden] { display: none; }
+  .rail-btn:hover { background: var(--rail-hover, var(--bg-hover, #16263a)); color: var(--rail-fg, var(--text-primary, #eaf2fb)); }
+  .rail-btn:focus-visible { outline: 2px solid var(--rail-acento, var(--accent-main, #7AE9FF)); outline-offset: 2px; }
+  .rail-btn[aria-expanded="true"] {
+    color: var(--rail-acento, var(--accent-main, #7AE9FF));
+    border-color: var(--rail-acento, var(--border-active, var(--accent-main, #7AE9FF)));
+    background: var(--rail-hover, var(--bg-panel2, #101c2b));
+  }
+  .rail-ico { display: flex; font-size: 1.05rem; }
+  /* reserva para painéis sem desenho de ícone (ver preencherIcone) */
+  .rail-ico--letra {
+    font: 600 .82rem/1 system-ui, sans-serif; letter-spacing: .02em;
+    align-items: center; justify-content: center;
+    width: 1.15em; height: 1.15em;
+  }
+  .rail-ico svg, .rail-ico .icon { width: 1.15em; height: 1.15em; }
+  .rail-btn--expand { color: var(--rail-fg-suave, var(--text-muted, #7a9ab8)); }
+
+  /* ── etiqueta: ícone sozinho não se explica ───────────────── */
+  .rail-tip {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    white-space: nowrap; pointer-events: none;
+    background: var(--rail-bg, var(--bg-panel2, #101c2b)); color: var(--rail-fg, var(--text-primary, #eaf2fb));
+    border: 1px solid var(--rail-borda, var(--border, #1c2e44));
+    border-radius: var(--radius-sm, 6px);
+    padding: .25rem .5rem; font-size: .72rem; line-height: 1.2;
+    box-shadow: 0 4px 14px rgba(0,0,0,.45);
+    opacity: 0; visibility: hidden; transition: opacity .12s ease; z-index: 70;
+  }
+  .rail--left  .rail-tip { left: calc(100% + 6px); }
+  .rail--right .rail-tip { right: calc(100% + 6px); }
+  .rail-btn:hover .rail-tip, .rail-btn:focus-visible .rail-tip {
+    opacity: 1; visibility: visible;
+  }
+
+  /* ── botão de recolher, dentro da sidebar ─────────────────── */
+  .rail-toggle {
+    flex-shrink: 0; width: 26px; height: 26px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--rail-borda, var(--border, #1c2e44)); border-radius: var(--radius-sm, 6px);
+    background: var(--rail-bg, var(--bg-panel2, #101c2b)); color: var(--rail-fg-suave, var(--text-secondary, #9ab));
+    cursor: pointer; transition: background .15s ease, color .15s ease;
+  }
+  .rail-toggle:hover { background: var(--rail-hover, var(--bg-hover, #16263a)); color: var(--rail-fg, var(--text-primary, #eaf2fb)); }
+  .rail-toggle:focus-visible { outline: 2px solid var(--rail-acento, var(--accent-main, #7AE9FF)); outline-offset: 2px; }
+  .sidebar--left  .rail-toggle { align-self: flex-end; }
+  .sidebar--right .rail-toggle { align-self: flex-start; }
+  .sidebar.is-collapsed .rail-toggle { display: none; }
+
+  /* ── recolhida: fora do fluxo, canvas cresce ──────────────────
+     O !important NÃO é enfeite. O sidebar-resizer.js grava
+     `style="position:relative"` INLINE em cada sidebar, para ancorar a
+     alça de arrastar (só quando o CSS base deixa a sidebar static — é o
+     caso de todo o 2º e 3º ano). Inline vence qualquer regra de folha,
+     então sem o !important a sidebar "recolhida" continuava relative,
+     ocupando os 300px dela no fluxo: o trilho aparecia, mas o canvas
+     não crescia. Medido em navegador: 15 dos 23 simuladores. O SIMA
+     escapou no piloto só porque é o único que não carrega o resizer.
+     Vale apenas no estado recolhido; fixada, a sidebar volta a
+     obedecer o inline e a alça continua funcionando. */
+  .sidebar.is-collapsed {
+    position: absolute !important; top: 0; bottom: 0; z-index: 60;
+    width: var(--swl, 300px);
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    visibility: hidden; opacity: 0;
+    transition: opacity .18s ease, transform .18s ease, visibility .18s;
+  }
+  .sidebar--left.is-collapsed {
+    left: 56px; transform: translateX(-10px);
+    border-radius: 0 var(--radius, 10px) var(--radius, 10px) 0;
+  }
+  .sidebar--right.is-collapsed {
+    right: 56px; width: var(--swr, 330px); transform: translateX(10px);
+    border-radius: var(--radius, 10px) 0 0 var(--radius, 10px);
+  }
+  .sidebar.is-collapsed.is-floating {
+    visibility: visible; opacity: 1; transform: translateX(0);
+    border-color: var(--border-active, var(--accent-main, #7AE9FF));
+  }
+
+  /* ── flutuante mostra UM card só ──────────────────────────────
+     POR QUE ESTAS REGRAS DEPENDEM DE .has-solo E NÃO DE .is-floating:
+     ao fechar, o JS tira .is-floating e o opacity leva 180ms até zero.
+     Se o formato compacto dependesse dessa classe, display:none e
+     bottom:auto parariam de valer no PRIMEIRO quadro — todos os cards
+     reapareciam e a sidebar voltava a esticar de topo a base, à vista,
+     desbotando. Era a sidebar inteira piscando ao fechar. Com
+     .has-solo, o compacto sobrevive ao fade; o JS tira a classe só
+     depois que a transição acaba.
+     .rail-oculto é posto pelo JS nos irmãos do card, nível a nível
+     até a raiz da sidebar — funciona tanto com o card solto (1º ano)
+     quanto embrulhado em #model-list (2º/3º ano). */
+  .sidebar.is-collapsed.has-solo .rail-oculto { display: none; }
+  .sidebar.is-collapsed.has-solo {
+    bottom: auto; max-height: calc(100% - 1rem); padding: .5rem; gap: 0;
+  }
+
+  /* ── ícone do modo ATIVO ──────────────────────────────────── */
+  .rail-btn.is-active { color: var(--rail-acento, var(--accent-main, #7AE9FF)); }
+  .rail-btn.is-active::before {
+    content: ''; position: absolute; left: 2px; top: 50%;
+    width: 3px; height: 18px; border-radius: 2px;
+    transform: translateY(-50%); background: var(--rail-acento, var(--accent-main, #7AE9FF));
+  }
+  .rail--right .rail-btn.is-active::before { left: auto; right: 2px; }
+
+  body.reduce-motion .sidebar.is-collapsed,
+  body.reduce-motion .rail-btn,
+  body.reduce-motion .rail-toggle,
+  body.reduce-motion .rail-tip { transition: none !important; }
+
+  /* alto contraste: mesmas variáveis vestidas — a sidebar já está no
+     esquema de alto contraste quando o trilho lê as cores dela, e isso
+     vale também para sie e sitp, cujos esquemas são diferentes */
+  body.high-contrast .rail { background: var(--rail-bg, var(--hc-bg, #000)) !important; }
+  body.high-contrast .rail--left  { border-right: 2px solid var(--rail-acento, var(--hc-fg, #fff)) !important; }
+  body.high-contrast .rail--right { border-left:  2px solid var(--rail-acento, var(--hc-fg, #fff)) !important; }
+  body.high-contrast .rail-btn,
+  body.high-contrast .rail-toggle,
+  body.high-contrast .rail-tip {
+    background: var(--rail-bg, var(--hc-bg, #000)) !important; color: var(--rail-fg, var(--hc-fg, #fff)) !important;
+    border: 2px solid var(--rail-acento, var(--hc-fg, #fff)) !important;
+  }
+  body.high-contrast .rail-btn[aria-expanded="true"] {
+    background: var(--rail-acento, var(--hc-fg, #fff)) !important; color: var(--rail-bg, var(--hc-bg, #000)) !important;
+  }
+  body.high-contrast .rail-btn.is-active::before { background: var(--rail-acento, var(--hc-fg, #fff)); }
+  body.high-contrast .sidebar.is-collapsed.is-floating {
+    border: 2px solid var(--hc-fg, #fff) !important;
+  }
+}
+
+/* ALTO CONTRASTE — o link "Pular para…" usa o acento como fundo, e no
+   alto contraste o acento é amarelo (--hc-fg). O texto precisa ser a cor
+   de FUNDO do esquema (--hc-bg, preto). Especificidade (0,2,2) de
+   propósito: as regras por tema acima — body.light-mode .skip-link e
+   body:not(.light-mode) .skip-link, ambas (0,2,1) — também casam com o
+   alto contraste e, vindo depois, deixavam branco sobre amarelo (1,07:1). */
+body.high-contrast a.skip-link { color: var(--hc-bg, #000); }
+
+/* Título do cabeçalho no ALTO CONTRASTE. O h1 usa var(--header-accent), e
+   os blocos de alto contraste redefinem --accent-main e companhia mas
+   esqueciam este token: no claro + alto contraste o título ficava com o
+   acento do tema claro (vinho, verde-escuro) sobre o fundo PRETO do
+   esquema — medido de 1,67:1 a 3,74:1. Especificidade (0,1,2) para vencer
+   body.light-mode (0,1,1), que também o redefine. */
+html body.high-contrast { --header-accent: var(--hc-fg, #ff0); }
+
+/* A ÁREA LIVRE (ver js/ui/sidebar-rail.js · Oclusao e js/models/
+   atomic-sim-loop.js · _vistaLivre). Com um card flutuante aberto, o
+   modelo é desenhado na parte do canvas que se vê; a pílula do modo e a
+   dica se recentram nessa parte, e o contador de quadros se afasta do
+   card, no mesmo deslizamento (280 ms). Sem card, --oc-* valem 0. */
+@media (min-width: 901px) {
+  .canvas-wrap .canvas-overlay { left: calc(50% + (var(--oc-esq, 0px) - var(--oc-dir, 0px)) / 2); transition: left .28s ease; }
+  .canvas-wrap .canvas-hint    { left: calc(50% + (var(--oc-esq, 0px) - var(--oc-dir, 0px)) / 2); max-width: calc((100% - var(--oc-esq, 0px) - var(--oc-dir, 0px)) * .8); transition: left .28s ease; }
+  .canvas-wrap .fps-counter    { right: calc(.65rem + var(--oc-dir, 0px)); transition: right .28s ease; }
+  body.reduce-motion .canvas-wrap .canvas-overlay, body.reduce-motion .canvas-wrap .canvas-hint, body.reduce-motion .canvas-wrap .fps-counter { transition: none; }
+}

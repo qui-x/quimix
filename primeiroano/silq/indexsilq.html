@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark" data-colorblind="none" data-reading="off" data-contrast="off" data-spacing="off" data-motion="off">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+<title>SILQ — Simulador Interativo de Ligações Químicas</title>
+<link href="css/stylesilq.css" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Filtros SVG de simulação de daltonismo — mesma matriz do hub
+       (index.html), para manter as cores padronizadas entre simuladores. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="f-protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-acromatopsia">
+        <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       BIBLIOTECA DE ÍCONES SVG — substitui todos os emojis do SILQ
+       ───────────────────────────────────────────────────────────────
+       Mesmo mecanismo do resto da família: um bloco de <symbol>, usado
+       como <svg class="icon"><use href="#ic-NOME"/></svg>.
+       stroke/fill:currentColor herda a cor do texto ao redor;
+       width/height:1em (ver .icon em stylesilq.css) acompanha o
+       tamanho de fonte do elemento-pai.
+       ═══════════════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="ic-menu" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+      <symbol id="ic-check" viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-warning" viewBox="0 0 24 24"><path d="M12 3l10 18H2L12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1.15" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-flask" viewBox="0 0 24 24"><path d="M9 2h6M10 2v6.2L4.8 18a2 2 0 0 0 1.75 3h10.9a2 2 0 0 0 1.75-3L14 8.2V2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 15h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="ic-retort" viewBox="0 0 24 24"><path d="M12 2v7.5L6.2 19a1.8 1.8 0 0 0 1.55 2.7h8.5A1.8 1.8 0 0 0 17.8 19L12 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 2h6M8.3 16h7.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="ic-microscope" viewBox="0 0 24 24"><path d="M8 21h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 21v-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6.5 17.5h8a2.3 2.3 0 0 0 0-4.6h-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 12.9 7.4 9.3a2.1 2.1 0 1 1 3-3l4.6 4.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="14" y1="4.5" x2="16.5" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+      <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="15.5" y1="15.5" x2="20.5" y2="20.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="ic-barchart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M4 20h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-chart" viewBox="0 0 24 24"><path d="M3 20h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4 16l5-6 4 3 7-9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5v2.4M12 18.1v2.4M20.5 12h-2.4M5.9 12H3.5M17.8 6.2l-1.7 1.7M7.9 16.1l-1.7 1.7M17.8 17.8l-1.7-1.7M7.9 7.9 6.2 6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="ic-magnet" viewBox="0 0 24 24"><path d="M6 4h4v8a2 2 0 1 0 4 0V4h4v8a6 6 0 1 1-12 0V4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M6 7.3h4M14 7.3h4" stroke="currentColor" stroke-width="1.5"/></symbol>
+      <symbol id="ic-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-link" viewBox="0 0 24 24"><path d="M9.5 14.5 14.5 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M11 6.5l1.6-1.6a3.8 3.8 0 0 1 5.5 5.5L16.5 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M13 17.5l-1.6 1.6a3.8 3.8 0 0 1-5.5-5.5L7.5 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+      <symbol id="ic-atom" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><ellipse cx="12" cy="12" rx="9" ry="3.2" fill="none" stroke="currentColor" stroke-width="1.3"/><ellipse cx="12" cy="12" rx="9" ry="3.2" fill="none" stroke="currentColor" stroke-width="1.3" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9" ry="3.2" fill="none" stroke="currentColor" stroke-width="1.3" transform="rotate(120 12 12)"/></symbol>
+      <symbol id="ic-cube" viewBox="0 0 24 24"><path d="M12 3 20 7.5v9L12 21 4 16.5v-9L12 3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 7.5 12 12l8-4.5M12 12v9" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-pencil" viewBox="0 0 24 24"><path d="M4 20l.9-4.2L15.5 5.2a1.8 1.8 0 0 1 2.5 0l.8.8a1.8 1.8 0 0 1 0 2.5L8.2 19.1 4 20z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M13.8 6.9l3.3 3.3" stroke="currentColor" stroke-width="1.6"/></symbol>
+      <symbol id="ic-point" viewBox="0 0 24 24"><path d="M9 12.5V5a1.7 1.7 0 1 1 3.4 0v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.4 10.7V4.3a1.7 1.7 0 1 1 3.4 0v7.2M15.8 11v-2a1.7 1.7 0 1 1 3.4 0v6.2c0 3.6-2.3 6.5-6.4 6.5-2.8 0-4.2-1-5.6-2.8l-3.6-4.8a1.7 1.7 0 0 1 2.6-2.2L9 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 2.34 5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 17v-5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-trash" viewBox="0 0 24 24"><line x1="4.5" y1="7" x2="19.5" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 7 7.3 19a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9L17.5 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><line x1="10" y1="11" x2="10" y2="16.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="14" y1="11" x2="14" y2="16.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+      <symbol id="ic-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V7a4 4 0 1 1 8 0v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="15.3" r="1.3" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-unlock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 7.5-1.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="15.3" r="1.3" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-hash" viewBox="0 0 24 24"><path d="M9.5 3.5 7 20.5M17 3.5l-2.5 17M4 8.5h16M3.3 15.5h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+      <symbol id="ic-angle" viewBox="0 0 24 24"><path d="M4 20 20 20M4 20 17 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 20a7 7 0 0 1 2-6.3" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+      <symbol id="ic-ruler" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="8" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 8v3M11 8v3M15 8v3M19 8v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+      <symbol id="ic-shuffle" viewBox="0 0 24 24"><path d="M3 7h3.5L15 17h6M14.5 7H20M3 17h3.5L11 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.5 4.5 20 7l-2.5 2.5M17.5 19.5 20 17l-2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v18H6.5A2.5 2.5 0 0 1 4 18.5v-13Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v18h5.5a2.5 2.5 0 0 0 2.5-2.5v-13Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-scale" viewBox="0 0 24 24"><path d="M12 3v18M8 21h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12 6 4 8m8-2 8 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4 8l-2.2 5.2a2.6 2.6 0 0 0 4.9 1L4 8zM20 8l2.2 5.2a2.6 2.6 0 0 1-4.9 1L20 8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7V5z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-pause" viewBox="0 0 24 24"><rect x="6" y="4.5" width="4.5" height="15" rx="1" fill="currentColor" stroke="none"/><rect x="13.5" y="4.5" width="4.5" height="15" rx="1" fill="currentColor" stroke="none"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- Overlay fixo de daltonismo (backdrop-filter, pointer-events:none) —
+       técnica correta do contrato: nunca aplicar o filtro direto no
+       body/html, pois isso quebra elementos position:fixed/absolute
+       (aqui: átomos arrastáveis, painéis flutuantes). -->
+  <div id="colorblindOverlay" aria-hidden="true"></div>
+
+  <!-- ===================== SKIP LINKS ===================== -->
+  <nav class="skip-nav" aria-label="Atalhos de navegação">
+    <a href="#main-content"  class="skip-link">Pular para o conteúdo principal</a>
+    <a href="#sidebar-left"  class="skip-link">Pular para os tipos de ligação</a>
+    <a href="#canvas"        class="skip-link">Pular para a simulação</a>
+    <a href="#sidebar-right" class="skip-link">Pular para a tabela e os controles</a>
+  </nav>
+
+  <!-- ===================== VLIBRAS ===================== -->
+  <!-- Exceção do contrato do hub: cada página carrega o seu próprio
+       VLibras, de forma independente, sem depender de parâmetro de URL.
+       O script real injeta o plugin de forma assíncrona (ver final do body). -->
+  <div vw class="enabled" id="vlibrasWidget">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+
+  <!-- Live regions para leitores de tela -->
+  <div id="a11y-announcer" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+  <div id="a11y-announcer-assertive" aria-live="assertive" aria-atomic="true" class="sr-only"></div>
+
+  <!-- ===================== BARRA SUPERIOR — apenas link de retorno ao hub =====================
+       A barra de acessibilidade própria foi removida: as preferências
+       (tema, contraste, leitura, fonte, espaçamento, animação, daltonismo)
+       chegam pela URL a partir da Central de Simuladores e são lidas e
+       aplicadas por script.js no carregamento da página. -->
+  <header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexprimeiroano.html" id="backToHub" aria-label="Voltar aos simuladores do 1º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16">
+          <path d="M19 12H5M11 18l-6-6 6-6"/>
+        </svg>
+        <span>1º Ano</span>
+      </a>
+      <span class="header-logo" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="16" r="4.5" stroke-width="1.5" fill="currentColor" fill-opacity="0.15"/><circle cx="25.5" cy="16" r="4.5" stroke-width="1.5" fill="currentColor" fill-opacity="0.15"/><line x1="11" y1="16" x2="21" y2="16" stroke-width="1.5"/><path d="M13.5 16 C13.5 14.3 14.6 13.5 16 13.5 C17.4 13.5 18 14.6 18 16 C18 17.4 17.4 18.5 16 18.5 C14.6 18.5 13.5 17.7 13.5 16 Z" stroke-width="1.1" fill="none"/></svg></span>
+      <div>
+        <h1>SILQ</h1>
+        <p class="header-sub">Simulador Interativo de Ligações Químicas</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="mobile-menu-btn" id="mobile-menu-btn-right"
+        aria-label="Abrir tabela periódica, moléculas e análise" aria-expanded="false" aria-controls="sidebar-right"><svg class="icon" aria-hidden="true"><use href="#ic-flask"/></svg></button>
+    </div>
+  </header>
+
+  <!-- ════════ BARRA DE MODOS (MOBILE) ════════
+       Só aparece em telas estreitas — substitui a gaveta esquerda (☰)
+       pelos 3 tipos de ligação como abas roláveis. Preenchida em
+       _buildModeTabsMobile() (js/ui/modo-mobile.js), lendo direto dos
+       3 cards de modo da #sidebar-left. -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Tipos de ligação química" aria-orientation="horizontal"></nav>
+
+<div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+<div class="app-container">
+
+  <!-- ===================== SIDEBAR ESQUERDA — Ligações ===================== -->
+  <aside class="sidebar sidebar--left" id="sidebar-left" role="complementary" aria-label="Tipos de ligação química e controles">
+
+    <!-- Cabeçalho fixo da sidebar esquerda -->
+    <div class="sidebar-header">
+      <p class="hint-text">
+        Escolha o tipo de ligação e ative o modo correspondente para interagir no canvas.
+      </p>
+    </div>
+
+    <!-- ===== ACCORDION CONTAINER (esquerda) ===== -->
+    <div class="accordion accordion--exclusive" id="left-accordion">
+
+      <!-- ── PAINEL 6: LIGAÇÃO METÁLICA ── -->
+      <section class="panel panel--metalica" aria-labelledby="hdr-mode-metalica">
+        <button type="button" class="panel-header" id="hdr-mode-metalica"
+                aria-expanded="false" aria-controls="body-mode-metalica"
+                data-mode-card="met">
+          <span class="panel-icon"><svg class="icon" aria-hidden="true"><use href="#ic-magnet"/></svg></span>
+          <span class="panel-label">Ligação Metálica</span>
+          <span class="panel-badge panel-badge--met" aria-hidden="true">e⁻~</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-metalica" role="region" aria-labelledby="hdr-mode-metalica">
+
+          <button type="button" class="bond-mode-btn" id="btn-mode-met"
+                  data-bond-type="metallic"
+                  aria-pressed="false"
+                  title="Ativar o modo metálico no canvas"
+                  aria-label="Ativar modo metálico — canvas aceita apenas ligações metálicas">
+            <span class="bond-mode-btn-dot bond-mode-dot--met"></span>
+            Ativar Modo Metálico
+          </button>
+
+          <p class="bond-type-desc">
+            "<strong>Mar de elétrons</strong>": cátions metálicos fixos numa rede com e⁻ de
+            condução <strong>deslocalizados</strong>. Não direcional — explica maleabilidade,
+            ductilidade, brilho e condutividade elétrica/térmica.
+          </p>
+
+          <div class="bond-info-grid">
+            <div class="bond-info-item">
+              <div class="bond-info-label">Tipo</div>
+              <div class="bond-info-value">Metal + Metal</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">Energia</div>
+              <div class="bond-info-value">70–850 kJ/mol</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">Direcional?</div>
+              <div class="bond-info-value">Não</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">Conduz?</div>
+              <div class="bond-info-value">Sempre</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">Maleável?</div>
+              <div class="bond-info-value">Sim</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">Exemplos</div>
+              <div class="bond-info-value">Fe, Cu, Al, Au</div>
+            </div>
+          </div>
+
+          <!-- Interações exclusivas da metálica -->
+          <div class="bond-interactions">
+            <div class="bond-interactions-label">Interações do canvas</div>
+            <div class="bond-ionic-hint">
+              No modo metálico o simulador exibe o <strong>mar de elétrons animado</strong> em amarelo
+              ao redor dos cátions. Adicione apenas metais.
+            </div>
+            <div class="bond-ionic-pairs">
+              <div class="bond-ionic-pair-label">Metais recomendados</div>
+              <div class="bond-ionic-pairs-grid">
+                <span class="ion-pair-chip ion-pair-chip--met">Fe</span>
+                <span class="ion-pair-chip ion-pair-chip--met">Cu</span>
+                <span class="ion-pair-chip ion-pair-chip--met">Al</span>
+                <span class="ion-pair-chip ion-pair-chip--met">Na</span>
+                <span class="ion-pair-chip ion-pair-chip--met">Au</span>
+                <span class="ion-pair-chip ion-pair-chip--met">Ag</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TEXTO REMOVIDO (repetido): a nota dizia "Adicione Fe + Fe ou
+               Cu + Cu para ver o mar de eletrons animado em amarelo" — a
+               mesma informacao ja aparece DUAS vezes acima, na .bond-type-desc
+               e na .bond-ionic-hint, e os metais sugeridos estao nos chips. -->
+        </div>
+      </section>
+
+      <!-- ── PAINEL 5: LIGAÇÃO IÔNICA ── -->
+      <section class="panel panel--ionica" aria-labelledby="hdr-mode-ionica">
+        <button type="button" class="panel-header" id="hdr-mode-ionica"
+                aria-expanded="false" aria-controls="body-mode-ionica"
+                data-mode-card="ion">
+          <span class="panel-icon"><svg class="icon" aria-hidden="true"><use href="#ic-bolt"/></svg></span>
+          <span class="panel-label">Ligação Iônica</span>
+          <span class="panel-badge panel-badge--ion" aria-hidden="true">e⁻→</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-ionica" role="region" aria-labelledby="hdr-mode-ionica">
+
+          <button type="button" class="bond-mode-btn" id="btn-mode-ion"
+                  data-bond-type="ionic"
+                  aria-pressed="false"
+                  title="Ativar o modo iônico no canvas"
+                  aria-label="Ativar modo iônico — canvas aceita apenas ligações iônicas">
+            <span class="bond-mode-btn-dot bond-mode-dot--ion"></span>
+            Ativar Modo Iônico
+          </button>
+
+          <p class="bond-type-desc">
+            Transferência <strong>completa</strong> de e⁻ de <strong>metal</strong> para
+            <strong>ametal</strong> (ΔEN &gt; 1,7). Forma cátions (+) e ânions (−) que se
+            atraem eletrostaticamente numa rede cristalina.
+          </p>
+
+          <div class="bond-info-grid">
+            <div class="bond-info-item">
+              <div class="bond-info-label">ΔEN mínimo</div>
+              <div class="bond-info-value">&gt; 1,7</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">Energia</div>
+              <div class="bond-info-value">400–4000 kJ/mol</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">Estrutura</div>
+              <div class="bond-info-value">Rede cristalina</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">Conduz?</div>
+              <div class="bond-info-value">Fundido/solução</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">P. fusão</div>
+              <div class="bond-info-value">Alto</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">Exemplos</div>
+              <div class="bond-info-value">NaCl, MgO, CaF₂</div>
+            </div>
+          </div>
+
+          <!-- Interações exclusivas da iônica -->
+          <div class="bond-interactions">
+            <div class="bond-interactions-label">Interações do canvas</div>
+            <div class="bond-ionic-hint">
+              No modo iônico o simulador transfere automaticamente e⁻ do metal ao ametal
+              e exibe a <strong>carga iônica</strong> (ex: Na⁺ Cl⁻) sobre cada átomo.
+            </div>
+            <div class="bond-ionic-pairs">
+              <div class="bond-ionic-pair-label">Pares recomendados</div>
+              <div class="bond-ionic-pairs-grid">
+                <span class="ion-pair-chip">Na + Cl</span>
+                <span class="ion-pair-chip">K + Cl</span>
+                <span class="ion-pair-chip">Ca + O</span>
+                <span class="ion-pair-chip">Mg + O</span>
+                <span class="ion-pair-chip">Na + F</span>
+                <span class="ion-pair-chip">Li + Cl</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TEXTO REMOVIDO (repetido): "Adicione Na + Cl — o simulador
+               transfere e⁻ e exibe Na⁺ e Cl⁻ automaticamente" era copia da
+               .bond-ionic-hint logo acima, que ja cita o exemplo Na⁺ Cl⁻.
+               A nota de AVISO abaixo fica: o contínuo IUPAC e informacao
+               nova, nao aparece em nenhum outro lugar do painel. -->
+          <div class="bond-type-note bond-type-note--warning">
+            <span class="bond-type-note-icon"><svg class="icon" aria-hidden="true"><use href="#ic-warning"/></svg></span>
+            <span>A fronteira iônica/covalente é um <strong>contínuo</strong> (IUPAC). ΔEN 1,2–1,7 indica caráter iônico parcial.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── PAINEL 4: LIGAÇÃO COVALENTE ── -->
+      <section class="panel panel--covalente" aria-labelledby="hdr-mode-covalente">
+        <button type="button" class="panel-header" id="hdr-mode-covalente"
+                aria-expanded="false" aria-controls="body-mode-covalente"
+                data-mode-card="cov">
+          <span class="panel-icon"><svg class="icon" aria-hidden="true"><use href="#ic-link"/></svg></span>
+          <span class="panel-label">Ligação Covalente</span>
+          <span class="panel-badge panel-badge--cov" aria-hidden="true">σ π</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-covalente" role="region" aria-labelledby="hdr-mode-covalente">
+
+          <!-- Botão de modo: ativa filtro exclusivo covalente no canvas -->
+          <button type="button" class="bond-mode-btn" id="btn-mode-cov"
+                  data-bond-type="covalent"
+                  aria-pressed="false"
+                  title="Ativar o modo covalente no canvas"
+                  aria-label="Ativar modo covalente — canvas aceita apenas ligações covalentes">
+            <span class="bond-mode-btn-dot bond-mode-dot--cov"></span>
+            Ativar Modo Covalente
+          </button>
+
+          <p class="bond-type-desc">
+            Compartilhamento de pares de e⁻ (ΔEN &lt; 1,7). Pode ser <strong>simples</strong> (σ),
+            <strong>dupla</strong> (σ+π) ou <strong>tripla</strong> (σ+2π).
+            <strong>Polar</strong> (ΔEN ≥ 0,4) ou <strong>apolar</strong> (ΔEN &lt; 0,4).
+          </p>
+
+          <div class="bond-info-grid">
+            <div class="bond-info-item">
+              <div class="bond-info-label">ΔEN</div>
+              <div class="bond-info-value">&lt; 1,7</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">Energia</div>
+              <div class="bond-info-value">150–942 kJ/mol</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">Geometria</div>
+              <div class="bond-info-value">VSEPR</div>
+            </div>
+            <div class="bond-info-item">
+              <div class="bond-info-label">Exemplos</div>
+              <div class="bond-info-value">H₂O, CH₄, CO₂</div>
+            </div>
+          </div>
+
+          <!-- CONTROLES REALOCADOS.
+               Este painel de modulo tinha TRES controles que agiam sobre o
+               canvas: "Ordem da ligacao", "Editar Ligacao Individual" e o
+               seletor de "Cunha". Todos foram movidos para o painel
+               CONTROLES (sidebar direita), no grupo "Ligacao Covalente" —
+               assim nao ha controle escondido dentro de modulo, e todo
+               controle do simulador mora num unico lugar.
+               O que fica aqui e so o que descreve o conceito. -->
+          <div class="bond-interactions">
+            <div class="bond-interactions-label">Interações do canvas</div>
+            <div class="bond-ionic-hint">
+              Geometria segue <strong>VSEPR</strong>. Pares solitários comprimem o ângulo:
+              H₂O 104,5°, NH₃ 107,8°, CH₄ 109,5°. Ordem da ligação, edição individual e
+              direção da cunha ficam no painel <strong>Controles</strong>.
+            </div>
+            <div class="bond-ionic-pairs">
+              <div class="bond-ionic-pair-label">Pares recomendados</div>
+              <div class="bond-ionic-pairs-grid">
+                <span class="ion-pair-chip ion-pair-chip--cov">H + O</span>
+                <span class="ion-pair-chip ion-pair-chip--cov">C + H</span>
+                <span class="ion-pair-chip ion-pair-chip--cov">C + O</span>
+                <span class="ion-pair-chip ion-pair-chip--cov">N + H</span>
+                <span class="ion-pair-chip ion-pair-chip--cov">H + Cl</span>
+                <span class="ion-pair-chip ion-pair-chip--cov">O + O</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bond-type-note">
+            <span class="bond-type-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-scale"/></svg></span>
+            <span>Uma ligação pode ser polar e a molécula inteira ainda ser apolar: em CO₂, os dois dipolos C=O têm a mesma intensidade e sentidos opostos — cancelam-se pela simetria linear. É a geometria, não só o ΔEN de cada ligação, que decide a polaridade final.</span>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /.accordion -->
+  </aside>
+
+  <!-- ===================== CANVAS ===================== -->
+  <main class="canvas-area" id="main-content" aria-label="Canvas de simulação molecular">
+    <div id="canvas-wrapper">
+      <div id="canvas"
+           role="application"
+           aria-label="Área de simulação — átomos e ligações químicas"
+           aria-describedby="app-description"
+           tabindex="0">
+        <svg id="bond-svg" aria-hidden="true"></svg>
+        <div id="canvas-hint" aria-live="polite">
+          Clique em elementos da tabela periódica para começar
+        </div>
+        <!-- Indicador de modo de ligação ativo -->
+        <div id="bond-mode-indicator" aria-live="polite" class="bond-mode-indicator hidden">
+          <span id="bond-mode-indicator-icon"></span>
+          <span id="bond-mode-indicator-text"></span>
+          <button id="bond-mode-indicator-clear" aria-label="Desativar modo de ligação"><svg class="icon" aria-hidden="true"><use href="#ic-close"/></svg></button>
+        </div>
+        <div id="bond-edit-overlay" aria-hidden="true"></div>
+      </div>
+    </div>
+    <div id="viewer3d"
+         role="application"
+         aria-label="Visualização 3D da molécula"
+         tabindex="-1"></div>
+  </main>
+  <!-- ===================== SIDEBAR DIREITA — Tabela, Moléculas e Análise ===================== -->
+  <aside class="sidebar sidebar--right" id="sidebar-right" role="complementary" aria-label="Tabela periódica, moléculas prontas e análise">
+
+    <!-- TEXTO REMOVIDO DA TELA (repetido): este cabecalho dizia "Monte
+         moleculas clicando na tabela ou use Moleculas Prontas..." — a
+         mesma orientacao aparece no #canvas-hint sobre o canvas e nas
+         .bond-type-desc dos paineis "Tabela Periodica" e "Moleculas
+         Prontas". Ele continua existindo como texto acessivel porque o
+         canvas o referencia em aria-describedby="app-description". -->
+    <p class="sr-only" id="app-description">
+      Monte moléculas clicando na tabela periódica ou carregue uma molécula pronta
+      com geometria já resolvida.
+    </p>
+
+    <!-- Mensagem de "tudo trancado" — mesmo padrão do SIEM/SIME: ícone
+         de cadeado + lista dos modos + o que libera. Só aparece com
+         nenhum modo ativo. -->
+    <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+      <svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <p>Ative um modo à esquerda — <strong>Metálica</strong>, <strong>Iônica</strong> ou <strong>Covalente</strong> — para liberar a tabela periódica, as moléculas prontas e a análise.</p>
+    </div>
+
+    <!-- ===== ACCORDION CONTAINER (direita) ===== -->
+    <div class="accordion accordion--exclusive" id="right-accordion">
+
+      <!-- ── PAINEL 2: TABELA PERIÓDICA ── -->
+      <section class="panel" aria-labelledby="hdr-periodic" hidden>
+        <button type="button" class="panel-header" id="hdr-periodic"
+                aria-expanded="false" aria-controls="body-periodic"
+                data-mode-card="pt">
+          <span class="panel-icon"><svg class="icon" aria-hidden="true"><use href="#ic-flask"/></svg></span>
+          <span class="panel-label">Tabela Periódica</span>
+          <span class="panel-badge" aria-label="118 elementos">118</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="panel-body collapsed" id="body-periodic" role="region" aria-labelledby="hdr-periodic">
+
+          <p class="bond-type-desc">Tabela periódica clicável: cada elemento entra no canvas com raio, eletronegatividade e camada de valência <strong>reais</strong>. O filtro por categoria destaca famílias.</p>
+          <!-- Busca -->
+          <div class="pt-search-bar" role="search" aria-label="Buscar elemento">
+            <label for="element-search" class="sr-only">Buscar por símbolo, nome ou número atômico</label>
+            <input type="search" id="element-search" class="pt-search-input"
+                   placeholder="Símbolo, nome ou número..."
+                   aria-label="Buscar elemento" autocomplete="off">
+            <div class="pt-legend-row" id="pt-legend" role="group" aria-label="Filtrar por categoria"></div>
+          </div>
+          <!-- Grid da tabela -->
+          <div class="pt-wrapper">
+            <div class="pt-grid" id="periodic-table" role="grid"
+                 aria-label="Tabela periódica — Enter ou Espaço para adicionar ao canvas"></div>
+            <div class="pt-fblock-label" aria-hidden="true">
+              <span>57–71 Lantanídeos</span><span>89–103 Actinídeos</span>
+            </div>
+            <div class="pt-fblock" id="fblock-table" role="grid"
+                 aria-label="Bloco f — Lantanídeos e Actinídeos"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── PAINEL 1: MOLÉCULAS PRONTAS ── -->
+      <section class="panel" aria-labelledby="hdr-molecules" hidden>
+        <button type="button" class="panel-header" id="hdr-molecules"
+                aria-expanded="false" aria-controls="body-molecules"
+                data-mode-card="mol">
+          <span class="panel-icon"><svg class="icon" aria-hidden="true"><use href="#ic-microscope"/></svg></span>
+          <span class="panel-label">Moléculas Prontas</span>
+          <span class="panel-badge" id="badge-mol" aria-label="total de moléculas disponíveis">0</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="panel-body collapsed" id="body-molecules" role="region" aria-labelledby="hdr-molecules">
+
+          <p class="bond-type-desc">Moléculas prontas com geometria já resolvida por VSEPR. Servem de ponto de partida e de gabarito para comparar com o que você montou.</p>
+          <!-- Busca de molécula -->
+          <div class="mol-preset-search-wrap">
+            <input type="search" id="mol-preset-search"
+                   class="pt-search-input"
+                   placeholder="Buscar molécula..."
+                   aria-label="Buscar molécula pré-montada"
+                   autocomplete="off">
+          </div>
+          <!-- Abas de categoria -->
+          <div class="mol-cat-tabs" role="tablist" aria-label="Categorias de moléculas">
+            <button class="mol-cat-btn active-cat" data-cat="all"       role="tab" aria-selected="true">Todas</button>
+            <button class="mol-cat-btn"            data-cat="inorganic" role="tab" aria-selected="false">Inorg.</button>
+            <button class="mol-cat-btn"            data-cat="organic"   role="tab" aria-selected="false">Org.</button>
+            <button class="mol-cat-btn"            data-cat="acid"      role="tab" aria-selected="false">Ácidos</button>
+            <button class="mol-cat-btn"            data-cat="base"      role="tab" aria-selected="false">Bases</button>
+            <button class="mol-cat-btn"            data-cat="halide"    role="tab" aria-selected="false">Haletos</button>
+            <button class="mol-cat-btn"            data-cat="noble"     role="tab" aria-selected="false">Nobres</button>
+          </div>
+          <!-- Grid -->
+          <div class="mol-preset-grid" id="mol-preset-grid" role="list"
+               aria-label="Moléculas — clique para montar no canvas"></div>
+        </div>
+      </section>
+
+      <!-- ── PAINEL 5: ANÁLISE ── -->
+      <section class="panel" aria-labelledby="hdr-info" hidden>
+        <button type="button" class="panel-header" id="hdr-info"
+                aria-expanded="false" aria-controls="body-info"
+                data-mode-card="info">
+          <span class="panel-icon"><svg class="icon" aria-hidden="true"><use href="#ic-barchart"/></svg></span>
+          <span class="panel-label">Análise</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="panel-body collapsed" id="body-info" role="region" aria-labelledby="hdr-info">
+
+          <p class="bond-type-desc">Leitura da molécula no canvas: ΔEN de cada ligação, caráter iônico ou covalente, polaridade resultante e curva de energia potencial.</p>
+
+          <!-- Painel Molecular -->
+          <section class="mol-panel" id="mol-panel" aria-label="Molécula ativa" aria-live="polite">
+            <div class="mol-panel-header" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-atom"/></svg> Molécula Ativa</div>
+            <div class="mol-formula" id="mol-formula" aria-label="Fórmula molecular">—</div>
+            <div class="mol-stats" id="mol-stats" aria-label="Estatísticas"></div>
+          </section>
+
+          <!-- Gráfico de energia -->
+          <section class="energy-panel" aria-label="Gráfico de energia potencial">
+            <strong id="energy-chart-title"><svg class="icon" aria-hidden="true"><use href="#ic-chart"/></svg> Energia × Distância</strong>
+            <svg id="energy-chart" preserveAspectRatio="xMidYMid meet"
+                 role="img" aria-labelledby="energy-chart-title energy-caption"></svg>
+            <p class="energy-caption" id="energy-caption" role="status" aria-live="polite">
+              Adicione dois átomos para gerar a curva.
+            </p>
+          </section>
+
+          <!-- Painel de informação -->
+          <section class="info-panel" aria-label="Análise da ligação química">
+            <strong><svg class="icon" aria-hidden="true"><use href="#ic-flask"/></svg> Análise da Ligação</strong>
+            <div id="info-text" aria-live="polite" aria-atomic="true">
+              Clique em elementos para detectar interações.
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ── CONTROLES — movido da sidebar ESQUERDA para a DIREITA.
+           Padrao do projeto: a esquerda contem SOMENTE os paineis de
+           modulo (os 3 tipos de ligacao). Controles atua sobre o canvas,
+           entao pertence a coluna da direita, junto de Tabela Periodica,
+           Moleculas Prontas e Analise. -->
+      <section class="panel" aria-labelledby="hdr-controls" hidden>
+        <button type="button" class="panel-header" id="hdr-controls"
+                aria-expanded="false" aria-controls="body-controls"
+                data-mode-card="ctrl">
+          <span class="panel-icon"><svg class="icon" aria-hidden="true"><use href="#ic-gear"/></svg></span>
+          <span class="panel-label">Controles</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="panel-body collapsed" id="body-controls" role="region" aria-labelledby="hdr-controls">
+
+          <p class="bond-type-desc">Todo controle do simulador está aqui: montagem da ligação, canvas, física e visualização. Nenhum controle fica escondido dentro dos painéis de módulo.</p>
+
+          <!-- ══ Grupo NOVO: LIGACAO COVALENTE ══
+               Vindo do painel de modulo "Ligacao Covalente" (sidebar
+               esquerda). Ids e classes intactos: .bond-order-btn,
+               #btn-bond-edit, #bond-edit-hint, #bond-order-warning e
+               .wedge-btn continuam sendo achados pelo JS por classe/id,
+               nunca pela posicao no DOM. -->
+          <div class="ctrl-group">
+            <div class="ctrl-group-label">Ligação Covalente</div>
+
+            <fieldset class="bond-order-selector">
+              <legend class="bond-order-label">Ordem da ligação</legend>
+              <div class="bond-order-btns" role="group" aria-label="Selecionar ordem">
+                <button class="bond-order-btn active-order" data-order="auto"
+                        aria-pressed="true"
+                        aria-label="Automático — segue octeto e VSEPR"
+                        title="O simulador determina a ordem ideal pelo octeto">Auto</button>
+                <button class="bond-order-btn" data-order="1"
+                        aria-pressed="false"
+                        aria-label="Ligação simples σ"
+                        title="1 par compartilhado (σ)">─ Simples</button>
+                <button class="bond-order-btn" data-order="2"
+                        aria-pressed="false"
+                        aria-label="Ligação dupla σ+π"
+                        title="σ + π — menor e mais forte">═ Dupla</button>
+                <button class="bond-order-btn" data-order="3"
+                        aria-pressed="false"
+                        aria-label="Ligação tripla σ+2π"
+                        title="σ + 2π — a mais forte e curta">≡ Tripla</button>
+              </div>
+            </fieldset>
+
+            <div class="controls-row">
+              <button id="btn-bond-edit"
+                      class="btn btn-outline-info btn-sm"
+                      aria-pressed="false"
+                      aria-label="Ativar modo de edição de ligação individual"
+                      title="Clique numa ligação no canvas para selecionar e alterar sua ordem">
+                <svg class="icon" aria-hidden="true"><use href="#ic-pencil"/></svg> Editar Ligação
+              </button>
+            </div>
+            <div class="bond-edit-hint" id="bond-edit-hint" style="display:none"
+                 role="status" aria-live="polite">
+              <svg class="icon" aria-hidden="true"><use href="#ic-point"/></svg> Clique sobre uma ligação no canvas, depois escolha a ordem acima.
+            </div>
+            <div class="bond-order-warning" id="bond-order-warning"
+                 role="alert" aria-live="assertive"></div>
+
+            <div class="ctrl-group-label" style="margin-top:8px">Cunha — próxima ligação</div>
+            <div class="wedge-selector" role="group"
+                 aria-label="Direção da cunha estereoquímica na próxima ligação">
+              <button class="wedge-btn active-wedge" data-wedge="auto"
+                      aria-pressed="true"
+                      title="O simulador decide pela geometria 3D automaticamente">
+                <svg class="icon" aria-hidden="true"><use href="#ic-refresh"/></svg> Auto
+              </button>
+              <button class="wedge-btn" data-wedge="front"
+                      aria-pressed="false"
+                      title="Cunha sólida — ligante vem para frente do plano (▶)">
+                ▶ Frente
+              </button>
+              <button class="wedge-btn" data-wedge="back"
+                      aria-pressed="false"
+                      title="Cunha tracejada — ligante vai para trás do plano (╌╌)">
+                ╌╌ Atrás
+              </button>
+              <button class="wedge-btn" data-wedge="plane"
+                      aria-pressed="false"
+                      title="Linha plana — no plano do papel (───)">
+                ─── Plano
+              </button>
+            </div>
+          </div>
+
+          <!-- Canvas -->
+          <div class="ctrl-group">
+            <div class="ctrl-group-label">Canvas</div>
+            <div class="controls-row">
+              <button id="btn-reset" class="btn btn-outline-danger btn-sm"
+                      aria-label="Limpar canvas — remove todos os átomos e ligações">
+                <svg class="icon" aria-hidden="true"><use href="#ic-refresh"/></svg> Limpar
+              </button>
+              <button id="btn-delete-mode" class="btn btn-outline-danger btn-sm"
+                      aria-label="Ativar modo de remoção de átomo" aria-pressed="false">
+                <svg class="icon" aria-hidden="true"><use href="#ic-trash"/></svg> Remover
+              </button>
+              <button id="btn-toggle-3d" class="btn btn-outline-info btn-sm"
+                      aria-label="Visualização 3D" aria-pressed="false">
+                <svg class="icon" aria-hidden="true"><use href="#ic-cube"/></svg> 3D
+              </button>
+            </div>
+          </div>
+
+          <!-- Física -->
+          <div class="ctrl-group">
+            <div class="ctrl-group-label">Simulação Física</div>
+            <div class="controls-row">
+              <button id="btn-physics" class="btn btn-warning btn-sm"
+                      aria-label="Pausar simulação física" aria-pressed="false">
+                <svg class="icon" aria-hidden="true"><use href="#ic-pause"/></svg> Pausar
+              </button>
+              <button id="btn-snap" class="btn btn-outline-success btn-sm"
+                      aria-label="Forçar alinhamento da molécula aos ângulos exatos da literatura química"
+                      title="Reposiciona os átomos nos ângulos exatos da literatura (NIST/IUPAC) e trava a geometria">
+                <svg class="icon" aria-hidden="true"><use href="#ic-target"/></svg> Snap Literatura
+              </button>
+              <button id="btn-freeze-geo" class="btn btn-outline-secondary btn-sm"
+                      aria-label="Travar geometria molecular" aria-pressed="false"
+                      title="Trava posições dos átomos; física ativa só para animações">
+                <svg class="icon" aria-hidden="true"><use href="#ic-unlock"/></svg> Travar
+              </button>
+            </div>
+          </div>
+
+          <!-- Visualização -->
+          <div class="ctrl-group">
+            <div class="ctrl-group-label">Visualização</div>
+            <div class="controls-row">
+              <button id="btn-wedge-toggle" class="btn btn-outline-secondary btn-sm"
+                      aria-label="Ativar notação de cunha estereoquímica" aria-pressed="false"
+                      title="Wedge bonds: sólida = frente, tracejada = trás, linha = plano">
+                ◀▶ Cunha
+              </button>
+              <button id="btn-show-angles" class="btn btn-outline-secondary btn-sm"
+                      aria-label="Mostrar ângulos de ligação no canvas" aria-pressed="false">
+                <svg class="icon" aria-hidden="true"><use href="#ic-hash"/></svg> Ângulos
+              </button>
+            </div>
+            <!-- Legenda de cores dos ângulos — só aparece quando ativado -->
+            <div class="angle-legend" id="angle-legend" style="display:none" aria-hidden="true">
+              <span class="angle-legend-item"><span class="angle-dot" style="background:#34d399"></span>≤2° da literatura</span>
+              <span class="angle-legend-item"><span class="angle-dot" style="background:#fbbf24"></span>2–8°</span>
+              <span class="angle-legend-item"><span class="angle-dot" style="background:#fb923c"></span>8–20°</span>
+              <span class="angle-legend-item"><span class="angle-dot" style="background:#ef4444"></span>&gt;20° divergente</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /.accordion -->
+
+    <!-- Tooltip flutuante -->
+    <div class="el-tooltip" id="el-tooltip" aria-hidden="true" role="tooltip"></div>
+
+  </aside>
+</div><!-- /.app-container -->
+
+<!-- ════════ MODAL — INFORMAÇÕES DO TIPO DE LIGAÇÃO (1ª ATIVAÇÃO, MOBILE) ════════ -->
+<div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+     aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+  <div class="mode-info-modal" id="modeInfoModal">
+    <div class="mode-info-header">
+      <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+      <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+      <button type="button" class="mode-info-close" id="modeInfoClose"
+              aria-label="Fechar informações do tipo de ligação"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+    </div>
+    <div class="mode-info-body" id="modeInfoBody"></div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<!-- D3 auto-hospedado (antes vinha de d3js.org) — ver vendor/js/.
+     Funciona offline depois da primeira visita. -->
+<script src="../../vendor/js/d3-7.min.js"></script>
+<!-- GSAP auto-hospedado (antes vinha de cdnjs.cloudflare.com) — ver
+     vendor/js/. Funciona offline depois da primeira visita. -->
+<script src="../../vendor/js/gsap-3.12.5.min.js"></script>
+<!-- Renderizador 3D próprio — sem dependências externas -->
+<!-- ═══ CAMADA DE DADOS ═══ -->
+<script src="js/data/tabela-elementos.js"></script>
+<script src="js/data/layout-tabela-periodica.js"></script>
+<script src="js/data/dados-ligacoes.js"></script>
+<script src="js/data/pares-isolados.js"></script>
+<script src="js/data/eletronegatividade.js"></script>
+<script src="js/data/periodos.js"></script>
+<script src="js/data/geometrias-moleculares.js"></script>
+<script src="js/data/moleculas-prontas.js"></script>
+
+<!--
+  ⚠ ORDEM CRÍTICA: o renderizador 3D (não alterado) precisa carregar
+  ANTES do restante, exatamente como no arquivo original
+  (dadossilq.js → view3dsilq.js → scriptsilq.js). Isso preserva a
+  mesma ordem de disparo do DOMContentLoaded que o app original tinha.
+-->
+<!-- Renderizador 3D próprio — sem dependências externas -->
+<script src="js/view3d/view3d.js"></script>
+
+<!-- ═══ NAMESPACE COMPARTILHADO (ver README) ═══ -->
+<script src="js/core/namespace.js"></script>
+
+<!-- ═══ ACESSIBILIDADE (preferências de tema/URL) ═══ -->
+<script src="js/a11y/preferencias.js"></script>
+
+<!-- ═══ TOUR GUIADO (COACHMARK) — boas-vindas + por módulo ═══ -->
+<script src="../../coachmark.js"></script>
+<script src="js/a11y/tour.js"></script>
+
+<!-- ═══ NÚCLEO: ESTADO, REFERÊNCIAS DE DOM E FÍSICO-QUÍMICA ═══ -->
+<script src="js/core/estado.js"></script>
+<script src="js/core/dom-refs.js"></script>
+<script src="js/a11y/anuncios.js"></script>
+<script src="js/core/fisica-quimica-utils.js"></script>
+<script src="js/core/validacao-ligacoes.js"></script>
+<script src="js/core/vsepr.js"></script>
+
+<!-- ═══ SIMULAÇÃO FÍSICA ═══ -->
+<script src="js/simulation/fisica-tick.js"></script>
+
+<!-- ═══ INTERFACE: TABELA PERIÓDICA E ÁTOMOS ═══ -->
+<script src="js/ui/tabela-periodica.js"></script>
+<script src="js/ui/dropzone-delete.js"></script>
+<script src="js/atoms/atomos.js"></script>
+
+<!-- ═══ LIGAÇÕES ═══ -->
+<script src="js/bonds/ordem-edicao.js"></script>
+<script src="js/bonds/logica-ligacoes.js"></script>
+
+<!-- ═══ RENDERIZAÇÃO 2D ═══ -->
+<script src="js/render/wedge-linhas.js"></script>
+<script src="js/render/dipolo-glow-eletrons.js"></script>
+
+<!-- ═══ PAINÉIS DE INFORMAÇÃO ═══ -->
+<script src="js/ui/painel-molecular-info.js"></script>
+<script src="js/ui/grafico-energia.js"></script>
+
+<!-- ═══ INICIALIZAÇÃO (mantém a ordem relativa original entre os
+     blocos DOMContentLoaded de controles físicos, 3D, moléculas e
+     o disparo final da UI) ═══ -->
+<script src="js/init/controles-fisica.js"></script>
+<script src="js/init/visualizacao-3d-reset.js"></script>
+<script src="js/molecules/estereoquimica.js"></script>
+<script src="js/molecules/presets.js"></script>
+<script src="js/init/inicializacao-final.js"></script>
+<script src="js/ui/modo-mobile.js"></script>
+
+<!-- ═══ INTERFACE — menu mobile e sidebars redimensionáveis ═══ -->
+<script src="js/ui/menu-mobile.js"></script>
+<script src="js/ui/sidebar-resizer.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'silq', bp: 900 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+  <!-- ══════════════ VLIBRAS — o plugin, injetado de forma assíncrona (o widget está no início do body) ══════════════ -->
+  <script>
+    (function() {
+      var script = document.createElement('script');
+      script.src = 'https://vlibras.gov.br/app/vlibras-plugin.js';
+      script.onload = function() {
+        try { new window.VLibras.Widget('https://vlibras.gov.br/app'); } catch (e) { /* VLibras indisponível sem conexão */ }
+      };
+      document.body.appendChild(script);
+    })();
+  </script>
+</body>
+</html>

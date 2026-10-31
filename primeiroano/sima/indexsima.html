@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+  <meta name="description" content="SIMA — Simulador Interativo dos Modelos Atômicos com física rigorosa, tabela periódica completa e recursos de acessibilidade WCAG 2.1 AA."/>
+  <title>SIMA — Simulador Interativo dos Modelos Atômicos</title>
+  <link rel="stylesheet" href="css/stylesima.css"/>
+</head>
+<body>
+
+  <!-- Filtros SVG de simulação de daltonismo — cópia fiel dos filtros
+       do hub (index.html). Cada filter usa uma matriz feColorMatrix
+       calibrada para o tipo de CVD correspondente (Wong 2011 / Machado
+       et al. 2009). Ficam em posição:absolute com dimensões zero para
+       não ocuparem espaço nem interferirem no layout. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="f-protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-acromatopsia">
+        <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Camada de simulação de daltonismo: overlay fixo, sem conteúdo,
+       sem capturar clique (pointer-events:none). O filtro é aplicado
+       via backdrop-filter — não no body/html, para não quebrar o
+       posicionamento de elementos fixed/absolute do simulador.
+       Mesmo contrato usado no hub (index.html). -->
+  <div id="colorblindOverlay" aria-hidden="true"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       BIBLIOTECA DE ÍCONES SVG — substitui todos os emojis do SIMA
+       ───────────────────────────────────────────────────────────────
+       Um único bloco de <symbol> definido uma vez aqui; cada ícone é
+       usado no resto da página como <svg class="icon"><use
+       href="#ic-NOME"/></svg>. Vantagens sobre emoji: aparência
+       idêntica em qualquer sistema operacional/navegador (emoji varia
+       de fonte para fonte), cor controlável via CSS (stroke/fill:
+       currentColor herda a cor do texto ao redor) e tamanho controlável
+       via CSS (width/height:1em acompanha a fonte). O bloco fica
+       display:none via width/height=0 — não ocupa espaço na tela.
+       ═══════════════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <!-- interface geral -->
+      <symbol id="ic-menu" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="ic-sliders" viewBox="0 0 24 24"><path d="M4 21V14M4 10V3M12 21V12M12 8V3M20 21V16M20 12V3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="14" r="2" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+      <symbol id="ic-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7V5z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 2.34 5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 17v-5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-arrow-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-warning" viewBox="0 0 24 24"><path d="M12 3l10 18H2L12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1.15" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-flask" viewBox="0 0 24 24"><path d="M9 2h6M10 2v6.2L4.8 18a2 2 0 0 0 1.75 3h10.9a2 2 0 0 0 1.75-3L14 8.2V2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 15h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="ic-protractor" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 12h16" stroke="currentColor" stroke-width="1.8"/><path d="M12 12L18 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12 12l1-6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".6"/></symbol>
+      <symbol id="ic-databox" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7.5 9h9M7.5 12.5h9M7.5 16h5.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+      <symbol id="ic-radioactive" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.1" fill="currentColor" stroke="none"/><g fill="currentColor" stroke="none"><path d="M12 12 4.8 7.8A8 8 0 0 0 4 12z"/><path d="M12 12l7.2-4.2A8 8 0 0 1 20 12z"/><path d="M12 12v8.3a8 8 0 0 1-4-1.07z"/></g><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".35"/></symbol>
+      <!-- modelos atômicos: um ícone conceitual por modelo, mesma linguagem visual do logo do cabeçalho -->
+      <symbol id="ic-dalton" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="currentColor" stroke="none"/><path d="M8.3 8.7a5 5 0 0 1 3-1.4" stroke="#fff" stroke-opacity=".55" stroke-width="1.6" stroke-linecap="round" fill="none"/></symbol>
+      <symbol id="ic-thomson" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4" fill="currentColor" opacity=".22" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="7.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.2" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.8" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-rutherford" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><ellipse cx="12" cy="12" rx="9" ry="3.2" fill="none" stroke="currentColor" stroke-width="1.3"/><ellipse cx="12" cy="12" rx="9" ry="3.2" fill="none" stroke="currentColor" stroke-width="1.3" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9" ry="3.2" fill="none" stroke="currentColor" stroke-width="1.3" transform="rotate(120 12 12)"/></symbol>
+      <symbol id="ic-bohr" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="3" r="1.3" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-quantum" viewBox="0 0 24 24"><path d="M12 3.5c2.2 2.6 2.2 6.4 0 9-2.2 2.6-2.2 6.4 0 9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5c-2.2 2.6-2.2 6.4 0 9 2.2 2.6 2.2 6.4 0 9" fill="none" stroke="currentColor" stroke-width="1.6"/><ellipse cx="12" cy="8" rx="3.6" ry="2.1" fill="currentColor" opacity=".28" stroke="none"/><ellipse cx="12" cy="16" rx="3.6" ry="2.1" fill="currentColor" opacity=".28" stroke="none"/></symbol>
+    </defs>
+  </svg>
+
+  <nav class="skip-nav" aria-label="Atalhos de navegação">
+    <a href="#main-content"  class="skip-link">Pular para o conteúdo principal</a>
+    <a href="#sidebar-left"  class="skip-link">Pular para os modelos atômicos</a>
+    <a href="#sim-canvas"    class="skip-link">Pular para a simulação</a>
+    <a href="#sidebar-right" class="skip-link">Pular para os controles</a>
+  </nav>
+
+  <div id="sr-live"          class="sr-only" aria-live="polite"   aria-atomic="true"></div>
+  <div id="sr-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+  <header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexprimeiroano.html" aria-label="Voltar aos simuladores do 1º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>1º Ano</span>
+      </a>
+      <button class="header-logo" id="btn-app-logo" aria-label="Logo do SIMA">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="2.8" fill="currentColor" opacity="0.95" stroke="none"/><ellipse cx="16" cy="16" rx="12" ry="4.2" stroke-width="1.3" opacity="0.8"/><ellipse cx="16" cy="16" rx="12" ry="4.2" stroke-width="1.3" opacity="0.8" transform="rotate(60 16 16)"/><ellipse cx="16" cy="16" rx="12" ry="4.2" stroke-width="1.3" opacity="0.8" transform="rotate(120 16 16)"/><circle cx="28" cy="16" r="1.6" fill="currentColor" stroke="none"/><circle cx="10" cy="9.3" r="1.6" fill="currentColor" stroke="none" transform="rotate(60 16 16)"/><circle cx="10" cy="9.3" r="1.6" fill="currentColor" stroke="none" transform="rotate(120 16 16)"/></svg>
+      </button>
+      <div>
+        <h1>SIMA</h1>
+        <p class="header-sub">Simulador Interativo dos Modelos Atômicos</p>
+      </div>
+    </div>
+
+
+    <!-- Gavetas em telas estreitas. Mesmo markup dos outros 19 simuladores:
+         dois botoes no header, cada um controlando uma sidebar por
+         aria-controls, e um backdrop compartilhado. Ficam display:none
+         acima de 900px. -->
+    <div class="header-actions">
+      <button type="button" class="mobile-menu-btn" id="mobile-menu-btn"
+        aria-label="Abrir controles da simulação" aria-expanded="false" aria-controls="sidebar-right"><svg class="icon" aria-hidden="true"><use href="#ic-sliders"/></svg></button>
+    </div>
+  </header>
+
+  <!-- ════════ BARRA DE MODELOS (MOBILE) ════════
+       Só aparece em telas estreitas (@media 900px) — substitui a gaveta
+       esquerda (☰) por uma barra rolável sempre visível. Preenchida em
+       _buildModeTabsMobile() (app/modo-mobile.js), lendo direto dos 5
+       cards de modelo da #sidebar-left. O botão "mobile-info-btn" que
+       abria essa gaveta foi removido de propósito: esta barra assume
+       essa função no mobile. -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Modelos atômicos" aria-orientation="horizontal"></nav>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+  <div class="keyboard-hints" role="note" aria-label="Atalhos de teclado disponíveis">
+    <kbd>Alt+1–5</kbd> Modelos &nbsp;
+    <kbd>↑↓←→</kbd> Tabela periódica
+  </div>
+
+  <main class="app-main" id="main-content" role="main">
+
+    <!-- ══════════════ SIDEBAR ESQUERDA — SOMENTE MODULOS ══════════════
+         Padrao do projeto (igual aos 12 modulos do 2o/3o ano): a coluna da
+         esquerda contem exclusivamente os paineis de MODULO. Aqui, os cinco
+         modelos atomicos. Tudo o mais foi para a coluna da direita. -->
+    <aside class="sidebar sidebar--left" id="sidebar-left"
+           aria-label="Modelos atomicos do simulador">
+<section class="panel panel--mode" data-mode-card="dalton" aria-labelledby="hdr-mode-dalton">
+        <button type="button" class="panel-header" id="hdr-mode-dalton"
+                aria-expanded="false" aria-controls="body-mode-dalton">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-dalton"/></svg></span>
+          <span class="panel-label">Dalton</span>
+          <span class="panel-badge">1803</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-dalton" role="region" aria-labelledby="hdr-mode-dalton">
+
+          <button type="button" class="action-btn mode-activate-btn"
+                  data-model="dalton" title="Ativar o modelo de Dalton no canvas" aria-pressed="false" aria-describedby="def-dalton">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-play"/></svg></span> Ativar modelo <span class="model-name">Dalton</span>
+          </button>
+
+          <p class="mode-define" id="def-dalton">
+            <strong>Bola de bilhar</strong>: átomos como esferas rígidas e indivisíveis, com
+            tamanho e cor próprios de cada elemento. Colisão puramente elástica.
+          </p>
+
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Partícula</span><span class="fact-value">Esfera indivisível</span></div>
+            <div class="fact-cell"><span class="fact-label">Núcleo</span><span class="fact-value">Não previsto</span></div>
+            <div class="fact-cell"><span class="fact-label">Elétrons</span><span class="fact-value">Não previstos</span></div>
+            <div class="fact-cell"><span class="fact-label">Colisão</span><span class="fact-value">Elástica</span></div>
+          </div>
+
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Interações do canvas</p>
+            <p>Os átomos colidem e ricocheteiam sem se deformar. Não há núcleo nem eletrosfera —
+               apenas esferas com o raio atômico real de cada elemento.</p>
+          </div>
+
+          <div class="recommended">
+            <p class="recommended-title">Elementos conhecidos em 1803</p>
+            <div class="chip-row">
+              <button type="button" class="chip" data-z="1">H</button><button type="button" class="chip" data-z="6">C</button><button type="button" class="chip" data-z="7">N</button>
+              <button type="button" class="chip" data-z="8">O</button><button type="button" class="chip" data-z="16">S</button><button type="button" class="chip" data-z="26">Fe</button>
+            </div>
+          </div>
+
+          <p class="mode-note">
+            <span class="mode-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-dalton"/></svg></span>
+            <span>Base das leis ponderais: átomos combinam-se em proporções fixas e não se transformam.</span>
+          </p>
+        </div>
+      </section>
+<section class="panel panel--mode" data-mode-card="thomson" aria-labelledby="hdr-mode-thomson">
+        <button type="button" class="panel-header" id="hdr-mode-thomson"
+                aria-expanded="false" aria-controls="body-mode-thomson">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-thomson"/></svg></span>
+          <span class="panel-label">Thomson</span>
+          <span class="panel-badge">1904</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-thomson" role="region" aria-labelledby="hdr-mode-thomson">
+
+          <button type="button" class="action-btn mode-activate-btn"
+                  data-model="thomson" title="Ativar o modelo de Thomson no canvas" aria-pressed="false" aria-describedby="def-thomson">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-play"/></svg></span> Ativar modelo <span class="model-name">Thomson</span>
+          </button>
+
+          <p class="mode-define" id="def-thomson">
+            <strong>Pudim de passas</strong>: elétrons em anéis concêntricos estáveis dentro de uma
+            esfera de carga positiva contínua, conforme a tabela original de Thomson.
+          </p>
+
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Elétron</span><span class="fact-value">Descoberto em 1897</span></div>
+            <div class="fact-cell"><span class="fact-label">Carga +</span><span class="fact-value">Esfera contínua</span></div>
+            <div class="fact-cell"><span class="fact-label">Arranjo</span><span class="fact-value">Anéis concêntricos</span></div>
+            <div class="fact-cell"><span class="fact-label">Átomo</span><span class="fact-value">Divisível</span></div>
+          </div>
+
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Interações do canvas</p>
+            <p>Os elétrons se distribuem em anéis concêntricos dentro da esfera positiva, com mais
+               elétrons no anel externo — o arranjo que Thomson calculou como estável.</p>
+          </div>
+
+          <div class="recommended">
+            <p class="recommended-title">Bons exemplos</p>
+            <div class="chip-row">
+              <button type="button" class="chip" data-z="1">H</button><button type="button" class="chip" data-z="2">He</button><button type="button" class="chip" data-z="6">C</button>
+              <button type="button" class="chip" data-z="8">O</button><button type="button" class="chip" data-z="10">Ne</button><button type="button" class="chip" data-z="11">Na</button>
+            </div>
+          </div>
+
+          <p class="mode-note">
+            <span class="mode-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-thomson"/></svg></span>
+            <span>Primeiro modelo com partícula subatômica — explica a neutralidade elétrica do átomo.</span>
+          </p>
+        </div>
+      </section>
+<section class="panel panel--mode" data-mode-card="rutherford" aria-labelledby="hdr-mode-rutherford">
+        <button type="button" class="panel-header" id="hdr-mode-rutherford"
+                aria-expanded="false" aria-controls="body-mode-rutherford">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-rutherford"/></svg></span>
+          <span class="panel-label">Rutherford</span>
+          <span class="panel-badge">1911</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-rutherford" role="region" aria-labelledby="hdr-mode-rutherford">
+
+          <button type="button" class="action-btn mode-activate-btn"
+                  data-model="rutherford" title="Ativar o modelo de Rutherford no canvas" aria-pressed="false" aria-describedby="def-rutherford">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-play"/></svg></span> Ativar modelo <span class="model-name">Rutherford</span>
+          </button>
+
+          <p class="mode-define" id="def-rutherford">
+            <strong>Núcleo central</strong>: núcleo denso com prótons e nêutrons, cercado pela
+            eletrosfera — um espaço quase vazio onde os elétrons se movem.
+          </p>
+
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Núcleo</span><span class="fact-value">Denso e positivo</span></div>
+            <div class="fact-cell"><span class="fact-label">Eletrosfera</span><span class="fact-value">Quase vazia</span></div>
+            <div class="fact-cell"><span class="fact-label">Experimento</span><span class="fact-value">Folha de ouro</span></div>
+            <div class="fact-cell"><span class="fact-label">Próton</span><span class="fact-value">Confirmado em 1919</span></div>
+          </div>
+
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Interações do canvas</p>
+            <p>Núcleo compacto no centro e elétrons percorrendo a eletrosfera. O painel
+               <em>Experimento de Espalhamento</em>, mais abaixo, reproduz a medida original
+               de Geiger e Marsden com a folha de ouro.</p>
+          </div>
+
+          <div class="recommended">
+            <p class="recommended-title">Bons exemplos</p>
+            <div class="chip-row">
+              <button type="button" class="chip" data-z="79">Au</button><button type="button" class="chip" data-z="1">H</button><button type="button" class="chip" data-z="2">He</button>
+              <button type="button" class="chip" data-z="7">N</button><button type="button" class="chip" data-z="88">Ra</button><button type="button" class="chip" data-z="92">U</button>
+            </div>
+          </div>
+
+          <p class="mode-note">
+            <span class="mode-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-rutherford"/></svg></span>
+            <span>Se o átomo fosse do tamanho de um estádio, o núcleo seria uma bola de gude no centro.</span>
+          </p>
+        </div>
+      </section>
+<section class="panel panel--mode" data-mode-card="bohr" aria-labelledby="hdr-mode-bohr">
+        <button type="button" class="panel-header" id="hdr-mode-bohr"
+                aria-expanded="false" aria-controls="body-mode-bohr">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-bohr"/></svg></span>
+          <span class="panel-label">Bohr</span>
+          <span class="panel-badge">1913</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-bohr" role="region" aria-labelledby="hdr-mode-bohr">
+
+          <button type="button" class="action-btn mode-activate-btn"
+                  data-model="bohr" title="Ativar o modelo de Bohr no canvas" aria-pressed="false" aria-describedby="def-bohr">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-play"/></svg></span> Ativar modelo <span class="model-name">Bohr</span>
+          </button>
+
+          <p class="mode-define" id="def-bohr">
+            <strong>Modelo planetário</strong>: energias quantizadas. Suba e retorne elétrons entre
+            camadas e veja a emissão nas cores reais de cada salto.
+          </p>
+
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Energia</span><span class="fact-value">Quantizada</span></div>
+            <div class="fact-cell"><span class="fact-label">Camadas</span><span class="fact-value">K a Q (7)</span></div>
+            <div class="fact-cell"><span class="fact-label">Emissão</span><span class="fact-value">Rydberg-Ritz</span></div>
+            <div class="fact-cell"><span class="fact-label">Salto</span><span class="fact-value">Absorve ou emite</span></div>
+          </div>
+
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Interações do canvas</p>
+            <p>Clique numa órbita para excitar um elétron: ao voltar para a camada de origem, ele
+               emite luz na cor exata calculada pela fórmula de Rydberg-Ritz.</p>
+          </div>
+
+          <div class="recommended">
+            <p class="recommended-title">Bons exemplos</p>
+            <div class="chip-row">
+              <button type="button" class="chip" data-z="1">H</button><button type="button" class="chip" data-z="2">He</button><button type="button" class="chip" data-z="3">Li</button>
+              <button type="button" class="chip" data-z="11">Na</button><button type="button" class="chip" data-z="10">Ne</button><button type="button" class="chip" data-z="80">Hg</button>
+            </div>
+          </div>
+
+          <p class="mode-note">
+            <span class="mode-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-bohr"/></svg></span>
+            <span>No hidrogênio a série de Balmer aparece no visível: 656 nm (vermelho),
+                  486 nm (azul-verde) e 434 nm (violeta).</span>
+          </p>
+        </div>
+      </section>
+<section class="panel panel--mode" data-mode-card="quantum" aria-labelledby="hdr-mode-quantum">
+        <button type="button" class="panel-header" id="hdr-mode-quantum"
+                aria-expanded="false" aria-controls="body-mode-quantum">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-quantum"/></svg></span>
+          <span class="panel-label">Quântico</span>
+          <span class="panel-badge">1926</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-quantum" role="region" aria-labelledby="hdr-mode-quantum">
+
+          <button type="button" class="action-btn mode-activate-btn"
+                  data-model="quantum" title="Ativar o modelo de Quântico no canvas" aria-pressed="false" aria-describedby="def-quantum">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-play"/></svg></span> Ativar modelo <span class="model-name">Quântico</span>
+          </button>
+
+          <p class="mode-define" id="def-quantum">
+            <strong>Nuvem eletrônica</strong>: o elétron não tem órbita fixa, só uma região de
+            probabilidade, com forma real por subcamada — s esférica, p em dois lóbulos,
+            d em quatro, f multilobular.
+          </p>
+
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Autor</span><span class="fact-value">Schrödinger</span></div>
+            <div class="fact-cell"><span class="fact-label">Elétron</span><span class="fact-value">Região de probabilidade</span></div>
+            <div class="fact-cell"><span class="fact-label">Orbitais</span><span class="fact-value">s, p, d, f</span></div>
+            <div class="fact-cell"><span class="fact-label">Órbita fixa</span><span class="fact-value">Não existe</span></div>
+          </div>
+
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Interações do canvas</p>
+            <p>A nuvem assume a forma real da subcamada mais externa do elemento escolhido.
+               Troque de elemento na tabela periódica para comparar as formas.</p>
+          </div>
+
+          <div class="recommended">
+            <p class="recommended-title">Bons exemplos</p>
+            <div class="chip-row">
+              <button type="button" class="chip" data-z="1">H</button><button type="button" class="chip" data-z="6">C</button><button type="button" class="chip" data-z="26">Fe</button>
+              <button type="button" class="chip" data-z="29">Cu</button><button type="button" class="chip" data-z="58">Ce</button><button type="button" class="chip" data-z="92">U</button>
+            </div>
+          </div>
+
+          <p class="mode-note mode-note--warning">
+            <span class="mode-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-warning"/></svg></span>
+            <span>Este é o único modelo válido para <strong>qualquer</strong> elemento: por isso ele
+                  não reverte a seleção para o hidrogênio ao ser ativado, diferente dos modelos
+                  históricos, cujo ano limita os elementos já conhecidos.</span>
+          </p>
+        </div>
+      </section>
+    </aside>
+
+    <!-- ══════════════ AREA DO CANVAS ══════════════ -->
+<div class="canvas-wrap">
+      <canvas id="sim-canvas" tabindex="0" role="img"
+              aria-label="Simulação animada do modelo atômico selecionado"
+              aria-describedby="canvas-desc"></canvas>
+      <p id="canvas-desc" class="sr-only">
+        Simulação interativa. No modelo de Rutherford, a estrutura interna do
+        núcleo (prótons e nêutrons) e a eletrosfera externa são mostradas. No
+        modelo de Bohr, os elétrons orbitam em camadas estáveis.
+      </p>
+      <!-- INDICADOR DE MODELO ATIVO (padrão SILQ). Diferença do SIMA: como
+           sempre existe UM modelo renderizado, a pílula nasce já com
+           .mode-on — não há estado "sem modelo" para deixar o canvas puro.
+           Por isso também não há botão ✕ aqui. -->
+      <!-- INDICADOR DE MODELO ATIVO (padrão SILQ). Nasce SEM .mode-on: o
+           canvas abre puro e a pílula só aparece quando um modelo é ativado.
+           O ✕ desativa e devolve o canvas ao branco. -->
+      <div class="canvas-overlay" id="mode-indicator">
+        <span class="overlay-label" id="overlay-label">
+          <span class="overlay-icon" id="overlay-icon" aria-hidden="true"></span>
+          <span class="overlay-text" id="overlay-text"></span>
+          <button type="button" class="overlay-clear" id="overlay-clear"
+                  aria-label="Desativar o modelo ativo" title="Desativar o modelo ativo"><svg class="icon" aria-hidden="true"><use href="#ic-close"/></svg></button>
+        </span>
+      </div>
+
+      <!-- Dica do canvas puro — mesmo papel do #canvas-hint dos módulos -->
+      <div class="canvas-hint" id="canvas-hint" aria-hidden="true">
+        Escolha um modelo atômico ao lado e clique em "Ativar" para iniciar a simulação.
+      </div>
+      <div class="fps-counter" aria-hidden="true" id="fps-counter">-- fps</div>
+    </div>
+
+    <!-- ══════════════ SIDEBAR DIREITA — DADOS E CONTROLES ══════════════
+         Tabela periodica, informacoes do modelo, projecao matematica, dados
+         do elemento e os controles dos experimentos. Antes tudo isso dividia
+         uma unica coluna com os cinco modelos (11 paineis empilhados). -->
+    <aside class="sidebar sidebar--right" id="sidebar-right"
+           aria-label="Dados e controles da simulacao">
+
+      <!-- ════════ RESUMO DO MODELO (MOBILE) ════════
+           Só usado dentro do bottom sheet mobile. Populado por
+           _syncMobileModeUI() (app/modo-mobile.js). -->
+      <div class="mode-summary-mobile" id="mode-summary-mobile" hidden>
+        <button type="button" class="mode-summary-toggle" id="mode-summary-toggle"
+                aria-expanded="false" aria-controls="mode-summary-body">
+          <span aria-hidden="true">ℹ️</span> Sobre este modelo
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="mode-summary-body" id="mode-summary-body"></div>
+      </div>
+
+      <!-- Mensagem de "tudo trancado" — mesmo padrão do SIEM/SIME:
+           ícone de cadeado + lista dos modelos disponíveis + o que
+           libera. Só aparece com nenhum modelo ativo (ver CSS). -->
+      <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+        <svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <p>Ative um modelo à esquerda — <strong>Dalton</strong>, <strong>Thomson</strong>, <strong>Rutherford</strong>, <strong>Bohr</strong> ou <strong>Quântico</strong> — para liberar a tabela periódica e os dados do elemento.</p>
+      </div>
+<section class="panel" aria-labelledby="hdr-periodic">
+        <button type="button" class="panel-header" id="hdr-periodic" aria-expanded="true" aria-controls="body-periodic">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-flask"/></svg></span>
+          <span class="panel-label">Tabela Periódica</span>
+          <span class="panel-badge">118</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body" id="body-periodic" role="region" aria-labelledby="hdr-periodic">
+          <div class="pt-search-bar" role="search" aria-label="Buscar elemento">
+            <div class="pt-search-row">
+              <label for="pt-search" class="sr-only">Buscar elemento por nome, símbolo ou número atômico</label>
+              <input type="search" id="pt-search" class="pt-search" placeholder="Símbolo, nome ou número..."
+                     aria-label="Buscar elemento" autocomplete="off" spellcheck="false"
+                     aria-controls="periodic-table" aria-describedby="pt-instructions"/>
+              <span class="pt-count" id="pt-count" aria-live="polite" aria-atomic="true">118 elementos</span>
+            </div>
+            <p id="pt-instructions" class="sr-only">Use as teclas de seta para navegar entre elementos. Enter ou Espaço para selecionar.</p>
+
+            <div class="mol-cat-tabs pt-legend-row" role="group" aria-label="Filtrar elementos por categoria">
+              <button type="button" class="mol-cat-btn" data-cat="all" role="tab" aria-selected="true" hidden>Todas</button>
+              <button type="button" class="mol-cat-btn" data-cat="alkali" role="tab" aria-pressed="false"><span class="legend-dot" data-cat="alkali" aria-hidden="true"></span>Metal Alcalino</button>
+              <button type="button" class="mol-cat-btn" data-cat="alkaline" role="tab" aria-pressed="false"><span class="legend-dot" data-cat="alkaline" aria-hidden="true"></span>Metal Alc.-Terroso</button>
+              <button type="button" class="mol-cat-btn" data-cat="transition" role="tab" aria-pressed="false"><span class="legend-dot" data-cat="transition" aria-hidden="true"></span>Metal de Transição</button>
+              <button type="button" class="mol-cat-btn" data-cat="metal" role="tab" aria-pressed="false"><span class="legend-dot" data-cat="metal" aria-hidden="true"></span>Metal Pós-Trans.</button>
+              <button type="button" class="mol-cat-btn" data-cat="metalloid" role="tab" aria-pressed="false"><span class="legend-dot" data-cat="metalloid" aria-hidden="true"></span>Semimetal</button>
+              <button type="button" class="mol-cat-btn" data-cat="nonmetal" role="tab" aria-pressed="false"><span class="legend-dot" data-cat="nonmetal" aria-hidden="true"></span>Ametal</button>
+              <button type="button" class="mol-cat-btn" data-cat="noble" role="tab" aria-pressed="false"><span class="legend-dot" data-cat="noble" aria-hidden="true"></span>Gás Nobre</button>
+              <button type="button" class="mol-cat-btn" data-cat="lanthanide" role="tab" aria-pressed="false"><span class="legend-dot" data-cat="lanthanide" aria-hidden="true"></span>Lantanídeo</button>
+              <button type="button" class="mol-cat-btn" data-cat="actinide" role="tab" aria-pressed="false"><span class="legend-dot" data-cat="actinide" aria-hidden="true"></span>Actinídeo</button>
+            </div>
+          </div>
+
+          <div class="pt-wrapper">
+            <div class="periodic-table" id="periodic-table" role="grid" aria-label="Tabela Periódica. Use as setas para navegar, Enter ou Espaço para ver detalhes." aria-rowcount="7" aria-colcount="18"></div>
+            <div class="pt-fblock-label" aria-hidden="true">
+              <span>57–71 Lantanídeos</span><span>89–103 Actinídeos</span>
+            </div>
+            <div class="periodic-table periodic-table-extra" id="periodic-table-extra" role="grid" aria-label="Lantanídeos e Actinídeos" aria-rowcount="2" aria-colcount="15"></div>
+          </div>
+
+          <div class="element-card" id="element-card" aria-live="polite" aria-atomic="true" aria-label="Elemento selecionado">
+            <div class="el-card-symbol" id="el-symbol">H</div>
+            <div class="el-card-info">
+              <span class="el-card-name" id="el-name">Hidrogênio</span>
+              <span class="el-card-detail" id="el-detail">Z=1 · K: 1</span>
+              <span class="el-card-mass" id="el-mass">1.008 u</span>
+            </div>
+          </div>
+        </div>
+      </section>
+<!-- PAINEL "Sobre o Modelo" REMOVIDO: era redundante. Cada card de modelo
+         (sidebar esquerda) ja traz a descricao breve em <p class="mode-define">,
+         visivel justamente quando o modelo esta ativo. O texto de convite do
+         estado "sem modelo" continua no #canvas-hint, sobre o canvas. -->
+<section class="panel" id="projection-panel" aria-labelledby="hdr-projection" hidden>
+        <button type="button" class="panel-header" id="hdr-projection" aria-expanded="true" aria-controls="body-projection">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-protractor"/></svg></span>
+          <span class="panel-label">Projeção Matemática</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body" id="body-projection" role="region" aria-labelledby="hdr-projection">
+          <p class="hint-text">
+            A configuração eletrônica segue a <strong>regra de Madelung</strong>: subcamadas preenchem na ordem da soma n+l. Foi com base nela que Seaborg propôs, em 1944, a série dos actinídeos — os elementos 89–94 já eram conhecidos; a contribuição foi reposicioná-los como preenchimento 5f, o que guiou a descoberta dos seguintes (até o 103). A regra vale como boa aproximação do hidrogênio (Z=1) ao oganessônio (Z=118), com exceções (Cr, Cu…) e desvios relativísticos nos superpesados — o próprio laurêncio (Lr) é um exemplo.
+          </p>
+          <p class="energy-formula" id="pauling-distribution" aria-label="Distribuição eletrônica no diagrama de Linus Pauling">
+            1s² 2s² 2p⁶ 3s² 3p⁶ 4s² 3d¹⁰ 4p⁶ 5s²…
+          </p>
+        </div>
+      </section>
+<section class="panel" aria-labelledby="hdr-eldata">
+        <button type="button" class="panel-header" id="hdr-eldata" aria-expanded="true" aria-controls="body-eldata">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-databox"/></svg></span>
+          <span class="panel-label">Dados do Elemento</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body" id="body-eldata" role="region" aria-labelledby="hdr-eldata">
+          <dl class="data-grid">
+            <div class="data-row"><dt class="data-label">Nome</dt><dd class="data-value" id="d-name">Hidrogênio</dd></div>
+            <div class="data-row"><dt class="data-label">Símbolo</dt><dd class="data-value" id="d-symbol">H</dd></div>
+            <div class="data-row"><dt class="data-label">Nº Atômico</dt><dd class="data-value" id="d-z">1</dd></div>
+            <div class="data-row"><dt class="data-label">Massa Atômica</dt><dd class="data-value" id="d-mass">1.008 u</dd></div>
+            <div class="data-row"><dt class="data-label">Categoria</dt><dd class="data-value" id="d-cat">Não-metal</dd></div>
+            <div class="data-row"><dt class="data-label">Distribuição e⁻</dt><dd class="data-value" id="d-dist">K: 1</dd></div>
+            <div class="data-row"><dt class="data-label">Nº de camadas</dt><dd class="data-value" id="d-shells">1</dd></div>
+            <div class="data-row"><dt class="data-label">Total e⁻</dt><dd class="data-value" id="d-electrons">1</dd></div>
+            <div class="data-row"><dt class="data-label">Última subcamada</dt><dd class="data-value" id="d-last-subshell">1s</dd></div>
+            <div class="data-row"><dt class="data-label">Conhecido desde</dt><dd class="data-value" id="d-discovery-year">1671</dd></div>
+          </dl>
+        </div>
+      </section>
+<section class="panel" id="egg-panel-rutherford" aria-labelledby="hdr-egg-ruth" hidden>
+        <button type="button" class="panel-header" id="hdr-egg-ruth" aria-expanded="true" aria-controls="body-egg-ruth">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-radioactive"/></svg></span>
+          <span class="panel-label">Experimento de Espalhamento</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body" id="body-egg-ruth" role="region" aria-labelledby="hdr-egg-ruth">
+          <div class="ruth-launch-row">
+            <button class="action-btn" id="btn-egg-fire-one">
+              <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-radioactive"/></svg></span> Disparar 1 partícula α
+            </button>
+            <button class="action-btn" id="btn-egg-fire-burst">
+              <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-radioactive"/></svg></span> Disparar 20
+            </button>
+          </div>
+          <button class="action-btn" id="btn-egg-reset">
+            <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-reset"/></svg></span> Reiniciar experimento
+          </button>
+          <dl class="data-grid egg-counters" aria-live="polite">
+            <div class="data-row"><dt class="data-label">Partículas α disparadas</dt><dd class="data-value" id="egg-fired">0</dd></div>
+            <div class="data-row"><dt class="data-label">Deflexões &gt;5°</dt><dd class="data-value" id="egg-deflected">0</dd></div>
+          </dl>
+        </div>
+      </section>
+<section class="panel" id="egg-panel-bohr" aria-labelledby="hdr-egg-bohr" hidden>
+        <button type="button" class="panel-header" id="hdr-egg-bohr" aria-expanded="true" aria-controls="body-egg-bohr">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-bohr"/></svg></span>
+          <span class="panel-label">Controles de Salto Quântico</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body" id="body-egg-bohr" role="region" aria-labelledby="hdr-egg-bohr">
+          <p class="hint-text" id="bohr-hint">
+            Escolha a camada de origem e destino, depois suba o elétron (absorção)
+            ou retorne-o (emissão). Cada transição emite luz com a cor real
+            calculada pela fórmula de Rydberg-Ritz (cores de Balmer).
+          </p>
+          <div class="bohr-shell-select-row">
+            <label for="bohr-from-shell" class="hint-text">De</label>
+            <select id="bohr-from-shell" class="bohr-select" aria-label="Camada de origem"></select>
+            <label for="bohr-to-shell" class="hint-text">Para</label>
+            <select id="bohr-to-shell" class="bohr-select" aria-label="Camada de destino"></select>
+          </div>
+          <div class="shell-btns" role="group" aria-label="Ações de transição">
+            <button class="action-btn" id="btn-bohr-up">
+              <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-arrow-up"/></svg></span> Subir (absorção)
+            </button>
+            <button class="action-btn" id="btn-bohr-down">
+              <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-arrow-down"/></svg></span> Retornar (emissão)
+            </button>
+          </div>
+          <button class="action-btn" id="btn-excite">
+            <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-bolt"/></svg></span> Excitar aleatório
+          </button>
+          <div class="shell-btns" role="group" aria-label="Selecionar camada rápida">
+            <button class="shell-btn" data-shell="0">K</button>
+            <button class="shell-btn" data-shell="1">L</button>
+            <button class="shell-btn" data-shell="2">M</button>
+            <button class="shell-btn" data-shell="3">N</button>
+          </div>
+          <div class="photon-log" id="photon-log" role="log" aria-live="polite"></div>
+          <p class="energy-formula" aria-label="Fórmula de Bohr">Eₙ = −13,6 · Z² / n² eV</p>
+          <p class="data-value" id="d-bohr-energy" aria-live="polite">—</p>
+        </div>
+      </section>
+    </aside>
+
+  </main>
+
+  <!-- ════════ MODAL — INFORMAÇÕES DO MODELO (1ª ATIVAÇÃO, MOBILE) ════════ -->
+  <div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+       aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+    <div class="mode-info-modal" id="modeInfoModal">
+      <div class="mode-info-header">
+        <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+        <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+        <button type="button" class="mode-info-close" id="modeInfoClose"
+                aria-label="Fechar informações do modelo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+      </div>
+      <div class="mode-info-body" id="modeInfoBody"></div>
+    </div>
+  </div>
+
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+  <script>
+    (function() {
+      var script = document.createElement('script');
+      script.src = 'https://vlibras.gov.br/app/vlibras-plugin.js';
+      script.onload = function() {
+        try { new window.VLibras.Widget('https://vlibras.gov.br/app'); } catch (e) {}
+      };
+      document.body.appendChild(script);
+    })();
+  </script>
+  <!-- ═══ CAMADA DE DADOS (catálogo fixo — já vinha bem estruturado) ═══ -->
+  <script src="js/data/dados-sima.js"></script>
+
+  <!-- ═══ CAMADA DE NÚCLEO (ponte de dados + física pura + utilitários) ═══ -->
+  <script src="js/core/dados.js"></script>
+  <script src="js/core/fisica.js"></script>
+  <script src="js/core/cor.js"></script>
+  <script src="js/core/audio.js"></script>
+
+  <!-- ═══ ACESSIBILIDADE ═══ -->
+  <script src="js/a11y/acessibilidade.js"></script>
+
+  <!-- ═══ MODELOS FÍSICOS (classe AtomicSim) ═══ -->
+  <script src="js/models/atomic-sim-core.js"></script>
+  <script src="js/models/dalton.js"></script>
+  <script src="js/models/thomson.js"></script>
+  <script src="js/models/rutherford.js"></script>
+  <script src="js/models/bohr.js"></script>
+  <script src="js/models/quantum.js"></script>
+  <script src="js/models/atomic-sim-loop.js"></script>
+
+  <!-- ═══ APLICAÇÃO (classe AtomicApp) ═══ -->
+  <script src="js/app/atomic-app-core.js"></script>
+  <script src="js/app/tabela-periodica.js"></script>
+  <script src="js/app/elemento-ui.js"></script>
+  <script src="js/app/modelos-ui.js"></script>
+  <script src="js/app/modo-mobile.js"></script>
+  <script src="js/app/eventos.js"></script>
+  <script src="js/app/easter-eggs.js"></script>
+  <script src="js/app/loop.js"></script>
+
+  <!-- ═══ INTERFACE — menu mobile ═══ -->
+  <script src="js/ui/menu-mobile.js"></script>
+
+  <!-- ═══ PONTO DE ENTRADA (deve ser o último) ═══ -->
+  <script src="js/main.js"></script>
+
+  <!-- ═══ TOUR GUIADO (COACHMARK) — boas-vindas + por modelo ═══ -->
+  <script src="../../coachmark.js"></script>
+  <script src="js/a11y/tour.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'sima', bp: 900 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

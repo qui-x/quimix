@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+  <meta name="description" content="Explore a hibridização do carbono, a classificação das cadeias carbônicas e as classes de carbono primário a quaternário."/>
+  <title>SIQC — Simulador Interativo de Química do Carbono</title>
+  <link rel="stylesheet" href="css/stylecarbono.css"/>
+</head>
+<body>
+
+  <!-- Camada de simulação de daltonismo (backdrop-filter, nunca no body) -->
+  <div id="colorblindOverlay" aria-hidden="true"></div>
+  <!-- ══ FILTROS DE DALTONISMO ══════════════════════════════════════
+       O a11y.js aplica `backdrop-filter: url(#f-<tipo>)` no
+       #colorblindOverlay. Sem estes <filter> declarados NESTE
+       documento, a URL aponta para um id inexistente e o navegador
+       ignora em silencio — sem erro no console. Era o caso aqui: o
+       overlay existia, o CSS existia, mas os filtros nao. A simulacao
+       de daltonismo simplesmente nao acontecia.
+
+       Matrizes: Brettel para as tres dicromacias e Rec.601
+       (0.299/0.587/0.114) para acromatopsia. Identicas as das outras
+       paginas — ha uma fonte unica de verdade no projeto.
+       ══════════════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="f-protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-acromatopsia">
+        <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <nav class="skip-nav" aria-label="Atalhos de navegação">
+    <a href="#sidebar-left"  class="skip-link">Pular para menus e informações</a>
+    <a href="#sim-canvas"    class="skip-link">Pular para a simulação</a>
+    <a href="#sidebar-right" class="skip-link">Pular para os controles</a>
+  </nav>
+
+  <div id="sr-live"           class="sr-only" aria-live="polite"    aria-atomic="true"></div>
+  <div id="sr-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+  <header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexterceiroano.html" aria-label="Voltar aos simuladores do 3º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>3º Ano</span>
+      </a>
+      <button class="header-logo" id="btn-app-logo" aria-label="Logo do SIQC — toque para uma curiosidade química">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" width="22" height="22">
+          <path d="M12 3l7 4.5v9L12 21l-7-4.5v-9L12 3z"/>
+          <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+      <div>
+        <h1>SIQC</h1>
+        <p class="header-sub">Simulador Interativo de Química do Carbono</p>
+      </div>
+    </div>
+
+    <button type="button" class="mobile-menu-btn" id="mobile-menu-btn"
+      aria-label="Abrir controles da simulação" aria-expanded="false" aria-controls="sidebar-right"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
+  </header>
+
+  <!-- ════════ BARRA DE MODOS (MOBILE) ════════
+       Só aparece em telas estreitas — substitui a gaveta esquerda (☰)
+       por uma barra rolável sempre visível, na MESMA ordem/dados de
+       SIM_DATA.MODES. Preenchida em _buildModeTabsMobile() (mesmo
+       arquivo). O botão "mobile-info-btn" foi removido de propósito:
+       esta barra assume essa função no mobile. -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Modos do simulador" aria-orientation="horizontal"></nav>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+  <div class="keyboard-hints" role="note" aria-label="Atalhos de teclado disponíveis">
+    <kbd>Alt+1–3</kbd> Modos &nbsp;
+    <kbd>Enter/Espaço</kbd> Ação no canvas
+  </div>
+
+  <main class="app-main" id="main-content" role="main">
+
+    <aside class="sidebar sidebar--left" id="sidebar-left"
+           aria-label="Menus, listagens e informações do simulador">
+      <!-- ════════ MODOS (um painel-acordeão por modo, gerado de SIM_DATA.MODES) ════════ -->
+      <div id="model-list" aria-label="Modos disponíveis, cada um com painel próprio"></div>
+    </aside>
+
+    <div class="canvas-wrap">
+      <canvas id="sim-canvas" tabindex="0" role="img"
+              aria-label="Desenho do modo selecionado"
+              aria-describedby="canvas-desc"></canvas>
+      <p id="canvas-desc" class="sr-only">
+        Área de desenho com o carbono e seus ângulos de ligação, o esqueleto das cadeias carbônicas e o destaque das classes de carbono.
+      </p>
+      <!-- INDICADOR DE MODO ATIVO (padrão SILQ) — a pílula fica ESCONDIDA
+           enquanto nenhum modo está ativo: o canvas começa puro. Ao ativar
+           um modo, a classe .mode-on aparece e mostra ícone + nome + ✕. -->
+      <div class="canvas-overlay" id="mode-indicator">
+        <span class="overlay-label" id="overlay-label">
+          <span class="overlay-icon" id="overlay-icon" aria-hidden="true"></span>
+          <span class="overlay-text" id="overlay-text">SIQC</span>
+          <button type="button" class="overlay-clear" id="overlay-clear"
+                  aria-label="Desativar o modo ativo" title="Desativar o modo ativo">✕</button>
+        </span>
+      </div>
+      <div class="canvas-hint" aria-hidden="true" id="canvas-hint">Escolha um modo ao lado e clique em "Ativar" para iniciar a simulação.</div>
+      <div class="fps-counter" aria-hidden="true" id="fps-counter">-- fps</div>
+    </div>
+
+    <aside class="sidebar sidebar--right" id="sidebar-right"
+           aria-label="Controles da simulação">
+
+      <!-- Mensagem de "tudo trancado" — mesmo padrão do 1º ano. -->
+      <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+        <svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <p>Ative um modo à esquerda para liberar os controles.</p>
+      </div>
+
+      <!-- ════════ RESUMO DO MODO (MOBILE) ════════
+           Só usado dentro do bottom sheet mobile — no desktop essa
+           informação já aparece no acordeão da sidebar esquerda, então
+           aqui fica escondida (ver CSS). Populado por
+           _syncMobileModeUI() a partir do mesmo SIM_DATA.MODES. -->
+      <div class="mode-summary-mobile" id="mode-summary-mobile" hidden>
+        <button type="button" class="mode-summary-toggle" id="mode-summary-toggle"
+                aria-expanded="false" aria-controls="mode-summary-body">
+          <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="11"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span> Sobre este modo
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="mode-summary-body" id="mode-summary-body"></div>
+      </div>
+
+      <!-- ════════ MODO 1 — HIBRIDIZAÇÃO ════════ -->
+      <section class="panel" id="panel-hibridizacao" data-owner hidden aria-labelledby="hdr-hib">
+        <button type="button" class="panel-header" id="hdr-hib" aria-expanded="true" aria-controls="body-hib">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)"/></svg></span>
+          <span class="panel-label">Orbitais do Carbono</span>
+          <span class="panel-badge">3</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-hib" role="region" aria-labelledby="hdr-hib">
+          <p class="ctrl-label">Elétrons do carbono</p>
+          <p class="hint-text" id="hib-eletrons-dica">Fundamental: 2s² 2p² · 2 desemparelhados</p>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="hib-promover">Promover elétron</button>
+            <button type="button" class="action-btn" data-action="hib-fundamental">Estado fundamental</button>
+          </div>
+          <p class="ctrl-label">Hibridização</p>
+          <div class="opt-grid cols-1" id="hib-grid" data-group="hib" role="listbox"
+               aria-label="Tipo de hibridização do carbono"></div>
+          <p class="ctrl-label">Orbitais p na mistura</p>
+          <div class="orb-grupo" role="group" aria-label="Orbitais p que entram na mistura" aria-describedby="hib-p-dica">
+            <button type="button" class="action-btn orb-btn" data-action="hib-p-px" aria-pressed="false" aria-label="Orbital p x">p<sub>x</sub></button>
+            <button type="button" class="action-btn orb-btn" data-action="hib-p-py" aria-pressed="false" aria-label="Orbital p y">p<sub>y</sub></button>
+            <button type="button" class="action-btn orb-btn" data-action="hib-p-pz" aria-pressed="false" aria-label="Orbital p z">p<sub>z</sub></button>
+          </div>
+          <p class="hint-text" id="hib-p-dica">sp³: os três p entram.</p>
+          <div class="slider-row">
+            <label for="hib-mistura">Mistura</label>
+            <input type="range" id="hib-mistura" data-bind="mistura" min="0" max="100" step="1" value="0" data-unit="%"/>
+            <output id="out-hib-mistura" for="hib-mistura">0 %</output>
+          </div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="hib-camera">Câmera inicial</button>
+            <button type="button" class="action-btn" data-action="hib-next"><span aria-hidden="true">↻</span> Próxima</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ MÓDULO 2 — ligações σ e π por sobreposição ════════ -->
+      <section class="panel" id="panel-ligacoes" data-owner hidden aria-labelledby="hdr-lig">
+        <button type="button" class="panel-header" id="hdr-lig" aria-expanded="true" aria-controls="body-lig">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><path d="M9 12h6"/><path d="M8 7c2.5-2 5.5-2 8 0M8 17c2.5 2 5.5 2 8 0"/></svg></span>
+          <span class="panel-label">Ligações σ e π</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-lig" role="region" aria-labelledby="hdr-lig">
+          <p class="hint-text" id="lig-dica">Mistura incompleta.</p>
+          <p class="ctrl-label">Parceiro</p>
+          <div class="seg" data-group="parceiro" role="group" aria-label="Átomo que se liga ao carbono">
+            <button type="button" class="seg-btn" data-value="H" aria-pressed="false">H · 1s</button>
+            <button type="button" class="seg-btn" data-value="C" aria-pressed="false">C · mesma hibridização</button>
+          </div>
+          <div class="slider-row">
+            <label for="lig-aprox">Aproximar</label>
+            <input type="range" id="lig-aprox" data-bind="aproximar" min="0" max="100" step="1" value="0"/>
+            <output id="out-lig-aprox" for="lig-aprox">longe</output>
+          </div>
+          <div class="slider-row">
+            <label for="lig-giro">Girar</label>
+            <input type="range" id="lig-giro" data-bind="giro" min="0" max="180" step="1" value="0" data-unit="°"/>
+            <output id="out-lig-giro" for="lig-giro">0°</output>
+          </div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="hib-soltar">Soltar o parceiro</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ MÓDULO 3 — classificação de cadeias ════════ -->
+      <section class="panel" id="panel-cls-estrutura" data-owner hidden aria-labelledby="hdr-cls-est">
+        <button type="button" class="panel-header" id="hdr-cls-est" aria-expanded="true" aria-controls="body-cls-est">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 17l4-7 4 7 4-7"/><circle cx="6" cy="17" r="1.6"/><circle cx="18" cy="10" r="1.6"/></svg></span>
+          <span class="panel-label">Estrutura</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-cls-est" role="region" aria-labelledby="hdr-cls-est">
+          <p class="ctrl-label">Fonte</p>
+          <div class="seg" data-group="cls-fonte" role="group" aria-label="De onde vem a estrutura">
+            <button type="button" class="seg-btn" data-value="real" aria-pressed="true">Moléculas reais</button>
+            <button type="button" class="seg-btn" data-value="sorteada" aria-pressed="false">Sorteadas</button>
+          </div>
+          <p class="ctrl-label">Nível</p>
+          <div class="seg" data-group="cls-nivel" role="group" aria-label="Nível de dificuldade">
+            <button type="button" class="seg-btn" data-value="1" aria-pressed="true" aria-label="Nível 1: cadeias abertas">1 · Abertas</button>
+            <button type="button" class="seg-btn" data-value="2" aria-pressed="false" aria-label="Nível 2: heteroátomos">2 · Hetero</button>
+            <button type="button" class="seg-btn" data-value="3" aria-pressed="false" aria-label="Nível 3: anéis">3 · Anéis</button>
+            <button type="button" class="seg-btn" data-value="4" aria-pressed="false" aria-label="Nível 4: aromáticas">4 · Aromáticas</button>
+          </div>
+          <p class="ctrl-label">Desenho</p>
+          <div class="seg" data-group="cls-vista" role="group" aria-label="Como a estrutura é desenhada">
+            <button type="button" class="seg-btn" data-value="estrutural" aria-pressed="true">Estrutural (CH₃)</button>
+            <button type="button" class="seg-btn" data-value="bastao" aria-pressed="false">Bastão</button>
+          </div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="cls-nova"><span aria-hidden="true">↻</span> Nova estrutura</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-cls-classificar" data-owner hidden aria-labelledby="hdr-cls-cla">
+        <button type="button" class="panel-header" id="hdr-cls-cla" aria-expanded="true" aria-controls="body-cls-cla">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg></span>
+          <span class="panel-label">Classificar</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-cls-cla" role="region" aria-labelledby="hdr-cls-cla">
+          <p class="hint-text" id="cls-etapa-dica" aria-live="polite">Etapa 1 de 2 · classes dos carbonos</p>
+          <div id="cls-grupo-carbonos">
+            <p class="ctrl-label">Pincel</p>
+            <div class="seg cls-pinceis" data-group="cls-pincel" role="group" aria-label="Classe com que o toque pinta o carbono">
+              <button type="button" class="seg-btn" data-value="nulário" aria-pressed="false" hidden><span class="cls-ponto" aria-hidden="true"></span>0° Nulário</button>
+              <button type="button" class="seg-btn" data-value="primário" aria-pressed="true"><span class="cls-ponto" aria-hidden="true"></span>1° Primário</button>
+              <button type="button" class="seg-btn" data-value="secundário" aria-pressed="false"><span class="cls-ponto" aria-hidden="true"></span>2° Secundário</button>
+              <button type="button" class="seg-btn" data-value="terciário" aria-pressed="false"><span class="cls-ponto" aria-hidden="true"></span>3° Terciário</button>
+              <button type="button" class="seg-btn" data-value="quaternário" aria-pressed="false"><span class="cls-ponto" aria-hidden="true"></span>4° Quaternário</button>
+            </div>
+            <div class="action-row">
+              <button type="button" class="action-btn" data-action="cls-conferir">Revelar as classes</button>
+            </div>
+          </div>
+          <div id="cls-grupo-cadeia" hidden>
+            <p class="ctrl-label" id="cls-pergunta">Quanto ao fechamento, a cadeia é…</p>
+            <div class="seg" id="cls-opcoes" data-group="cls-resposta" role="group" aria-labelledby="cls-pergunta"></div>
+            <div class="action-row" id="cls-revelar-evidencia" hidden>
+              <button type="button" class="action-btn" data-action="cls-revelar">Revelar sem apontar</button>
+            </div>
+          </div>
+          <div id="cls-grupo-fim" hidden>
+            <div class="action-row">
+              <button type="button" class="action-btn" data-action="cls-nova"><span aria-hidden="true">↻</span> Nova estrutura</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+<!-- ════════ MÓDULO 1 — CADEIAS E CLASSIFICAÇÃO · construção ════════
+           Um único painel de CONTROLES: só o que o aluno muda. O que a
+           cadeia É (os quatro critérios, a classe de cada carbono) mora em
+           Resultados — calculado da estrutura, nunca repetido aqui. -->
+      <section class="panel" id="panel-construcao" data-owner hidden aria-labelledby="hdr-cons">
+        <button type="button" class="panel-header" id="hdr-cons" aria-expanded="true" aria-controls="body-cons">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="16.5" r="2.2"/><circle cx="12" cy="7" r="2.2"/><circle cx="18.5" cy="16.5" r="2.2"/><path d="M6.8 14.6 10.7 8.9M13.3 8.9l3.9 5.7"/></svg></span>
+          <span class="panel-label">Construção</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-cons" role="region" aria-labelledby="hdr-cons">
+          <p class="ctrl-label">Elemento a anexar</p>
+          <div class="seg seg-paleta" data-group="elemento" role="group" aria-label="Elemento a anexar">
+            <span class="paleta-rotulo" aria-hidden="true">cadeia</span>
+            <button type="button" class="seg-btn" data-value="C" aria-pressed="true" aria-label="Carbono">C</button><button type="button" class="seg-btn" data-value="Si" aria-pressed="false" aria-label="Silício">Si</button><button type="button" class="seg-btn" data-value="N" aria-pressed="false" aria-label="Nitrogênio">N</button><button type="button" class="seg-btn" data-value="O" aria-pressed="false" aria-label="Oxigênio">O</button><button type="button" class="seg-btn" data-value="S" aria-pressed="false" aria-label="Enxofre">S</button><button type="button" class="seg-btn" data-value="P" aria-pressed="false" aria-label="Fósforo">P</button>
+            <span class="paleta-rotulo" aria-hidden="true">halogênios</span>
+            <button type="button" class="seg-btn" data-value="F" aria-pressed="false" aria-label="Flúor">F</button><button type="button" class="seg-btn" data-value="Cl" aria-pressed="false" aria-label="Cloro">Cl</button><button type="button" class="seg-btn" data-value="Br" aria-pressed="false" aria-label="Bromo">Br</button><button type="button" class="seg-btn" data-value="I" aria-pressed="false" aria-label="Iodo">I</button>
+            <span class="paleta-rotulo" aria-hidden="true">metais</span>
+            <button type="button" class="seg-btn" data-value="Na" aria-pressed="false" aria-label="Sódio">Na</button><button type="button" class="seg-btn" data-value="K" aria-pressed="false" aria-label="Potássio">K</button><button type="button" class="seg-btn" data-value="Mg" aria-pressed="false" aria-label="Magnésio">Mg</button>
+          </div>
+          <p class="ctrl-label">Ferramenta</p>
+          <div class="seg" data-group="ferramenta" role="group" aria-label="Ferramenta">
+            <button type="button" class="seg-btn" data-value="anexar" aria-pressed="true">Anexar</button>
+            <button type="button" class="seg-btn" data-value="ligar" aria-pressed="false">Ligar</button>
+            <button type="button" class="seg-btn" data-value="apagar" aria-pressed="false">Apagar</button>
+            <button type="button" class="seg-btn" data-value="cunha" aria-pressed="false">Cunha</button>
+          </div>
+          <!-- Com a ferramenta Cunha: para onde a ligação tocada aponta. Só aparece com ela ativa. -->
+          <div id="grupo-cunha" hidden>
+            <p class="ctrl-label">A ligação tocada…</p>
+            <div class="seg" data-group="cunhaTipo" role="group" aria-label="Para onde a ligação tocada aponta">
+              <button type="button" class="seg-btn" data-value="frente" aria-pressed="true" aria-label="Vem para a frente, cunha cheia"><svg viewBox="0 0 24 12" width="1.6em" height="0.8em" aria-hidden="true"><path d="M2 6 22 1.5v9z" fill="currentColor"/></svg> Frente</button>
+              <button type="button" class="seg-btn" data-value="tras" aria-pressed="false" aria-label="Vai para trás, cunha tracejada"><svg viewBox="0 0 24 12" width="1.6em" height="0.8em" aria-hidden="true"><path d="M4 5.2V6.8" stroke="currentColor" stroke-width="1.6"/><path d="M8 4.4V7.6" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.6V8.4" stroke="currentColor" stroke-width="1.6"/><path d="M16 2.8V9.2" stroke="currentColor" stroke-width="1.6"/><path d="M20 1.8V10.2" stroke="currentColor" stroke-width="1.6"/></svg> Trás</button>
+              <button type="button" class="seg-btn" data-value="plano" aria-pressed="false" aria-label="Fica no plano, traço simples"><svg viewBox="0 0 24 12" width="1.6em" height="0.8em" aria-hidden="true"><path d="M2 6h20" stroke="currentColor" stroke-width="2"/></svg> No plano</button>
+            </div>
+          </div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="cad-desfazer">Desfazer</button>
+            <button type="button" class="action-btn" data-action="cad-snap">Snap Literatura</button>
+            <button type="button" class="action-btn" data-action="cad-limpar">Limpar</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-representacao" data-owner hidden aria-labelledby="hdr-rep">
+        <button type="button" class="panel-header" id="hdr-rep" aria-expanded="true" aria-controls="body-rep">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="m2 13 10 5 10-5"/><path d="m2 18 10 5 10-5" opacity=".55"/></svg></span>
+          <span class="panel-label">Representação</span>
+          <span class="panel-badge">6</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-rep" role="region" aria-labelledby="hdr-rep">
+          <div class="opt-grid cols-1" id="vista-grid" data-group="vista" role="listbox"
+               aria-label="Forma de representar a cadeia"></div>
+          <p class="ctrl-label">Tensão angular entre as nuvens</p>
+          <div class="seg" data-group="tensao" role="group" aria-label="Tensão angular entre as nuvens eletrônicas" aria-describedby="tensao-dica">
+            <button type="button" class="seg-btn" data-value="on" aria-pressed="false">Ligada</button>
+            <button type="button" class="seg-btn" data-value="off" aria-pressed="true">Desligada</button>
+          </div>
+          <p class="sr-only" id="tensao-dica">Ligada: pares isolados, duplas e grupos volumosos ocupam mais espaço e mudam os ângulos. Desligada: ângulos ideais.</p>
+        </div>
+      </section>
+
+
+      <!-- ════════ RESULTADOS (sempre visível, independe do modo) ════════ -->
+      <section class="panel" id="panel-result" aria-labelledby="hdr-result">
+        <button type="button" class="panel-header" id="hdr-result" aria-expanded="true" aria-controls="body-result">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
+          <span class="panel-label">Resultados</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-result" role="region" aria-labelledby="hdr-result">
+          <!-- o próximo passo do modo ativo (antes era uma dica escrita no pé da cena) -->
+          <p class="result-next" id="result-next" hidden></p>
+          <!-- Hibridização: o diagrama de energia dos elétrons de valência. Mora aqui, e não na cena:
+               a cena fica só com o desenho. Arrasta-se o elétron do 2s para o 2p vazio aqui mesmo. -->
+          <figure class="result-diagram" id="hib-diagrama-box" hidden>
+            <figcaption class="result-diagram-title">Elétrons de valência</figcaption>
+            <canvas id="hib-diagrama" class="result-diagram-canvas" tabindex="0" role="img"
+                    aria-label="Diagrama de energia dos orbitais de valência do carbono"></canvas>
+          </figure>
+          <!-- o gráfico do modo (Hibridização: a energia ao girar a ligação C–C) vem antes da lista -->
+          <canvas id="result-chart" class="result-chart" hidden aria-label="Gráfico auxiliar do modo atual"></canvas>
+          <dl class="data-grid" id="result-grid" aria-live="polite" aria-atomic="true"></dl>
+        </div>
+      </section>
+
+    </aside>
+
+  </main>
+
+  <!-- ════════ MODAL — INFORMAÇÕES DO MODO (1ª ATIVAÇÃO, MOBILE) ════════ -->
+  <div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+       aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+    <div class="mode-info-modal" id="modeInfoModal">
+      <div class="mode-info-header">
+        <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+        <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+        <button type="button" class="mode-info-close" id="modeInfoClose"
+                aria-label="Fechar informações do modo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+      </div>
+      <div class="mode-info-body" id="modeInfoBody"></div>
+    </div>
+  </div>
+
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+  <!-- ═══ ORDEM DE CARGA — não reordenar ═══
+       a11y → core → data → ui → simulation → init.
+       Escopo global compartilhado entre as tags: cada arquivo
+       conta com o que os anteriores declararam. -->
+  <script src="js/a11y/anuncios.js"></script>
+  <script src="js/core/formatacao.js"></script>
+  <script src="js/core/grafo-molecular.js"></script>
+  <script src="js/core/geometria-molecular.js"></script>
+  <script src="js/core/geometria-3d.js"></script>
+  <script src="js/core/lewis.js"></script>
+  <script src="js/core/smiles.js"></script>
+  <script src="js/core/gerador-estruturas.js"></script>
+  <script src="js/core/classificacao-cadeias.js"></script>
+  <script src="js/data/dadoscarbono.js"></script>
+  <script src="js/data/banco-cadeias.js"></script>
+  <script src="js/render/desenho-molecula.js"></script>
+  <script src="js/render/representacoes.js"></script>
+  <script src="js/ui/kit-desenho.js"></script>
+  <script src="js/ui/moldura-cena.js"></script>
+  <script src="js/view3d/camera-orbital.js"></script>
+  <script src="js/view3d/navegacao-3d.js"></script>
+  <script src="js/simulation/editor-cadeias.js"></script>
+  <script src="js/core/orbitais-modelo.js"></script>
+  <script src="js/simulation/hibridizacao-orbitais.js"></script>
+  <script src="js/simulation/classificador-cadeias.js"></script>
+  <script src="js/simulation/mecanica.js"></script>
+  <script src="js/init/app.js"></script>
+  <script src="js/ui/offcanvas-mobile.js"></script>
+
+  <!-- ═══ TOUR GUIADO — motor genérico na raiz + roteiro deste simulador ═══
+       Antes do trilho: o trilho escuta coachmark:inicio/fim para sair de
+       cena durante o tour, e o motor precisa existir quando o tour começa. -->
+  <script src="../../coachmark.js"></script>
+  <script src="js/a11y/tour.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'carbono', bp: 900, mq: window.MQ_CELULAR };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

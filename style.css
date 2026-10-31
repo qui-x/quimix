@@ -1,0 +1,1190 @@
+/* =====================================================================
+   ALTURA DE VIEWPORT: dvh com fallback vh
+   ---------------------------------------------------------------------
+   PROBLEMA: no Safari do iOS e no Chrome do Android, 100vh e a altura da
+   tela COM a barra de endereco escondida — a maior possivel. Quando a
+   barra esta visivel (o estado normal ao abrir a pagina), a casca do app
+   fica mais alta que a area visivel e o rodape do canvas cai abaixo da
+   dobra. Como .app-main tem overflow:hidden, nao ha rolagem para
+   alcancar o pedaco perdido: ele simplesmente desaparece. E como 100vh e
+   estatico, nao reage quando a barra aparece ou some.
+
+   SOLUCAO: dvh (dynamic viewport height) acompanha a barra do navegador.
+   Cada altura aparece DUAS vezes neste arquivo:
+
+       height: calc(100vh  - var(--header-h));   <- fallback
+       height: calc(100dvh - var(--header-h));   <- navegadores modernos
+
+   Navegador que nao entende dvh simplesmente ignora a segunda declaracao
+   e fica com a primeira. Navegador moderno usa a segunda, que vem
+   depois. Nenhum @supports e necessario: e a cascata normal do CSS.
+
+   Por que dvh e nao svh: estes simuladores tem overflow:hidden e nao
+   rolam, entao o dvh nao causa o tremor de reflow que provoca em paginas
+   rolaveis — e o canvas aproveita a tela inteira quando a barra some.
+   ===================================================================== */
+
+/* ============ TOKENS ============ */
+  :root{
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --dur: .22s;
+    --font-scale: 1;
+  }
+
+  :root[data-theme="dark"]{
+    --bg: #0E1320;
+    --bg-grid: #131A2C;
+    --surface: #161D2E;
+    --surface-2: #1E2740;
+    --ink: #EDEFF5;
+    --ink-soft: #C7CCDC;
+    --muted: #8C93A8;
+    --border: #2A3450;
+    --border-strong: #3A4568;
+    --focus-ring: #FFD166;
+    /* Paleta sequencial: Azul Anil → Azul Celeste → Ciano → Verde → Amarelo → Laranja → Coral → Carmesim */
+    --accent-sima:      #4263EB; --accent-sima-ink:   #EEF2FF;
+    --accent-sime:      #74C0FC; --accent-sime-ink:   #0C2A4A;
+    --accent-sitp:      #22D3EE; --accent-sitp-ink:   #042F36;
+    --accent-silq:      #4ADE80; --accent-silq-ink:   #052A12;
+    --accent-sie:       #FACC15; --accent-sie-ink:    #2A1E00;
+    --accent-siem:      #FB923C; --accent-siem-ink:   #2A0E00;
+    --accent-siqi:      #F4522D; --accent-siqi-ink:   #2A0800;
+    --accent-siativ:    #DC2626; --accent-siativ-ink: #ffffff;
+    /* Paleta do 2º ano — cinética, equilíbrio, eletroquímica, gases, radioatividade, soluções, termoquímica */
+    --accent-sicq:     #14B8A6; --accent-sicq-ink:  #062420;
+    --accent-sieq:      #6366F1; --accent-sieq-ink:   #12123A;
+    --accent-siel:     #F59E0B; --accent-siel-ink:  #2A1900;
+    --accent-sigas:     #38BDF8; --accent-sigas-ink:  #062A3A;
+    --accent-sirad:     #A3E635; --accent-sirad-ink:  #1A2400;
+    --accent-sisol:     #06B6D4; --accent-sisol-ink:  #052A2E;
+    --accent-sitq:      #FB7185; --accent-sitq-ink:   #2A0810;
+    --shadow: 0 1px 0 rgba(0,0,0,.4);
+    /* Paleta do 3º Ano — Química Orgânica (Verde Esmeralda) */
+    --accent-ano3: #10B981; 
+    --accent-ano3-ink: #f7fcfb; 
+    /* Tokens exclusivos dos desenhos de fundo: precisam de bom
+       contraste direto contra --bg (diferente de --border-strong,
+       que foi pensado pra contrastar com --surface, não com --bg). */
+    --decor-line: #6B79AC;
+    --decor-ink:  #A9B2D0;
+
+    /* Tokens do sistema de login (auth-gate, modais, painel de admin) */
+    --accent-brand: #00E5FF; --accent-brand-ink: #04141A;
+    --pos: #2FD8A8; --neg: #FF6B6B;
+  }
+
+  :root[data-theme="light"]{
+    --bg: #EEF1F6;
+    --bg-grid: #E4E9F1;
+    --surface: #FFFFFF;
+    --surface-2: #F4F6FA;
+    --ink: #181C29;
+    --ink-soft: #3B4256;
+    --muted: #5B6478;
+    --border: #D8DEEA;
+    --border-strong: #BFC8DC;
+    --focus-ring: #B5790A;
+    --accent-sima:      #3B5BDB; --accent-sima-ink:   #FFFFFF;
+    --accent-sime:      #1971C2; --accent-sime-ink:   #FFFFFF;
+    --accent-sitp:      #0891B2; --accent-sitp-ink:   #FFFFFF;
+    --accent-silq:      #16A34A; --accent-silq-ink:   #FFFFFF;
+    --accent-sie:       #A16207; --accent-sie-ink:    #FFFFFF;
+    --accent-siem:      #C2410C; --accent-siem-ink:   #FFFFFF;
+    --accent-siqi:      #B91C1C; --accent-siqi-ink:   #FFFFFF;
+    --accent-siativ:    #991B1B; --accent-siativ-ink: #FFFFFF;
+    --accent-sicq:     #0F766E; --accent-sicq-ink:  #FFFFFF;
+    --accent-sieq:      #4338CA; --accent-sieq-ink:   #FFFFFF;
+    --accent-siel:     #B45309; --accent-siel-ink:  #FFFFFF;
+    --accent-sigas:     #0369A1; --accent-sigas-ink:  #FFFFFF;
+    --accent-sirad:     #4D7C0F; --accent-sirad-ink:  #FFFFFF;
+    --accent-sisol:     #0E7490; --accent-sisol-ink:  #FFFFFF;
+    --accent-sitq:      #BE123C; --accent-sitq-ink:   #FFFFFF;
+    --shadow: 0 1px 0 rgba(0,0,0,.06);
+    --accent-ano3: #16A34A; 
+    --accent-ano3-ink: #ffffff;
+    --decor-line: #6B7592;
+    --decor-ink:  #40485E;
+
+    /* Tokens do sistema de login (auth-gate, modais, painel de admin) */
+    --accent-brand: #0891B2; --accent-brand-ink: #FFFFFF;
+    --pos: #15803D; --neg: #B91C1C;
+  }
+
+  /* Alto contraste sobrepõe qualquer tema (claro ou escuro) */
+  :root[data-contrast="on"]{
+    --bg: #000000;
+    --bg-grid: #000000;
+    --surface: #000000;
+    --surface-2: #0A0A0A;
+    --ink: #FFFFFF;
+    --ink-soft: #FFFFFF;
+    --muted: #DDDDDD;
+    --border: #FFFFFF;
+    --border-strong: #FFFF00;
+    --focus-ring: #FFFF00;
+    --accent-sima:      #7B9FFF; --accent-sima-ink:   #000000;
+    --accent-sime:      #74C0FC; --accent-sime-ink:   #000000;
+    --accent-sitp:      #67E8F9; --accent-sitp-ink:   #000000;
+    --accent-silq:      #86EFAC; --accent-silq-ink:   #000000;
+    --accent-sie:       #FDE047; --accent-sie-ink:    #000000;
+    --accent-siem:      #FDBA74; --accent-siem-ink:   #000000;
+    --accent-siqi:      #FCA5A5; --accent-siqi-ink:   #000000;
+    --accent-siativ:    #F87171; --accent-siativ-ink: #000000;
+    --accent-sicq:     #5EEAD4; --accent-sicq-ink:  #000000;
+    --accent-sieq:      #A5B4FC; --accent-sieq-ink:   #000000;
+    --accent-siel:     #FCD34D; --accent-siel-ink:  #000000;
+    --accent-sigas:     #7DD3FC; --accent-sigas-ink:  #000000;
+    --accent-sirad:     #D9F99D; --accent-sirad-ink:  #000000;
+    --accent-sisol:     #67E8F9; --accent-sisol-ink:  #000000;
+    --accent-sitq:      #FDA4AF; --accent-sitq-ink:   #000000;
+    --shadow: none;
+    --accent-terceiroano: #34D399; 
+    --accent-terceiroano-ink: #000000;
+    --decor-line: #FFFFFF;
+    --decor-ink:  #FFFFFF;
+
+    /* Tokens do sistema de login (auth-gate, modais, painel de admin) */
+    --accent-brand: #67E8F9; --accent-brand-ink: #000000;
+    --pos: #86EFAC; --neg: #FCA5A5;
+  }
+  :root[data-contrast="on"] .tile,
+  :root[data-contrast="on"] .a11y-btn,
+  :root[data-contrast="on"] .a11y-panel,
+  :root[data-contrast="on"] .identity-btn,
+  :root[data-contrast="on"] .auth-card,
+  :root[data-contrast="on"] .modal-card{ border-width:2px; }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--bg-grid) 1px, transparent 1px) 0 0/100% 38px,
+      var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    min-height:100vh; min-height:100dvh;
+    transition: background-color var(--dur) ease, color var(--dur) ease;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important;}
+  }
+
+  a.skip-link{
+    position:absolute; left:50%; top:-60px; transform:translateX(-50%);
+    background:var(--accent-sitp); color:var(--accent-sitp-ink);
+    padding:10px 18px; border-radius:0 0 var(--radius-md) var(--radius-md);
+    font-family:var(--font-mono); font-size:13px; font-weight:600;
+    z-index:200; transition: top var(--dur) ease;
+  }
+  a.skip-link:focus{ top:0; }
+
+  :focus-visible{
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  #colorblindOverlay{
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* ============ SHELL ============ */
+  .shell{
+    max-width:1080px; margin:0 auto; padding: 28px 24px 64px;
+    position:relative; z-index:2;  /* fica acima das trilhas (z-index:0) e da peça "puxada" pro centro (z-index:1) */
+  }
+
+  header.top{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    gap:20px; flex-wrap:wrap; margin-bottom:34px;
+  }
+
+  /* ===== Marca "QuímiX" — "Quími" + ícone X funcionando como a letra
+     final do nome. Essas regras viviam num <style> solto no <head> do
+     index.html (nunca tinham entrado no style.css) — trazidas pra cá
+     e corrigidas: ===== */
+  .brand{ display:flex; align-items:flex-end; gap:2px; }
+
+  /* BUG 1 (cor do nome "Quími"): a regra original usava
+     color:var(--text,#f4f7fb) — "--text" não existe em NENHUM lugar
+     do projeto (o token certo é "--ink"), então o navegador sempre
+     caía no valor de reserva #f4f7fb (quase branco), em QUALQUER
+     tema. Ficava ilegível no tema claro (quase branco sobre quase
+     branco) só por sorte "funcionava" no escuro. Corrigido pra
+     var(--ink), o token que já muda com o tema em todo o resto do site. */
+  .brand-name{
+    margin:0; font-family:var(--font-display); font-weight:700; font-size:1.9rem;
+    line-height:1; color:var(--ink); letter-spacing:-0.01em;
+  }
+
+  /* texto acessível real ("QuímiX" por completo) para leitores de tela; a marca visual ao lado é decorativa */
+  .qm-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+
+  /* o í de "Quími": base é um "i" sem pingo (ı, U+0131) + SVG próprio no lugar do acento,
+     desenhado como uma ligação química (linha + 2 átomos) em vez do acento agudo comum */
+  .i-bond{position:relative;display:inline-block;}
+  .i-bond-accent{position:absolute;top:-0.5em;left:50%;transform:translateX(-15%);width:0.85em;height:0.85em;overflow:visible;pointer-events:none;}
+
+  .brand-mark{
+    width:40px; height:40px; border-radius:var(--radius-sm);
+    background:var(--surface-2); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:600; font-size:13px;
+    color:var(--ink-soft); flex-shrink:0;
+  }
+  /* BUG 2 (cor do ícone): o SVG usava fill="#ffffff" fixo pras partes
+     "sólidas" (a letra X e os átomos) — branco fixo também só
+     funcionava no tema escuro. Trocado por fill="currentColor" no
+     SVG (ver index.html) + color:var(--ink) aqui, do mesmo jeito que
+     o resto do site já resolve isso. O brilho ciano/rosa continua com
+     cor fixa de propósito — é a identidade visual da marca, não
+     precisa mudar com o tema.
+     overflow:hidden garante que o brilho (blur do filtro) fique
+     contido dentro do ícone, sem vazar visualmente pro texto do lado. */
+  .brand-mark-icon{
+    position:relative; top:6px; display:inline-block; height:44px; width:auto;
+    line-height:0; color:var(--ink); overflow:hidden;
+  }
+  .brand-mark-icon svg{ display:block; height:100%; width:auto; overflow:hidden; }
+  /* BUG 3 (traços do ícone): mesma história — cor de traço fixa
+     (#9aa7bd) que só existia pra funcionar em cima do fundo escuro.
+     var(--muted) já resolve pro tom certo em qualquer tema. */
+  .brand-mark-icon svg [stroke="#4a5568"]{ stroke:var(--muted); }
+  .brand-text h1{
+    font-family:var(--font-display); font-size:20px; font-weight:600;
+    margin:0; color:var(--ink);
+  }
+
+  /* ============ A11Y TOOLBAR ============ */
+  .a11y-wrap{ position:relative; }
+  .a11y-btn{
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface); border:1px solid var(--border);
+    color:var(--ink); font-family:var(--font-body); font-size:13px; font-weight:500;
+    padding:10px 14px; border-radius:var(--radius-md); cursor:pointer;
+    transition: border-color var(--dur), background var(--dur);
+  }
+  .a11y-btn:hover{ border-color:var(--border-strong); background:var(--surface-2); }
+  .a11y-btn svg{ width:18px; height:18px; flex-shrink:0; }
+
+  .a11y-panel{
+    position:absolute; right:0; top:calc(100% + 8px); width:300px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-lg); padding:6px; z-index:100;
+    box-shadow: 0 8px 24px rgba(0,0,0,.28);
+    display:none; flex-direction:column; gap:2px;
+  }
+  :root[data-theme="light"] .a11y-panel{ box-shadow: 0 8px 24px rgba(20,30,60,.14); }
+  .a11y-panel.open{ display:flex; }
+  .a11y-panel-title{
+    font-family:var(--font-mono); font-size:11px; text-transform:uppercase;
+    letter-spacing:.06em; color:var(--muted); padding:10px 12px 6px;
+  }
+  .a11y-row{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:10px; padding:9px 12px; border-radius:var(--radius-sm);
+  }
+  .a11y-row:hover{ background:var(--surface-2); }
+  .a11y-row-label{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--ink); }
+  .a11y-row-label svg{ width:17px; height:17px; color:var(--muted); flex-shrink:0; }
+  .a11y-row select{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--ink);
+    font-size:12px; font-family:var(--font-body); border-radius:var(--radius-sm);
+    padding:5px 6px; max-width:118px;
+  }
+
+  .switch{
+    position:relative; width:38px; height:22px; flex-shrink:0;
+  }
+  .switch input{ position:absolute; inset:0; opacity:0; margin:0; cursor:pointer; }
+  .switch .track{
+    position:absolute; inset:0; background:var(--border-strong); border-radius:20px;
+    transition: background var(--dur);
+  }
+  .switch .thumb{
+    position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%;
+    background:var(--surface); transition: transform var(--dur);
+  }
+  .switch input:checked + .track{ background:var(--accent-sime); }
+  .switch input:checked + .track .thumb{ transform:translateX(16px); }
+  .switch input:focus-visible + .track{ outline:3px solid var(--focus-ring); outline-offset:2px; }
+
+  .fontstep{ display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  .fontstep-btn{
+    width:26px; height:26px; border-radius:var(--radius-sm);
+    background:var(--surface-2); border:1px solid var(--border); color:var(--ink);
+    font-family:var(--font-mono); font-size:11px; font-weight:600; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; line-height:1;
+  }
+  .fontstep-btn:hover{ border-color:var(--border-strong); }
+  .fontstep-pct{
+    font-family:var(--font-mono); font-size:11px; color:var(--muted); min-width:34px; text-align:center;
+  }
+
+  hr.divider{ border:none; border-top:1px solid var(--border); margin:4px 6px; }
+
+  /* ============ GREETING ============ */
+  .greeting{
+    margin-bottom:30px;
+  }
+  .greeting h2{
+    font-family:var(--font-display); font-weight:600;
+    font-size: calc(clamp(22px, 3vw, 30px) * var(--font-scale));
+    margin:0 0 8px; line-height:1.25;
+  }
+  .greeting p{
+    font-size:calc(15px * var(--font-scale)); color:var(--muted); margin:0; max-width:520px;
+  }
+
+  /* ============ TILE GRID ============ */
+  .grid{
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap:16px;
+  }
+
+  .tile{
+    text-align:left; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-lg); padding:0; cursor:pointer; color:var(--ink);
+    font-family:inherit; display:flex; flex-direction:column;
+    transition: border-color var(--dur), transform var(--dur);
+    position:relative; overflow:hidden;
+    text-decoration:none;
+  }
+  .tile:link, .tile:visited{ color:var(--ink); }
+  .tile:hover{ border-color:var(--border-strong); transform:translateY(-2px); }
+  .tile:active{ transform:translateY(0); }
+
+  .tile-band{ height:4px; width:100%; }
+  .tile-head{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:16px 16px 0;
+  }
+  .tile-index{
+    font-family:var(--font-mono); font-size:11px; color:var(--muted);
+  }
+  .tile-icon{
+    width:30px; height:30px; border-radius:var(--radius-sm);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .tile-icon svg{ width:18px; height:18px; }
+
+  .tile-symbol{
+    font-family:var(--font-mono); font-weight:700; font-size:30px;
+    padding: 6px 16px 0; line-height:1;
+  }
+  .tile-name{
+    font-family:var(--font-display); font-weight:600; font-size:calc(15px * var(--font-scale));
+    padding: 8px 16px 0; line-height:1.35;
+  }
+  .tile-desc{
+    font-size:calc(13px * var(--font-scale)); color:var(--muted); line-height:1.55;
+    padding: 6px 16px 16px; flex:1;
+  }
+  .tile-cta{
+    display:flex; align-items:center; gap:6px;
+    font-family:var(--font-mono); font-size:calc(12px * var(--font-scale)); font-weight:600;
+    padding:12px 16px; border-top:1px solid var(--border);
+  }
+  .tile-cta svg{ width:14px; height:14px; transition: transform var(--dur); }
+  .tile:hover .tile-cta svg{ transform:translateX(3px); }
+  /* ============ CARTÃO 3º ANO ============ */
+.tile[data-sim="ano3"] .tile-band, 
+.tile[data-sim="ano3"] 
+.tile-cta { color: var(--accent-ano3-ink); }
+
+.tile[data-sim="ano3"] 
+.tile-band { background: var(--accent-ano3); }
+
+.tile[data-sim="ano3"] 
+.tile-icon { 
+  background: var(--accent-ano3); 
+  color: var(--accent-ano3-ink); 
+}
+
+.tile[data-sim="ano3"] .tile-symbol { color: var(--accent-ano3); }
+
+  /* ============ LINK "← CENTRAL" (painéis de ano) ============ */
+  /* Usado em indexprimeiroano.html e indexsegundoano.html para voltar
+     ao painel de seleção de ano (index.html) — aqui não há painel de
+     acessibilidade próprio, ele fica só no painel de seleção de ano. */
+  .back-link{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--font-mono); font-size:13px; font-weight:600;
+    color:var(--ink-soft); text-decoration:none;
+    background:var(--surface); border:1px solid var(--border);
+    padding:9px 14px; border-radius:var(--radius-md);
+    transition: border-color var(--dur), background var(--dur), color var(--dur);
+  }
+  .back-link:hover{ border-color:var(--border-strong); background:var(--surface-2); color:var(--ink); }
+  .back-link svg{ width:15px; height:15px; flex-shrink:0; }
+
+  .top-nav{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; flex-wrap:wrap; margin-bottom:26px;
+  }
+
+  /* ============ CARTÕES DE SELEÇÃO DE ANO (painel inicial) ============ */
+  .ano-grid{
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap:20px; margin-top: 6px;
+  }
+  .tile--ano .tile-head{ padding: 22px 22px 0; }
+  .tile--ano .tile-icon{ width:44px; height:44px; }
+  .tile--ano .tile-icon svg{ width:26px; height:26px; }
+  .tile--ano .tile-symbol{ font-size:38px; padding: 10px 22px 0; }
+  .tile--ano .tile-name{ font-size:calc(19px * var(--font-scale)); padding: 10px 22px 0; }
+  .tile--ano .tile-desc{ font-size:calc(14px * var(--font-scale)); padding: 8px 22px 22px; }
+  .tile--ano .tile-cta{ padding:15px 22px; font-size:calc(13px * var(--font-scale)); }
+  .tile--ano .tile-band{ height:5px; }
+
+  /* fundo translúcido, pra dar pra ver o desenho de fundo passando
+     por trás do cartão. O "backdrop-filter: blur()" borra só o que
+     está atrás (não borra o próprio texto do cartão), então o
+     conteúdo continua legível mesmo com algo colorido passando atrás. */
+  :root[data-theme="dark"] .tile--ano{
+    background: rgba(22,29,46,.78);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  :root[data-theme="light"] .tile--ano{
+    background: rgba(255,255,255,.78);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  /* alto contraste precisa de fundo 100% sólido — translúcido
+     prejudicaria a legibilidade, então essa regra sobrepõe as de cima */
+  :root[data-contrast="on"] .tile--ano{
+    background: var(--surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .tile[data-sim="ano1"] .tile-band, .tile[data-sim="ano1"] .tile-cta{ color:var(--accent-sima); }
+  .tile[data-sim="ano1"] .tile-band{ background:var(--accent-sima); }
+  .tile[data-sim="ano1"] .tile-icon{ background:var(--accent-sima); color:var(--accent-sima-ink); }
+  .tile[data-sim="ano1"] .tile-symbol{ color:var(--accent-sima); }
+
+  .tile[data-sim="ano3"] .tile-band, .tile[data-sim="ano3"] .tile-cta{ color:var(--accent-ano3); }
+  .tile[data-sim="ano3"] .tile-band{ background:var(--accent-ano3); }
+  .tile[data-sim="ano3"] .tile-icon{ background:var(--accent-ano3); color:var(--accent-ano3-ink); }
+  .tile[data-sim="ano3"] .tile-symbol{ color:var(--accent-ano3); }
+
+
+
+
+
+  /* ============ ESPAÇAMENTO DE LETRAS ============ */
+  html[data-spacing="on"] body,
+  html[data-spacing="on"] body *{
+    letter-spacing: 0.12em !important;
+    word-spacing: 0.16em !important;
+    line-height: 1.7 !important;
+  }
+
+  /* ============ REDUÇÃO DE ANIMAÇÕES (forçada pelo toggle) ============ */
+  html[data-motion="on"] *,
+  html[data-motion="on"] *::before,
+  html[data-motion="on"] *::after{
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* ============ READING MODE ============ */
+  html[data-reading="on"] body{ background:var(--bg); }
+  html[data-reading="on"] .greeting h2{ font-size: calc(clamp(24px,3vw,30px) * var(--font-scale)); }
+  html[data-reading="on"] .greeting p, html[data-reading="on"] .tile-desc{
+    font-size:calc(16px * var(--font-scale)); line-height:1.85; letter-spacing:.005em;
+  }
+  html[data-reading="on"] .tile-name{ font-size:calc(17px * var(--font-scale)); }
+  html[data-reading="on"] .tile-symbol{ display:none; }
+  html[data-reading="on"] body{ font-size:calc(16px * var(--font-scale)); }
+  html[data-reading="on"] .grid{ grid-template-columns: 1fr; max-width:640px; }
+  html[data-reading="on"] .ano-grid{ grid-template-columns: 1fr; max-width:640px; }
+  html[data-reading="on"] .tile-band{ height:6px; }
+
+  /* ============ VLIBRAS — sempre visível, sem condição ============ */
+
+  footer.foot{
+    margin-top:46px; padding-top:18px; border-top:1px solid var(--border);
+    font-size:12px; color:var(--muted); display:flex; justify-content:space-between;
+    flex-wrap:wrap; gap:8px;
+  }
+  footer.foot kbd{
+    font-family:var(--font-mono); background:var(--surface-2); border:1px solid var(--border);
+    border-radius:4px; padding:1px 6px; font-size:11px;
+  }
+
+  @media (max-width:600px){
+    header.top{ flex-direction:column; }
+    .top-right-group{ width:100%; flex-direction:column; align-items:stretch; }
+    .identity-bar{ width:100%; justify-content:center; }
+    .a11y-wrap{ width:100%; }
+    .a11y-btn{ width:100%; justify-content:center; }
+    .a11y-panel{ left:0; right:0; width:auto; }
+  }
+
+/* ---------------------------------------------------------------------
+   SKIP-LINK — contraste corrigido
+   ---------------------------------------------------------------------
+   Medido no Chromium com o link em foco (ele vive em left:-9999px e so
+   aparece ao receber foco, por isso a medicao exige focus()).
+
+   O fundo do skip-link vem do acento do simulador, e o acento MUDA no
+   tema claro — normalmente escurecendo. Com o texto fixo, o par deixava
+   de contrastar em um dos dois temas. As regras abaixo declaram o texto
+   por tema, com o valor que a medicao mostrou ser o melhor.
+   --------------------------------------------------------------------- */
+body.light-mode .skip-link{ color:#000; }   /* 5.70:1 */
+
+/* =====================================================================
+   SISTEMA DE LOGIN — auth-gate, modais, painel de administração
+   ---------------------------------------------------------------------
+   Reaproveita os tokens do topo do arquivo (--surface, --border, --ink,
+   --radius-*, --font-*) pra ficar visualmente igual ao resto do site em
+   qualquer tema (claro/escuro/alto contraste) sem precisar de nenhuma
+   regra extra — só os 4 tokens novos (--accent-brand[-ink], --pos, --neg)
+   foram declarados nos blocos de tema lá em cima.
+   ===================================================================== */
+
+.hidden{ display:none !important; }
+
+/* ---------- Barra de identidade (cabeçalho, ao lado da acessibilidade) ---------- */
+.top-right-group{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.identity-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.identity-status{
+  font-family:var(--font-mono); font-size:calc(12px * var(--font-scale)); color:var(--muted);
+  white-space:nowrap; padding-right:2px;
+}
+.identity-btn{
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--surface); border:1px solid var(--border); color:var(--ink);
+  font-family:var(--font-body); font-size:calc(12.5px * var(--font-scale)); font-weight:500;
+  padding:8px 12px; border-radius:var(--radius-md); cursor:pointer;
+  transition: border-color var(--dur), background var(--dur);
+}
+.identity-btn:hover{ border-color:var(--border-strong); background:var(--surface-2); }
+
+/* ---------- Formulários genéricos (login / cadastro / conta) ---------- */
+.campo{ display:flex; flex-direction:column; gap:6px; font-size:calc(12px * var(--font-scale)); color:var(--muted); }
+.campo input{
+  background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm);
+  color:var(--ink); font-family:var(--font-body); font-size:calc(14px * var(--font-scale));
+  padding:10px 12px; width:100%;
+}
+.campo input:focus{ border-color:var(--accent-brand); }
+.auth-form{ display:flex; flex-direction:column; gap:14px; }
+.auth-form .launch-submit{ width:100%; }
+
+.launch-submit{
+  background:var(--accent-brand); color:var(--accent-brand-ink); border:1px solid var(--accent-brand);
+  font-family:var(--font-body); font-weight:600; font-size:calc(13.5px * var(--font-scale));
+  padding:11px 20px; border-radius:var(--radius-md); cursor:pointer; letter-spacing:.01em;
+  transition: filter var(--dur);
+}
+.launch-submit:hover{ filter:brightness(1.08); }
+.launch-submit:disabled{ opacity:.6; cursor:not-allowed; filter:none; }
+
+.auth-msg{
+  margin-top:14px; padding:10px 12px; border-radius:var(--radius-sm);
+  font-size:calc(12.5px * var(--font-scale)); line-height:1.5; border:1px solid var(--border);
+}
+.auth-msg.ok{  border-color:var(--pos); color:var(--pos); background:rgba(47,216,168,.08); }
+.auth-msg.erro{ border-color:var(--neg); color:var(--neg); background:rgba(255,107,107,.08); }
+
+/* ---------- Portão de login (#auth-gate) ---------- */
+.auth-gate{
+  min-height:60vh; display:flex; align-items:center; justify-content:center; padding:32px 0;
+}
+.auth-card{
+  width:100%; max-width:380px; background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:32px 26px; box-shadow:0 20px 50px rgba(0,0,0,.28);
+}
+:root[data-theme="light"] .auth-card{ box-shadow:0 20px 50px rgba(20,30,60,.12); }
+/* Reaproveita a MESMA logo do cabeçalho (.brand / .brand-name / .brand-mark-icon,
+   com os defs do SVG renomeados com sufixo "-login" lá no HTML pra não colidir
+   id com o cabeçalho). Só dou um tamanho deliberado pro ícone e pro texto aqui
+   dentro — o .brand em si e o cabeçalho continuam do jeito que já estavam. */
+.auth-brand-lockup{
+  display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:26px;
+}
+.auth-brand-lockup .brand{ gap:8px; }
+.auth-brand-lockup .brand-name{
+  font-family:var(--font-body); font-weight:700; font-size:calc(26px * var(--font-scale));
+  color:var(--ink); margin:0; line-height:1;
+}
+.auth-brand-lockup .brand-mark-icon{ display:inline-block; width:52px; height:auto; flex-shrink:0; overflow:hidden; }
+.auth-brand-lockup .auth-subtitle{ margin:0; }
+.auth-subtitle{
+  text-align:center; color:var(--muted); font-family:var(--font-mono);
+  font-size:calc(11.5px * var(--font-scale)); text-transform:uppercase; letter-spacing:.08em;
+  margin:0 0 26px;
+}
+.auth-view .panel-title{ text-align:center; }
+.auth-links{ display:flex; flex-direction:column; gap:9px; margin-top:18px; align-items:center; }
+.link-btn{
+  background:none; border:none; color:var(--muted); font-family:var(--font-body);
+  font-size:calc(12px * var(--font-scale)); text-decoration:underline; cursor:pointer; padding:2px;
+}
+.link-btn:hover{ color:var(--accent-brand); }
+
+.auth-divider{
+  border:none; border-top:1px solid var(--border); margin:16px 4px 10px;
+}
+/* Levemente mais discreto que os outros link-btn: é uma saída
+   deliberada do fluxo de login, não mais um passo dele. */
+.link-btn--visitante{ opacity:.75; font-size:calc(11.5px * var(--font-scale)); }
+.link-btn--visitante:hover{ opacity:1; }
+
+/* ---------- Aviso de sessão em cache/offline ou modo visitante ---------- */
+/* #aviso-modo-sessao — ver identidade.js (mostrarAvisoModoSessao_).
+   Nunca aparece numa sessão normal verificada com o servidor. */
+.aviso-modo-sessao{
+  margin:0 0 14px; padding:9px 14px; border-radius:var(--radius-sm);
+  font-family:var(--font-body); font-size:calc(12.5px * var(--font-scale)); line-height:1.5;
+  border:1px solid var(--border); text-align:center;
+}
+.aviso-modo-sessao--offline{
+  border-color:#e0a030; color:#e0a030; background:rgba(224,160,48,.1);
+}
+.aviso-modo-sessao--visitante{
+  border-color:var(--muted); color:var(--muted); background:rgba(255,255,255,.04);
+}
+:root[data-theme="light"] .aviso-modo-sessao--visitante{ background:rgba(0,0,0,.03); }
+
+/* ---------- Modais (troca de senha / minha conta / administração) ---------- */
+/* z-index:90 — de propósito abaixo do .a11y-panel (100, ver ============ A11Y
+   TOOLBAR acima): os modais agora vivem DENTRO de .shell, na mesma pilha de
+   exibição do painel de acessibilidade, então esse número garante que dá pra
+   abrir o painel de acessibilidade por cima de qualquer modal aberto. */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(6,10,18,.72); z-index:90;
+  display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto;
+}
+.modal-card{
+  width:100%; max-width:400px; background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:28px 24px; margin:auto;
+}
+.modal-card-lg{ max-width:640px; }
+.modal-card-head{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px;
+}
+.modal-card-head .panel-title{ margin:0; }
+.modal-close-btn{
+  background:var(--surface-2); border:1px solid var(--border); color:var(--muted);
+  width:30px; height:30px; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;
+  font-size:14px; line-height:1;
+}
+.modal-close-btn:hover{ border-color:var(--border-strong); color:var(--ink); }
+
+/* ---------- Títulos/dicas reaproveitados nos painéis de login ---------- */
+.panel-title{
+  font-family:var(--font-display); font-weight:600; font-size:calc(17px * var(--font-scale));
+  margin:0 0 12px; color:var(--ink); display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+}
+.panel-title-sm{ font-size:calc(14px * var(--font-scale)); margin-top:22px; }
+.panel-hint{ color:var(--muted); font-size:calc(12.5px * var(--font-scale)); line-height:1.55; margin:0 0 14px; }
+.refresh-btn{
+  background:none; border:1px solid var(--border); color:var(--muted); border-radius:var(--radius-sm);
+  font-size:calc(11px * var(--font-scale)); padding:3px 8px; cursor:pointer; font-family:var(--font-mono);
+}
+.refresh-btn:hover{ border-color:var(--border-strong); color:var(--ink); }
+
+/* ---------- "Minha conta" ---------- */
+.conta-card{ margin-bottom:14px; }
+.linha{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:9px 0; border-bottom:1px solid var(--border); font-size:calc(13px * var(--font-scale));
+}
+.linha:last-child{ border-bottom:none; }
+.rotulo{ color:var(--muted); font-family:var(--font-mono); font-size:calc(11px * var(--font-scale)); text-transform:uppercase; letter-spacing:.04em; }
+
+.role-badge{
+  display:inline-block; font-size:calc(10px * var(--font-scale)); text-transform:uppercase; letter-spacing:.04em;
+  padding:2px 9px; border-radius:20px; border:1px solid var(--border); color:var(--muted); white-space:nowrap;
+}
+.role-badge.admin{ color:var(--accent-brand); border-color:var(--accent-brand); background:rgba(0,229,255,.08); }
+.pending-reset-badge{
+  font-size:calc(10px * var(--font-scale)); color:var(--focus-ring); border:1px solid var(--focus-ring);
+  border-radius:20px; padding:2px 9px; white-space:nowrap;
+}
+
+/* ---------- Painel de administração: lista de contas e de atividade ---------- */
+.user-list, .log-list{ margin-top:4px; }
+.user-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  padding:11px 4px; border-bottom:1px solid var(--border); font-size:calc(13px * var(--font-scale));
+}
+.user-row:last-child{ border-bottom:none; }
+.user-row-name{ font-weight:600; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.user-row-email{ color:var(--muted); font-weight:400; font-size:calc(12px * var(--font-scale)); }
+.row-btns{ display:flex; gap:6px; flex-wrap:wrap; }
+.del-x-btn{
+  background:var(--surface-2); border:1px solid var(--border); color:var(--muted); cursor:pointer;
+  font-size:calc(11.5px * var(--font-scale)); padding:5px 9px; border-radius:var(--radius-sm); font-family:var(--font-body);
+}
+.del-x-btn:hover{ border-color:var(--neg); color:var(--neg); }
+
+.aprovar-btn{
+  background:var(--surface-2); border:1px solid var(--pos); color:var(--pos); cursor:pointer;
+  font-size:calc(11.5px * var(--font-scale)); padding:5px 9px; border-radius:var(--radius-sm);
+  font-family:var(--font-body); font-weight:600;
+}
+.aprovar-btn:hover{ background:var(--pos); color:var(--accent-brand-ink); }
+
+.log-row{
+  display:flex; gap:10px; padding:8px 4px; border-bottom:1px solid var(--border);
+  font-size:calc(12px * var(--font-scale)); flex-wrap:wrap;
+}
+.log-row:last-child{ border-bottom:none; }
+.log-row-data{ color:var(--muted); min-width:140px; font-family:var(--font-mono); font-size:calc(11px * var(--font-scale)); }
+.log-row-usuario{ font-weight:600; color:var(--accent-brand); }
+.log-row-acao{ color:var(--ink-soft); flex:1; min-width:160px; }
+
+.empty-hint{ padding:18px; color:var(--muted); font-size:calc(12.5px * var(--font-scale)); text-align:center; }
+
+/* ---------- Leitura simples: textos maiores também nas telas de login ---------- */
+html[data-reading="on"] .panel-hint,
+html[data-reading="on"] .auth-msg{
+  font-size:calc(15px * var(--font-scale)); line-height:1.85;
+}
+html[data-reading="on"] .campo input{ font-size:calc(15px * var(--font-scale)); padding:12px 13px; }
+html[data-reading="on"] .auth-card{ max-width:440px; }
+html[data-reading="on"] .log-row-acao{ font-size:calc(13px * var(--font-scale)); }
+
+@media (max-width:600px){
+  .auth-card{ padding:26px 20px; }
+  .modal-card{ padding:22px 18px; }
+  .linha{ flex-direction:column; align-items:flex-start; gap:4px; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   GAVETA (MENU PRINCIPAL) — reúne conta, acessibilidade e acesso
+   direto aos 20 simuladores por ano. Mesmo padrão de bottom
+   sheet/gaveta já usado em todos os simuladores da coleção: desliza
+   por cima do conteúdo, fecha por ✕, Esc ou toque fora.
+   ════════════════════════════════════════════════════════════════ */
+
+.drawer-toggle{
+  display:flex; align-items:center; justify-content:center;
+  width:44px; height:44px; flex-shrink:0;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md);
+  color:var(--ink); cursor:pointer; transition:border-color var(--dur), background var(--dur);
+}
+.drawer-toggle:hover{ border-color:var(--border-strong); background:var(--surface-2); }
+/* mesma ressalva de sempre: display:flex acima venceria [hidden] sozinho. */
+.drawer-toggle[hidden]{ display:none; }
+
+.drawer-backdrop{
+  position:fixed; inset:0; z-index:200;
+  background:rgba(0,0,0,.55); backdrop-filter:blur(2px);
+  opacity:0; visibility:hidden; transition:opacity var(--dur), visibility var(--dur);
+}
+.drawer-backdrop.open{ opacity:1; visibility:visible; }
+.drawer-backdrop[hidden]{ display:block; } /* precisa continuar no fluxo pra transição rodar — quem esconde de vez é opacity+visibility */
+
+.drawer{
+  position:fixed; top:0; bottom:0; left:0; z-index:201;
+  width:min(360px, 88vw); max-width:360px;
+  background:var(--surface); border-right:1px solid var(--border);
+  box-shadow:8px 0 32px rgba(0,0,0,.35);
+  display:flex; flex-direction:column;
+  transform:translateX(-105%); transition:transform .28s cubic-bezier(.34,1.1,.4,1);
+}
+.drawer.open{ transform:translateX(0); }
+html[data-motion="true"] .drawer, html[data-motion="true"] .drawer-backdrop{ transition:none; }
+
+.drawer-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 18px; border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.drawer-title{ font-family:var(--font-display); font-weight:700; font-size:1.05rem; color:var(--ink); }
+.drawer-close{
+  display:flex; align-items:center; justify-content:center;
+  width:36px; height:36px; background:transparent; border:1px solid var(--border); border-radius:var(--radius-sm);
+  color:var(--ink-soft); cursor:pointer; transition:all var(--dur);
+}
+.drawer-close:hover{ background:var(--surface-2); color:var(--ink); border-color:var(--border-strong); }
+
+.drawer-body{ flex:1; overflow-y:auto; padding:14px 12px 24px; }
+
+.drawer-body .identity-bar{
+  flex-direction:column; align-items:stretch; gap:6px;
+  padding:4px 6px 14px; margin-bottom:10px; border-bottom:1px solid var(--border);
+}
+.drawer-body .identity-status{ font-size:12px; color:var(--muted); padding:0 4px; }
+.drawer-body .identity-btn{ width:100%; justify-content:flex-start; text-align:left; }
+
+.drawer-section{ margin-bottom:8px; }
+.drawer-section-title{
+  font-family:var(--font-mono); font-size:11px; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--muted); padding:10px 10px 6px;
+}
+
+.drawer-cat{ border-radius:var(--radius-md); overflow:hidden; margin-bottom:4px; }
+.drawer-cat-btn{
+  width:100%; display:flex; align-items:center; gap:10px;
+  background:transparent; border:none; color:var(--ink); font-family:var(--font-body);
+  font-size:14px; font-weight:600; padding:11px 10px; cursor:pointer; border-radius:var(--radius-md);
+  transition:background var(--dur);
+}
+.drawer-cat-btn:hover{ background:var(--surface-2); }
+.drawer-cat-icon{ display:flex; width:22px; height:22px; flex-shrink:0; color:var(--muted); }
+.drawer-cat-label{ flex:1; text-align:left; }
+.drawer-cat-count{
+  font-family:var(--font-mono); font-size:11px; color:var(--muted);
+  background:var(--surface-2); border-radius:999px; padding:2px 7px; flex-shrink:0;
+}
+.drawer-cat-chevron{ flex-shrink:0; color:var(--muted); transition:transform .18s ease; }
+.drawer-cat-btn[aria-expanded="true"] .drawer-cat-chevron{ transform:rotate(90deg); }
+
+/* Linha dividida em DOIS alvos de toque: o link (ícone+nome+contagem)
+   navega direto pra página do próprio ano — que já existe e tinha
+   ficado sem esse acesso — e o botão à parte só expande/recolhe a
+   lista de simuladores ali dentro. Mesmo padrão "split button" de
+   qualquer app com item clicável + expandir separado. */
+.drawer-cat-row{ display:flex; align-items:stretch; border-radius:var(--radius-md); overflow:hidden; }
+.drawer-cat-link{
+  flex:1; display:flex; align-items:center; gap:10px; min-width:0;
+  color:var(--ink); text-decoration:none; font-family:var(--font-body);
+  font-size:14px; font-weight:600; padding:11px 10px; transition:background var(--dur);
+}
+.drawer-cat-link:hover, .drawer-cat-link:focus-visible{ background:var(--surface-2); outline:none; }
+.drawer-cat-expand{
+  display:flex; align-items:center; justify-content:center;
+  width:40px; flex-shrink:0; background:transparent; border:none; color:var(--muted);
+  cursor:pointer; transition:background var(--dur), color var(--dur);
+}
+.drawer-cat-expand:hover{ background:var(--surface-2); color:var(--ink); }
+.drawer-cat-expand[aria-expanded="true"] .drawer-cat-chevron{ transform:rotate(90deg); }
+
+.drawer-cat-list{
+  list-style:none; margin:2px 0 6px; padding:0 4px 4px 40px;
+  display:flex; flex-direction:column; gap:1px;
+}
+/* display:flex acima vence o atributo hidden sozinho (mesma
+   especificidade, e a regra de classe vem depois na cascata) — sem
+   isso, clicar pra recolher uma categoria não fazia nada visível: a
+   lista continuava exibida, só o aria-expanded/chevron mudavam. */
+.drawer-cat-list[hidden]{ display:none; }
+.drawer-sim-link{
+  display:flex; align-items:baseline; gap:8px;
+  padding:8px 10px; border-radius:var(--radius-sm); text-decoration:none;
+  color:var(--ink-soft); font-size:13px; transition:background var(--dur), color var(--dur);
+}
+.drawer-sim-link:hover, .drawer-sim-link:focus-visible{ background:var(--surface-2); color:var(--ink); outline:none; }
+.drawer-sim-sigla{
+  font-family:var(--font-mono); font-size:10px; font-weight:700; color:var(--muted);
+  flex-shrink:0; min-width:38px;
+}
+
+/* Painel de acessibilidade dentro da gaveta: era um dropdown flutuante
+   (position:absolute) quando vivia solto no cabeçalho — aqui vira só
+   mais uma seção que expande NO FLUXO da gaveta (mesma classe/JS de
+   abrir-fechar, só a apresentação muda). */
+.drawer .a11y-panel{
+  position:static; width:auto; box-shadow:none; border:none;
+  padding:2px 4px 2px 40px; margin:0; border-radius:0;
+  display:none;
+}
+.drawer .a11y-panel.open{ display:flex; }
+
+@media (max-width:600px){
+  .drawer{ width:min(340px, 86vw); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   NOVA HOME — apresentação da proposta (hero, guia, destaques,
+   acessibilidade). Antes disto o #conteudo era só saudação + grade
+   de 3 cards de ano; os cards migraram pra dentro da gaveta (ver
+   .drawer-cat acima) e esta virou uma página de verdade.
+   ════════════════════════════════════════════════════════════════ */
+
+.section-title{
+  font-family:var(--font-display); font-weight:700; font-size:1.4rem;
+  color:var(--ink); margin:0 0 18px;
+}
+
+/* ---------- HERO ---------- */
+.hero{ padding:12px 0 40px; border-bottom:1px solid var(--border); margin-bottom:40px; }
+.hero-eyebrow{
+  font-family:var(--font-mono); font-size:12px; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--accent-brand); margin:0 0 10px; font-weight:600;
+}
+.hero-title{
+  font-family:var(--font-display); font-weight:700; font-size:clamp(1.7rem, 4.5vw, 2.6rem);
+  line-height:1.15; color:var(--ink); margin:0 0 18px; max-width:16ch;
+}
+.hero-title span{ color:var(--accent-brand); }
+.hero-lead{
+  font-family:var(--font-body); font-size:1rem; line-height:1.65; color:var(--ink-soft);
+  max-width:62ch; margin:0 0 26px;
+}
+.hero-lead strong{ color:var(--ink); }
+.hero-actions{ display:flex; flex-wrap:wrap; gap:12px; margin-bottom:34px; }
+.btn-primary{
+  display:flex; align-items:center; gap:9px;
+  background:var(--accent-brand); color:var(--accent-brand-ink); border:1px solid var(--accent-brand);
+  font-family:var(--font-body); font-weight:600; font-size:14px;
+  padding:12px 20px; border-radius:var(--radius-md); cursor:pointer; transition:filter var(--dur);
+}
+.btn-primary:hover{ filter:brightness(1.08); }
+.btn-primary svg{ flex-shrink:0; }
+.btn-secondary{
+  display:flex; align-items:center;
+  background:transparent; color:var(--ink); border:1px solid var(--border);
+  font-family:var(--font-body); font-weight:600; font-size:14px; text-decoration:none;
+  padding:12px 20px; border-radius:var(--radius-md); transition:all var(--dur);
+}
+.btn-secondary:hover{ border-color:var(--border-strong); background:var(--surface); }
+
+/* ---------- TRILHA DOS 3 ANOS (substitui o contador antigo) ---------- */
+.trilha-anos{
+  display:flex; align-items:stretch; gap:14px; margin:0;
+}
+.trilha-ano{
+  flex:1; display:flex; flex-direction:column; align-items:flex-start; gap:6px; min-width:0;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:18px 18px 16px; text-decoration:none; transition:border-color var(--dur), transform var(--dur);
+}
+.trilha-ano:hover{ border-color:var(--accent-brand); transform:translateY(-2px); }
+.trilha-ano-badge{
+  font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.04em;
+  color:var(--accent-brand); background:var(--surface-2); border-radius:999px; padding:3px 10px;
+}
+.trilha-ano h3{ font-family:var(--font-display); font-size:16px; color:var(--ink); margin:4px 0 0; }
+.trilha-ano p{ font-size:13px; color:var(--ink-soft); line-height:1.5; margin:0; flex:1; }
+.trilha-ano-cta{
+  display:flex; align-items:center; gap:6px; margin-top:4px;
+  font-size:12.5px; font-weight:600; color:var(--muted);
+}
+.trilha-ano-cta svg{ width:14px; height:14px; }
+.trilha-conector{
+  width:20px; height:20px; flex-shrink:0; align-self:center;
+  color:var(--border-strong);
+}
+@media (max-width:760px){
+  .trilha-anos{ flex-direction:column; }
+  .trilha-conector{ transform:rotate(90deg); align-self:flex-start; margin-left:18px; }
+}
+
+/* ---------- NOSSA PROPOSTA ---------- */
+.proposta{ margin-bottom:46px; }
+.proposta-grid{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px;
+}
+.proposta-pilar{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:22px 20px;
+}
+.proposta-pilar-icone{
+  display:flex; align-items:center; justify-content:center;
+  width:42px; height:42px; border-radius:var(--radius-md);
+  background:var(--surface-2); color:var(--accent-brand); margin-bottom:14px;
+}
+.proposta-pilar h3{ font-family:var(--font-display); font-size:15.5px; color:var(--ink); margin:0 0 8px; }
+.proposta-pilar p{ font-size:13.5px; color:var(--ink-soft); line-height:1.55; margin:0; }
+
+/* ---------- DESTAQUES ---------- */
+.destaques{ margin-bottom:46px; }
+.destaques-grid{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px;
+}
+.destaque-card{
+  display:flex; flex-direction:column; align-items:flex-start; gap:8px;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:20px 18px; text-decoration:none; transition:border-color var(--dur), transform var(--dur);
+}
+.destaque-card:hover{ border-color:var(--border-strong); transform:translateY(-2px); }
+/* Prévia AO VIVO: o iframe carrega o simulador de verdade, só que em
+   4x o tamanho (400%/400%) e depois encolhido com scale(.25) — assim
+   ele renderiza como se estivesse num monitor comum (com as duas
+   sidebars, como sempre), em vez de espremido no tamanho minúsculo do
+   card. pointer-events:none: o clique atravessa o iframe e cai no
+   próprio <a> do card (que já navega pra versão completa) — o
+   simulador ali dentro é só pra OLHAR, não pra mexer.
+   loading="lazy" no HTML evita carregar os 4 de uma vez fora da tela. */
+.destaque-preview{
+  width:100%; aspect-ratio:16/10; border-radius:var(--radius-md);
+  overflow:hidden; background:var(--bg); border:1px solid var(--border);
+  position:relative; margin-bottom:2px;
+}
+.destaque-preview-frame{
+  /* BUG CORRIGIDO (2ª volta): 800%/scale(.125) resolvia o layout
+     cair pra mobile, mas deixava o texto ilegível — em 12,5% de
+     escala qualquer letra vira uma mancha cinza, e a prévia parece
+     uma miniatura quebrada, não um recorte real do simulador. A
+     largura mínima do card também subiu de ~220px pra 300px (ver
+     minmax() do grid) — com essa base maior, 500%/scale(.2) já
+     garante 300×5=1500px de largura interna (ainda folgado acima do
+     maior breakpoint do projeto, 1100px) COM uma escala bem menos
+     agressiva (20% em vez de 12,5%) — texto grande ainda não fica
+     lendo, mas a interface se reconhece de verdade, não vira só
+     manchas cinzas. */
+  position:absolute; top:0; left:0; width:650%; height:650%;
+  transform:scale(.1538); transform-origin:top left;
+  border:none; pointer-events:none;
+}
+.destaque-badge{
+  font-family:var(--font-mono); font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  color:var(--accent-brand); background:var(--surface-2); border-radius:999px; padding:3px 10px;
+}
+.destaque-card h3{ font-family:var(--font-display); font-size:16px; color:var(--ink); margin:2px 0 0; }
+.destaque-card p{ font-size:13px; color:var(--ink-soft); line-height:1.5; margin:0; }
+.destaque-cta{
+  display:flex; align-items:center; gap:6px; margin-top:6px;
+  font-size:13px; font-weight:600; color:var(--ink);
+}
+.destaque-cta svg{ width:15px; height:15px; }
+
+/* ---------- ACESSIBILIDADE (vitrine) ---------- */
+.a11y-showcase{ margin-bottom:12px; }
+.a11y-showcase-lead{ color:var(--ink-soft); font-size:14px; max-width:62ch; margin:0 0 18px; line-height:1.6; }
+.a11y-showcase-list{
+  list-style:none; margin:0; padding:0;
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:10px 20px;
+}
+.a11y-showcase-list li{
+  display:flex; align-items:center; gap:10px; font-size:13.5px; color:var(--ink-soft);
+}
+.a11y-showcase-list svg{ color:var(--accent-brand); flex-shrink:0; }
+
+@media (max-width:600px){
+  .hero{ padding-bottom:28px; margin-bottom:28px; }
+  .hero-stats{ gap:22px; }
+  .guide, .destaques{ margin-bottom:32px; }
+}
+
+html[data-reading="on"] .proposta-grid,
+html[data-reading="on"] .destaques-grid,
+html[data-reading="on"] .a11y-showcase-list{ grid-template-columns:1fr; }
+
+/* ════════════════════════════════════════════════════════════════
+   PÁGINA "MINHA CONTA" (minha-conta.html) — antes era um modal
+   dentro da Central; virou página própria porque a conta merece um
+   espaço de verdade, não uma caixinha por cima do conteúdo.
+   ════════════════════════════════════════════════════════════════ */
+.conta-voltar{
+  display:flex; align-items:center; justify-content:center;
+  width:32px; height:32px; margin-right:4px; flex-shrink:0;
+  color:var(--ink-soft); border-radius:var(--radius-sm); transition:background var(--dur), color var(--dur);
+}
+.conta-voltar:hover{ background:var(--surface); color:var(--ink); }
+
+.conta-pagina{ max-width:520px; margin:24px auto 0; }
+.conta-pagina.hidden{ display:none; }
+/* Página de Administração reaproveita o mesmo cartão/seção da Minha
+   Conta, mas as listas (usuários, log) precisam de mais respiro
+   horizontal do que os 520px pensados pro conteúdo simples da Minha
+   Conta — mesma linguagem visual, largura própria. */
+.conta-pagina--admin{ max-width:760px; }
+.conta-card--pagina{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:18px 20px; margin-bottom:20px;
+}
+.conta-secao{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:18px 20px; margin-bottom:16px;
+}
+.conta-secao-title{
+  font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--ink); margin:0 0 8px;
+}
+.progresso-barra{
+  height:8px; border-radius:999px; background:var(--bg-alt, rgba(255,255,255,.08));
+  overflow:hidden; margin-top:10px;
+}
+.progresso-barra-preenchida{
+  height:100%; border-radius:999px; width:0;
+  background:linear-gradient(90deg, #00e5ff, #ff2a8d);
+  transition:width .4s ease;
+}
+.conta-admin-atalho-btn{ text-decoration:none; display:inline-block; }
+
+/* ════════════════════════════════════════════════════════════════
+   COACHMARK — balão flutuante guiando o usuário (ver coachmark.js)
+   ════════════════════════════════════════════════════════════════ */
+
+.coach-overlay{
+  position:fixed; inset:0; z-index:500;
+  /* o fundo escurecido de verdade é o box-shadow gigante do
+     .coach-spot (ver abaixo) — aqui só precisa capturar cliques fora
+     do balão, então fica transparente por padrão. */
+}
+.coach-spot{
+  position:fixed; z-index:501; border-radius:10px;
+  /* truque clássico de "recorte": uma sombra do tamanho da tela
+     inteira, só que por FORA da caixa — tudo ao redor do alvo escurece,
+     o próprio alvo fica limpo (a caixa em si não tem fundo nenhum). */
+  box-shadow:0 0 0 9999px rgba(0,0,0,.65);
+  border:2px solid var(--accent-brand);
+  pointer-events:none;
+  transition:top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+}
+html[data-motion="true"] .coach-spot{ transition:none; }
+/* sem alvo (passo "flutuante"): escurece a tela inteira mesmo, sem
+   nenhum recorte — o spot fica hidden (ver JS) e este pseudo-elemento
+   cobre tudo no lugar dele. */
+.coach-overlay:has(.coach-spot[hidden])::before{
+  content:''; position:fixed; inset:0; z-index:501; background:rgba(0,0,0,.65);
+}
+
+.coach-balao{
+  position:fixed; z-index:502; width:min(320px, 88vw);
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:18px 18px 14px; box-shadow:0 20px 48px rgba(0,0,0,.5);
+  transition:top .25s ease, left .25s ease;
+}
+html[data-motion="true"] .coach-balao{ transition:none; }
+.coach-balao--centro{
+  position:fixed; top:50% !important; left:50% !important;
+  transform:translate(-50%,-50%);
+}
+.coach-pular{
+  position:absolute; top:10px; right:12px;
+  background:none; border:none; color:var(--muted); font-size:12px; cursor:pointer;
+  font-family:var(--font-body); padding:4px 6px; border-radius:6px;
+}
+.coach-pular:hover{ color:var(--ink); background:var(--surface-2); }
+.coach-titulo{
+  font-family:var(--font-display); font-weight:700; font-size:16px; color:var(--ink);
+  margin:4px 30px 8px 0;
+}
+.coach-texto{ font-size:13.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 16px; }
+.coach-rodape{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.coach-pontos{ display:flex; gap:5px; }
+.coach-ponto{ width:6px; height:6px; border-radius:50%; background:var(--border-strong); }
+.coach-ponto--ativo{ background:var(--accent-brand); width:16px; border-radius:3px; }
+.coach-botoes{ display:flex; gap:8px; }
+.coach-btn{
+  font-family:var(--font-body); font-weight:600; font-size:13px;
+  padding:8px 14px; border-radius:var(--radius-sm); cursor:pointer; transition:filter var(--dur), background var(--dur);
+}
+.coach-btn--voltar{ background:transparent; border:1px solid var(--border); color:var(--ink-soft); }
+.coach-btn--voltar:hover{ background:var(--surface-2); }
+.coach-btn--avancar{ background:var(--accent-brand); border:1px solid var(--accent-brand); color:var(--accent-brand-ink); }
+.coach-btn--avancar:hover{ filter:brightness(1.08); }
+
+@media (max-width:480px){
+  .coach-balao{ padding:16px 16px 12px; }
+  .coach-rodape{ flex-direction:column; align-items:stretch; gap:12px; }
+  .coach-botoes{ justify-content:space-between; }
+}
+
+/* ALTO CONTRASTE — o link "Pular para…" usa o acento como fundo, e no
+   alto contraste o acento é amarelo (--hc-fg). O texto precisa ser a cor
+   de FUNDO do esquema (--hc-bg, preto). Especificidade (0,2,2) de
+   propósito: as regras por tema acima — body.light-mode .skip-link e
+   body:not(.light-mode) .skip-link, ambas (0,2,1) — também casam com o
+   alto contraste e, vindo depois, deixavam branco sobre amarelo (1,07:1). */
+body.high-contrast a.skip-link { color: var(--hc-bg, #000); }

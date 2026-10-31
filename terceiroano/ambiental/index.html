@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+  <meta name="description" content="Compare gases de efeito estufa pelo GWP, acompanhe o pH da chuva ácida e veja a camada de ozônio afinar com os CFCs."/>
+  <title>SIQA — Simulador Interativo de Química Ambiental</title>
+  <link rel="stylesheet" href="css/styleambiental.css"/>
+</head>
+<body>
+
+  <!-- Camada de simulação de daltonismo (backdrop-filter, nunca no body) -->
+  <div id="colorblindOverlay" aria-hidden="true"></div>
+  <!-- ══ FILTROS DE DALTONISMO ══════════════════════════════════════
+       O a11y.js aplica `backdrop-filter: url(#f-<tipo>)` no
+       #colorblindOverlay. Sem estes <filter> declarados NESTE
+       documento, a URL aponta para um id inexistente e o navegador
+       ignora em silencio — sem erro no console. Era o caso aqui: o
+       overlay existia, o CSS existia, mas os filtros nao. A simulacao
+       de daltonismo simplesmente nao acontecia.
+
+       Matrizes: Brettel para as tres dicromacias e Rec.601
+       (0.299/0.587/0.114) para acromatopsia. Identicas as das outras
+       paginas — ha uma fonte unica de verdade no projeto.
+       ══════════════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="f-protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-acromatopsia">
+        <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <nav class="skip-nav" aria-label="Atalhos de navegação">
+    <a href="#sidebar-left"  class="skip-link">Pular para menus e informações</a>
+    <a href="#sim-canvas"    class="skip-link">Pular para a simulação</a>
+    <a href="#sidebar-right" class="skip-link">Pular para os controles</a>
+  </nav>
+
+  <div id="sr-live"           class="sr-only" aria-live="polite"    aria-atomic="true"></div>
+  <div id="sr-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+  <header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexterceiroano.html" aria-label="Voltar aos simuladores do 3º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>3º Ano</span>
+      </a>
+      <button class="header-logo" id="btn-app-logo" aria-label="Logo do SIQA — toque para uma curiosidade química">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" width="22" height="22">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M3 12h18M12 3c2.6 3 2.6 15 0 18M12 3c-2.6 3-2.6 15 0 18"/>
+        </svg>
+      </button>
+      <div>
+        <h1>SIQA</h1>
+        <p class="header-sub">Simulador Interativo de Química Ambiental</p>
+      </div>
+    </div>
+
+    <button type="button" class="mobile-menu-btn" id="mobile-menu-btn"
+      aria-label="Abrir controles da simulação" aria-expanded="false" aria-controls="sidebar-right"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
+  </header>
+
+  <!-- ════════ BARRA DE MODOS (MOBILE) ════════
+       Só aparece em telas estreitas — substitui a gaveta esquerda (☰)
+       por uma barra rolável sempre visível, na MESMA ordem/dados de
+       SIM_DATA.MODES. Preenchida em _buildModeTabsMobile() (mesmo
+       arquivo). O botão "mobile-info-btn" foi removido de propósito:
+       esta barra assume essa função no mobile. -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Modos do simulador" aria-orientation="horizontal"></nav>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+  <div class="keyboard-hints" role="note" aria-label="Atalhos de teclado disponíveis">
+    <kbd>Alt+1–3</kbd> Modos &nbsp;
+    <kbd>Enter/Espaço</kbd> Ação no canvas
+  </div>
+
+  <main class="app-main" id="main-content" role="main">
+
+    <aside class="sidebar sidebar--left" id="sidebar-left"
+           aria-label="Menus, listagens e informações do simulador">
+      <!-- ════════ MODOS (um painel-acordeão por modo, gerado de SIM_DATA.MODES) ════════ -->
+      <div id="model-list" aria-label="Modos disponíveis, cada um com painel próprio"></div>
+    </aside>
+
+    <div class="canvas-wrap">
+      <canvas id="sim-canvas" tabindex="0" role="img"
+              aria-label="Simulação animada do modo selecionado"
+              aria-describedby="canvas-desc"></canvas>
+      <p id="canvas-desc" class="sr-only">
+        Área de simulação com a radiação retida pela camada de gases de efeito estufa, a escala de pH da chuva e a espessura da camada de ozônio.
+      </p>
+      <!-- INDICADOR DE MODO ATIVO (padrão SILQ) — a pílula fica ESCONDIDA
+           enquanto nenhum modo está ativo: o canvas começa puro. Ao ativar
+           um modo, a classe .mode-on aparece e mostra ícone + nome + ✕. -->
+      <div class="canvas-overlay" id="mode-indicator">
+        <span class="overlay-label" id="overlay-label">
+          <span class="overlay-icon" id="overlay-icon" aria-hidden="true"></span>
+          <span class="overlay-text" id="overlay-text">SIQA</span>
+          <button type="button" class="overlay-clear" id="overlay-clear"
+                  aria-label="Desativar o modo ativo" title="Desativar o modo ativo">✕</button>
+        </span>
+      </div>
+      <div class="canvas-hint" aria-hidden="true" id="canvas-hint">Escolha um modo ao lado e clique em "Ativar" para iniciar a simulação.</div>
+      <div class="fps-counter" aria-hidden="true" id="fps-counter">-- fps</div>
+    </div>
+
+    <aside class="sidebar sidebar--right" id="sidebar-right"
+           aria-label="Controles da simulação">
+
+      <!-- Mensagem de "tudo trancado" — mesmo padrão do 1º ano. -->
+      <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+        <svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <p>Ative um modo à esquerda — <strong>Efeito Estufa</strong>, <strong>Chuva Ácida</strong> ou <strong>Camada de Ozônio</strong> — para liberar os controles e os resultados.</p>
+      </div>
+
+      <!-- ════════ RESUMO DO MODO (MOBILE) ════════
+           Só usado dentro do bottom sheet mobile — no desktop essa
+           informação já aparece no acordeão da sidebar esquerda, então
+           aqui fica escondida (ver CSS). Populado por
+           _syncMobileModeUI() a partir do mesmo SIM_DATA.MODES. -->
+      <div class="mode-summary-mobile" id="mode-summary-mobile" hidden>
+        <button type="button" class="mode-summary-toggle" id="mode-summary-toggle"
+                aria-expanded="false" aria-controls="mode-summary-body">
+          <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="11"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span> Sobre este modo
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="mode-summary-body" id="mode-summary-body"></div>
+      </div>
+
+      <!-- ════════ MODO 1 — EFEITO ESTUFA ════════ -->
+      <section class="panel" id="panel-estufa" data-owner hidden aria-labelledby="hdr-gee">
+        <button type="button" class="panel-header" id="hdr-gee" aria-expanded="true" aria-controls="body-gee">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+          <span class="panel-label">Gás de Efeito Estufa</span>
+          <span class="panel-badge">4</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-gee" role="region" aria-labelledby="hdr-gee">
+          <div class="opt-grid cols-1" id="gee-grid" data-group="gee" role="listbox"
+               aria-label="Gás de efeito estufa a analisar"></div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="gee-next"><span aria-hidden="true">↻</span> Próximo gás</button>
+          </div>
+          <p class="hint-text">Concentração e GWP são <strong>coisas diferentes</strong>: o CFC-12 aquece 10 mil vezes mais que o CO₂, mas está em quantidade mínima.</p>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 2 — CHUVA ÁCIDA ════════ -->
+      <section class="panel" id="panel-chuva" data-owner hidden aria-labelledby="hdr-chuva">
+        <button type="button" class="panel-header" id="hdr-chuva" aria-expanded="true" aria-controls="body-chuva">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="16" y1="14" x2="16" y2="21"/><line x1="8" y1="14" x2="8" y2="21"/><line x1="12" y1="16" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg></span>
+          <span class="panel-label">Emissões de SO₂ e NOₓ</span>
+          <span class="panel-badge">2</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-chuva" role="region" aria-labelledby="hdr-chuva">
+          <div class="slider-row">
+            <label for="chuva-emis">Emissão</label>
+            <input type="range" id="chuva-emis" data-bind="emis" min="0" max="100" step="1" value="0"/>
+            <output id="out-chuva-emis" for="chuva-emis">0</output>
+          </div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="chuva-status"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span> Ler o pH</button>
+            <button type="button" class="action-btn" data-action="chuva-reset"><span aria-hidden="true">↺</span> Zerar emissões</button>
+          </div>
+          <p class="hint-text">O índice é <strong>relativo</strong> (0 a 100): serve para ver a tendência do pH, não para medir tonelada emitida.</p>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 3 — CAMADA DE OZÔNIO ════════ -->
+      <section class="panel" id="panel-ozonio" data-owner hidden aria-labelledby="hdr-oz">
+        <button type="button" class="panel-header" id="hdr-oz" aria-expanded="true" aria-controls="body-oz">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+          <span class="panel-label">CFC na Estratosfera</span>
+          <span class="panel-badge">2</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-oz" role="region" aria-labelledby="hdr-oz">
+          <div class="slider-row">
+            <label for="oz-cfc">Índice CFC</label>
+            <input type="range" id="oz-cfc" data-bind="cfc" min="0" max="100" step="1" value="0"/>
+            <output id="out-oz-cfc" for="oz-cfc">0</output>
+          </div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="oz-status"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span> Ler a coluna</button>
+            <button type="button" class="action-btn" data-action="oz-reset"><span aria-hidden="true">↺</span> Zerar CFC</button>
+          </div>
+          <p class="hint-text">O cloro é <strong>regenerado</strong> no fim do ciclo: por isso um átomo só destrói milhares de moléculas de ozônio.</p>
+        </div>
+      </section>
+
+      <!-- ════════ RESULTADOS (sempre visível, independe do modo) ════════ -->
+      <section class="panel" aria-labelledby="hdr-result">
+        <button type="button" class="panel-header" id="hdr-result" aria-expanded="true" aria-controls="body-result">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
+          <span class="panel-label">Resultados</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-result" role="region" aria-labelledby="hdr-result">
+          <dl class="data-grid" id="result-grid" aria-live="polite" aria-atomic="true"></dl>
+          <canvas id="result-chart" class="result-chart" hidden aria-label="Gráfico auxiliar do modo atual"></canvas>
+        </div>
+      </section>
+
+    </aside>
+
+  </main>
+
+  <!-- ════════ MODAL — INFORMAÇÕES DO MODO (1ª ATIVAÇÃO, MOBILE) ════════ -->
+  <div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+       aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+    <div class="mode-info-modal" id="modeInfoModal">
+      <div class="mode-info-header">
+        <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+        <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+        <button type="button" class="mode-info-close" id="modeInfoClose"
+                aria-label="Fechar informações do modo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+      </div>
+      <div class="mode-info-body" id="modeInfoBody"></div>
+    </div>
+  </div>
+
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+  <!-- ═══ ORDEM DE CARGA — não reordenar ═══
+       a11y → core → data → ui → simulation → init.
+       Escopo global compartilhado entre as tags: cada arquivo
+       conta com o que os anteriores declararam. -->
+  <script src="js/a11y/anuncios.js"></script>
+  <script src="js/core/formatacao.js"></script>
+  <script src="js/data/dadosambiental.js"></script>
+  <script src="js/ui/kit-desenho.js"></script>
+  <script src="js/simulation/mecanica.js"></script>
+  <script src="js/init/app.js"></script>
+  <script src="js/ui/offcanvas-mobile.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'ambiental', bp: 1100 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

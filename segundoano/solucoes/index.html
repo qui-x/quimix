@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+  <meta name="description" content="Classifique misturas, prepare e dilua soluções e explore curvas reais de solubilidade — do dia a dia ao laboratório."/>
+  <title>SISOL — Simulador Interativo de Soluções</title>
+  <link rel="stylesheet" href="css/stylesolucoes.css"/>
+</head>
+<body>
+
+  <!-- Camada de simulação de daltonismo (backdrop-filter, nunca no body) -->
+  <div id="colorblindOverlay" aria-hidden="true"></div>
+  <!-- ══ FILTROS DE DALTONISMO ══════════════════════════════════════
+       O a11y.js aplica `backdrop-filter: url(#f-<tipo>)` no
+       #colorblindOverlay. Sem estes <filter> declarados NESTE
+       documento, a URL aponta para um id inexistente e o navegador
+       ignora em silencio — sem erro no console. Era o caso aqui: o
+       overlay existia, o CSS existia, mas os filtros nao. A simulacao
+       de daltonismo simplesmente nao acontecia.
+
+       Matrizes: Brettel para as tres dicromacias e Rec.601
+       (0.299/0.587/0.114) para acromatopsia. Identicas as das outras
+       paginas — ha uma fonte unica de verdade no projeto.
+       ══════════════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="f-protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-acromatopsia">
+        <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <nav class="skip-nav" aria-label="Atalhos de navegação">
+    <a href="#sidebar-left"  class="skip-link">Pular para menus e informações</a>
+    <a href="#sim-canvas"    class="skip-link">Pular para a simulação</a>
+    <a href="#sidebar-right" class="skip-link">Pular para os controles</a>
+  </nav>
+
+  <div id="sr-live"           class="sr-only" aria-live="polite"    aria-atomic="true"></div>
+  <div id="sr-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+  <header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexsegundoano.html" aria-label="Voltar aos simuladores do 2º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>2º Ano</span>
+      </a>
+      <button class="header-logo" id="btn-app-logo" aria-label="Logo do SISOL — toque para uma curiosidade química">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" width="22" height="22"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/><path d="M6.5 15h11"/><circle cx="10" cy="17.5" r="1"/><circle cx="14" cy="18.5" r="1"/></svg>
+      </button>
+      <div>
+        <h1>SISOL</h1>
+        <p class="header-sub">Simulador Interativo de Soluções</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button type="button" class="mobile-menu-btn" id="mobile-menu-btn"
+        aria-label="Abrir controles da simulação" aria-expanded="false" aria-controls="sidebar-right"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h4" /><path d="M12 21v-9" /><path d="M12 8V3" /><path d="M17 16h4" /><path d="M19 12V3" /><path d="M19 21v-5" /><path d="M3 14h4" /><path d="M5 10V3" /><path d="M5 21v-7" /></svg></button>
+    </div>
+  </header>
+
+  <!-- ════════ BARRA DE MODOS (MOBILE) ════════
+       Só aparece em telas estreitas (ver @media 1100px no CSS) — substitui
+       a navegação por gaveta esquerda (☰) por uma barra rolável sempre
+       visível, na MESMA ordem e com os MESMOS dados de SIM_DATA.MODES que
+       já alimentam o acordeão da sidebar esquerda (sem duplicar dado,
+       só a forma de exibir). Preenchida em _buildModeTabsMobile() (app.js).
+       O botão "mobile-info-btn" que abria a sidebar esquerda foi removido
+       de propósito: esta barra assume essa função no mobile. -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Modos do simulador" aria-orientation="horizontal"></nav>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+  <div class="keyboard-hints" role="note" aria-label="Atalhos de teclado disponíveis">
+    <kbd>Alt+1–9</kbd> Modos &nbsp;
+    <kbd>Enter/Espaço</kbd> Ação no gráfico
+  </div>
+
+  <main class="app-main" id="main-content" role="main">
+
+    <aside class="sidebar sidebar--left" id="sidebar-left"
+           aria-label="Menus, listagens e informações do simulador">
+
+      <!-- ════════ MODOS (um painel-acordeão por modo, montado pelo JS) ════════ -->
+      <div id="model-list" aria-label="Modos de estudo disponíveis, cada um com painel próprio"></div>
+
+    </aside>
+
+    <div class="canvas-wrap">
+      <canvas id="sim-canvas" tabindex="0" role="img"
+              aria-label="Simulação animada do modo selecionado"
+              aria-describedby="canvas-desc"></canvas>
+      <p id="canvas-desc" class="sr-only">
+        Área de simulação com béqueres, curvas de solubilidade, manômetros de vapor, termômetros, membrana osmótica e garrafa de gás sob pressão, atualizada em tempo real conforme os controles.
+      </p>
+      <!-- INDICADOR DE MODO ATIVO (padrão SILQ) — a pílula fica ESCONDIDA
+           enquanto nenhum modo está ativo: o canvas começa puro. Ao ativar
+           um modo, a classe .mode-on aparece e mostra ícone + nome + ✕. -->
+      <div class="canvas-overlay" id="mode-indicator">
+        <span class="overlay-label" id="overlay-label">
+          <span class="overlay-icon" id="overlay-icon" aria-hidden="true"></span>
+          <span class="overlay-text" id="overlay-text">SISOL</span>
+          <button type="button" class="overlay-clear" id="overlay-clear"
+                  aria-label="Desativar o modo ativo" title="Desativar o modo ativo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+        </span>
+      </div>
+      <div class="canvas-hint" aria-hidden="true" id="canvas-hint">Escolha um modo ao lado e clique em "Ativar" para iniciar a simulação.</div>
+      <div class="fps-counter" aria-hidden="true" id="fps-counter">-- fps</div>
+        </div>
+
+    <aside class="sidebar sidebar--right" id="sidebar-right"
+           aria-label="Controles da simulação">
+
+      <!-- Mensagem de "tudo trancado" — mesmo padrão do 1º ano. -->
+      <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+        <svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <p>Ative um modo à esquerda — <strong>Classificação de Misturas</strong>, <strong>Preparo de Solução</strong>, <strong>Diluição e Mistura</strong> ou <strong>Curvas de Solubilidade</strong> — para liberar os controles e os resultados.</p>
+      </div>
+
+      <!-- ════════ RESUMO DO MODO (MOBILE) ════════
+           Só usado dentro do bottom sheet mobile — no desktop essa
+           informação (definição + fatos-chave) já aparece no acordeão da
+           sidebar esquerda, então aqui fica escondida (ver CSS). Populado
+           por _syncMobileModeUI() em app.js a partir do mesmo SIM_DATA.MODES,
+           sem duplicar a lógica de montagem. -->
+      <div class="mode-summary-mobile" id="mode-summary-mobile" hidden>
+        <button type="button" class="mode-summary-toggle" id="mode-summary-toggle"
+                aria-expanded="false" aria-controls="mode-summary-body">
+          <span aria-hidden="true">ℹ️</span> Sobre este modo
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="mode-summary-body" id="mode-summary-body"></div>
+      </div>
+
+      <!-- ════════ MODO 1 — CLASSIFICAÇÃO DE MISTURAS ════════ -->
+      <section class="panel" id="panel-classificacao" data-owner hidden aria-labelledby="hdr-mix">
+        <button type="button" class="panel-header" id="hdr-mix" aria-expanded="true" aria-controls="body-mix">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13v1" /><path d="M17 2a1 1 0 0 1 1 1v4a3 3 0 0 1-.6 1.8l-.6.8A4 4 0 0 0 16 12v8a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-8a4 4 0 0 0-.8-2.4l-.6-.8A3 3 0 0 1 6 7V3a1 1 0 0 1 1-1z" /><path d="M6 6h12" /></svg></span>
+          <span class="panel-label">Mistura em Observação</span>
+          <span class="panel-badge">10</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-mix" role="region" aria-labelledby="hdr-mix">
+          <div class="opt-grid" id="mix-grid" data-group="mixItem" role="listbox"
+               aria-label="Misturas do dia a dia disponíveis"></div>
+
+          <div class="action-row" role="group" aria-label="Sua classificação">
+            <button class="action-btn" data-action="resp-solucao">Solução</button>
+            <button class="action-btn" data-action="resp-coloide">Colóide</button>
+            <button class="action-btn" data-action="resp-suspensao">Suspensão</button>
+          </div>
+          <div class="action-row">
+            <button class="action-btn" data-action="toggle-lente"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg></span> Ver de perto (alternativa)</button>
+          </div>
+          <p class="hint-text">Observe o feixe de luz atravessando o béquer (efeito Tyndall) e se as partículas sedimentam com o tempo — depois escolha a classificação. Um ✓ ou ✗ confirma se você acertou.</p>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 2 — PREPARO ════════ -->
+      <section class="panel" id="panel-preparo" data-owner hidden aria-labelledby="hdr-preparo">
+        <button type="button" class="panel-header" id="hdr-preparo" aria-expanded="true" aria-controls="body-preparo">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l1 4H8z" /><path d="M8 7h8l-1.2 12.2a2 2 0 0 1-2 1.8h-1.6a2 2 0 0 1-2-1.8z" /><circle cx="12" cy="12" r=".5" fill="currentColor" /><circle cx="10" cy="15" r=".5" fill="currentColor" /><circle cx="14" cy="15" r=".5" fill="currentColor" /></svg></span>
+          <span class="panel-label">Soluto e Quantidades</span>
+          <span class="panel-badge">10</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-preparo" role="region" aria-labelledby="hdr-preparo">
+          <div class="opt-grid" id="preparo-grid" data-group="soluto" role="listbox"
+               aria-label="Solutos disponíveis com massa molar"></div>
+
+          <div class="slider-row">
+            <label for="prep-massa">Massa m₁</label>
+            <input type="range" id="prep-massa" data-bind="massa" min="0" max="150" step="1" value="30" data-unit="g"/>
+            <output id="out-prep-massa" for="prep-massa">30 g</output>
+          </div>
+          <div class="slider-row">
+            <label for="prep-vol">Água</label>
+            <input type="range" id="prep-vol" data-bind="vol" min="100" max="1000" step="10" value="250" data-unit="mL"/>
+            <output id="out-prep-vol" for="prep-vol">250 mL</output>
+          </div>
+          <div class="slider-row">
+            <label for="prep-temp">Temperatura</label>
+            <input type="range" id="prep-temp" data-bind="temp" min="0" max="100" step="1" value="25" data-unit="°C"/>
+            <output id="out-prep-temp" for="prep-temp">25 °C</output>
+          </div>
+
+          <div class="action-row">
+            <button class="action-btn" data-action="dissolver"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Dissolver</button>
+            <button class="action-btn" data-action="prep-reset"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg></span> Reiniciar</button>
+          </div>
+          <p class="hint-text">A temperatura muda o limite de solubilidade real (igual às curvas do modo 3). Antes de dissolver, os resultados ficam zerados — é um experimento. O que passar do limite fica no fundo como <strong>corpo de fundo</strong>.</p>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 3 — DILUIÇÃO / MISTURA ════════ -->
+      <section class="panel" id="panel-diluicao" data-owner hidden aria-labelledby="hdr-dil">
+        <button type="button" class="panel-header" id="hdr-dil" aria-expanded="true" aria-controls="body-dil">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" /></svg></span>
+          <span class="panel-label">Soluções de KMnO₄</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-dil" role="region" aria-labelledby="hdr-dil">
+          <div class="seg" data-group="op" role="group" aria-label="Operação">
+            <button class="seg-btn" data-value="diluir"  aria-pressed="true">Diluir</button>
+            <button class="seg-btn" data-value="misturar" aria-pressed="false">Misturar</button>
+          </div>
+
+          <div class="slider-row">
+            <label for="dil-c1">C₁</label>
+            <input type="range" id="dil-c1" data-bind="c1" min="0.1" max="2" step="0.05" value="1.2" data-fmt="f2" data-unit="g/L"/>
+            <output id="out-dil-c1" for="dil-c1">1,2 g/L</output>
+          </div>
+          <div class="slider-row">
+            <label for="dil-v1">V₁</label>
+            <input type="range" id="dil-v1" data-bind="v1" min="50" max="500" step="10" value="200" data-unit="mL"/>
+            <output id="out-dil-v1" for="dil-v1">200 mL</output>
+          </div>
+          <div id="row-dil-agua">
+            <div class="slider-row">
+              <label for="dil-vagua">Água a verter</label>
+              <input type="range" id="dil-vagua" data-bind="vagua" min="0" max="500" step="10" value="200" data-unit="mL"/>
+              <output id="out-dil-vagua" for="dil-vagua">200 mL</output>
+            </div>
+          </div>
+          <div id="row-dil-c2" hidden>
+            <div class="slider-row">
+              <label for="dil-c2">C₂</label>
+              <input type="range" id="dil-c2" data-bind="c2" min="0" max="2" step="0.05" value="0.4" data-fmt="f2" data-unit="g/L"/>
+              <output id="out-dil-c2" for="dil-c2">0,4 g/L</output>
+            </div>
+            <div class="slider-row">
+              <label for="dil-v2">V₂</label>
+              <input type="range" id="dil-v2" data-bind="v2" min="50" max="500" step="10" value="200" data-unit="mL"/>
+              <output id="out-dil-v2" for="dil-v2">200 mL</output>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button class="action-btn" data-action="aplicar"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Verter / Misturar</button>
+            <button class="action-btn" data-action="dil-reset"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg></span> Reiniciar</button>
+          </div>
+          <p class="hint-text">Abra as torneiras para transferir tudo para o béquer maior. A cor violeta do KMnO₄ é proporcional à concentração — repare como ela muda.</p>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 4 — CURVAS ════════ -->
+      <section class="panel" id="panel-curvas" data-owner hidden aria-labelledby="hdr-curvas">
+        <button type="button" class="panel-header" id="hdr-curvas" aria-expanded="true" aria-controls="body-curvas">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7h6v6" /><path d="m22 7-8.5 8.5-5-5L2 17" /></svg></span>
+          <span class="panel-label">Sal, Temperatura e Massa</span>
+          <span class="panel-badge">7</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-curvas" role="region" aria-labelledby="hdr-curvas">
+          <div class="opt-grid" id="curvas-grid" data-group="sal" role="listbox"
+               aria-label="Sais com curva de solubilidade disponível"></div>
+
+          <div class="slider-row">
+            <label for="cur-t">Temperatura</label>
+            <input type="range" id="cur-t" data-bind="t" min="0" max="100" step="1" value="20" data-unit="°C"/>
+            <output id="out-cur-t" for="cur-t">20 °C</output>
+          </div>
+          <div class="slider-row">
+            <label for="cur-massa">Massa do sal</label>
+            <input type="range" id="cur-massa" data-bind="mcur" min="0" max="250" step="1" value="60" data-unit="g"/>
+            <output id="out-cur-massa" for="cur-massa">60 g</output>
+          </div>
+
+          <div class="action-row" role="group" aria-label="Sua análise do gráfico">
+            <button class="action-btn" data-action="resp-insat">Insaturada</button>
+            <button class="action-btn" data-action="resp-sat">Saturada</button>
+            <button class="action-btn" data-action="resp-corpo">Corpo de fundo</button>
+          </div>
+          <div class="action-row">
+            <button class="action-btn" data-action="toggle-zoom-curvas"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg></span> Ver de perto (alternativa)</button>
+          </div>
+          <p class="hint-text">Analise o gráfico e escolha o que está acontecendo — a massa está acima, sobre, ou abaixo da curva na temperatura marcada? Um ✓ ou ✗ confirma se você acertou.</p>
+        </div>
+      </section>
+
+    
+      <!-- ════════ MODO 5 — PRESSÃO DE VAPOR ════════ -->
+
+      <!-- ════════ RESULTADOS ════════ -->
+      <section class="panel" aria-labelledby="hdr-result">
+        <button type="button" class="panel-header" id="hdr-result" aria-expanded="true" aria-controls="body-result">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21v-6" /><path d="M12 21V9" /><path d="M19 21V3" /></svg></span>
+          <span class="panel-label">Resultados</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-result" role="region" aria-labelledby="hdr-result">
+          <dl class="data-grid" id="result-grid" aria-live="polite" aria-atomic="true"></dl>
+        </div>
+      </section>
+
+    </aside>
+
+    
+
+  </main>
+
+  <!-- ════════ MODAL — INFORMAÇÕES DO MODO (1ª ATIVAÇÃO, MOBILE) ════════
+       Aberto por _showModeInfoModal() (app.js) na 1ª vez que cada modo é
+       ativado nesta sessão, pelo toque na barra de modos mobile
+       (mode-tabs-mobile). Mesmo conteúdo de "Sobre este modo" no bottom
+       sheet (_modeSummaryHTML, sem duplicar dado) — só a APRESENTAÇÃO é
+       diferente: aqui é um modal de verdade, por cima de tudo, que força
+       a leitura antes de simular pela 1ª vez. Fecha pelo ✕, por toque no
+       fundo escurecido, ou Esc — depois disso o mesmo conteúdo continua
+       acessível quando o aluno quiser, recolhido dentro do próprio bottom
+       sheet. -->
+  <div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+       aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+    <div class="mode-info-modal" id="modeInfoModal">
+      <div class="mode-info-header">
+        <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+        <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+        <button type="button" class="mode-info-close" id="modeInfoClose"
+                aria-label="Fechar informações do modo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+      </div>
+      <div class="mode-info-body" id="modeInfoBody"></div>
+    </div>
+  </div>
+
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+  <script src="js/data/dadossolucoes.js"></script>
+  <script src="js/core/namespace.js"></script>
+  <script src="js/a11y/preferencias.js"></script>
+  <script src="js/a11y/anuncios.js"></script>
+  <script src="js/core/formatacao.js"></script>
+  <script src="js/core/canvas-escala.js"></script>
+  <script src="js/ui/kit-desenho.js"></script>
+  <script src="js/ui/icones-canvas.js"></script>
+  <script src="js/simulation/mecanica.js"></script>
+  <script src="js/init/app.js"></script>
+
+  <!-- ═══ TOUR GUIADO (COACHMARK) — boas-vindas + por módulo ═══ -->
+  <script src="../../coachmark.js"></script>
+  <script src="js/a11y/tour.js"></script>
+  <script src="js/ui/offcanvas-mobile.js"></script>
+  <script src="js/ui/sidebar-resizer.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'solucoes', bp: 1100 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

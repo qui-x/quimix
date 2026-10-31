@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+  <meta name="description" content="Compare as quatro classes de biomoléculas, monte dipeptídeos pela ligação peptídica e veja a atividade enzimática variar com pH e temperatura."/>
+  <title>SIQB — Simulador Interativo de Bioquímica</title>
+  <link rel="stylesheet" href="css/stylebioquimica.css"/>
+</head>
+<body>
+
+  <!-- Camada de simulação de daltonismo (backdrop-filter, nunca no body) -->
+  <div id="colorblindOverlay" aria-hidden="true"></div>
+  <!-- ══ FILTROS DE DALTONISMO ══════════════════════════════════════
+       O a11y.js aplica `backdrop-filter: url(#f-<tipo>)` no
+       #colorblindOverlay. Sem estes <filter> declarados NESTE
+       documento, a URL aponta para um id inexistente e o navegador
+       ignora em silencio — sem erro no console. Era o caso aqui: o
+       overlay existia, o CSS existia, mas os filtros nao. A simulacao
+       de daltonismo simplesmente nao acontecia.
+
+       Matrizes: Brettel para as tres dicromacias e Rec.601
+       (0.299/0.587/0.114) para acromatopsia. Identicas as das outras
+       paginas — ha uma fonte unica de verdade no projeto.
+       ══════════════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="f-protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-acromatopsia">
+        <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <nav class="skip-nav" aria-label="Atalhos de navegação">
+    <a href="#sidebar-left"  class="skip-link">Pular para menus e informações</a>
+    <a href="#sim-canvas"    class="skip-link">Pular para a simulação</a>
+    <a href="#sidebar-right" class="skip-link">Pular para os controles</a>
+  </nav>
+
+  <div id="sr-live"           class="sr-only" aria-live="polite"    aria-atomic="true"></div>
+  <div id="sr-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+  <header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexterceiroano.html" aria-label="Voltar aos simuladores do 3º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>3º Ano</span>
+      </a>
+      <button class="header-logo" id="btn-app-logo" aria-label="Logo do SIQB — toque para uma curiosidade química">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" width="22" height="22">
+          <path d="M8 3c0 6 8 6 8 12 0 3-2 6-2 6M16 3c0 6-8 6-8 12 0 3 2 6 2 6"/>
+          <path d="M9.5 8h5M8.5 13h7"/>
+        </svg>
+      </button>
+      <div>
+        <h1>SIQB</h1>
+        <p class="header-sub">Simulador Interativo de Bioquímica</p>
+      </div>
+    </div>
+
+    <button type="button" class="mobile-menu-btn" id="mobile-menu-btn"
+      aria-label="Abrir controles da simulação" aria-expanded="false" aria-controls="sidebar-right"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
+  </header>
+
+  <!-- ════════ BARRA DE MODOS (MOBILE) ════════
+       Só aparece em telas estreitas — substitui a gaveta esquerda (☰)
+       por uma barra rolável sempre visível, na MESMA ordem/dados de
+       SIM_DATA.MODES. Preenchida em _buildModeTabsMobile() (mesmo
+       arquivo). O botão "mobile-info-btn" foi removido de propósito:
+       esta barra assume essa função no mobile. -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Modos do simulador" aria-orientation="horizontal"></nav>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+  <div class="keyboard-hints" role="note" aria-label="Atalhos de teclado disponíveis">
+    <kbd>Alt+1–3</kbd> Modos &nbsp;
+    <kbd>Enter/Espaço</kbd> Ação no canvas
+  </div>
+
+  <main class="app-main" id="main-content" role="main">
+
+    <aside class="sidebar sidebar--left" id="sidebar-left"
+           aria-label="Menus, listagens e informações do simulador">
+      <!-- ════════ MODOS (um painel-acordeão por modo, gerado de SIM_DATA.MODES) ════════ -->
+      <div id="model-list" aria-label="Modos disponíveis, cada um com painel próprio"></div>
+    </aside>
+
+    <div class="canvas-wrap">
+      <canvas id="sim-canvas" tabindex="0" role="img"
+              aria-label="Desenho do modo selecionado"
+              aria-describedby="canvas-desc"></canvas>
+      <p id="canvas-desc" class="sr-only">
+        Área de desenho com os monômeros se ligando em polímero, a montagem do dipeptídeo e a curva de atividade enzimática contra o pH.
+      </p>
+      <!-- INDICADOR DE MODO ATIVO (padrão SILQ) — a pílula fica ESCONDIDA
+           enquanto nenhum modo está ativo: o canvas começa puro. Ao ativar
+           um modo, a classe .mode-on aparece e mostra ícone + nome + ✕. -->
+      <div class="canvas-overlay" id="mode-indicator">
+        <span class="overlay-label" id="overlay-label">
+          <span class="overlay-icon" id="overlay-icon" aria-hidden="true"></span>
+          <span class="overlay-text" id="overlay-text">SIQB</span>
+          <button type="button" class="overlay-clear" id="overlay-clear"
+                  aria-label="Desativar o modo ativo" title="Desativar o modo ativo">✕</button>
+        </span>
+      </div>
+      <div class="canvas-hint" aria-hidden="true" id="canvas-hint">Escolha um modo ao lado e clique em "Ativar" para iniciar a simulação.</div>
+      <div class="fps-counter" aria-hidden="true" id="fps-counter">-- fps</div>
+    </div>
+
+    <aside class="sidebar sidebar--right" id="sidebar-right"
+           aria-label="Controles da simulação">
+
+      <!-- Mensagem de "tudo trancado" — mesmo padrão do 1º ano. -->
+      <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+        <svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <p>Ative um modo à esquerda — <strong>Biomoléculas</strong>, <strong>Ligação Peptídica</strong> ou <strong>Atividade Enzimática</strong> — para liberar os controles e os resultados.</p>
+      </div>
+
+      <!-- ════════ RESUMO DO MODO (MOBILE) ════════
+           Só usado dentro do bottom sheet mobile — no desktop essa
+           informação já aparece no acordeão da sidebar esquerda, então
+           aqui fica escondida (ver CSS). Populado por
+           _syncMobileModeUI() a partir do mesmo SIM_DATA.MODES. -->
+      <div class="mode-summary-mobile" id="mode-summary-mobile" hidden>
+        <button type="button" class="mode-summary-toggle" id="mode-summary-toggle"
+                aria-expanded="false" aria-controls="mode-summary-body">
+          <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="11"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span> Sobre este modo
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="mode-summary-body" id="mode-summary-body"></div>
+      </div>
+
+      <!-- ════════ MODO 1 — BIOMOLÉCULAS ════════ -->
+      <section class="panel" id="panel-biomoleculas" data-owner hidden aria-labelledby="hdr-bio">
+        <button type="button" class="panel-header" id="hdr-bio" aria-expanded="true" aria-controls="body-bio">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3c0 4 5 5 5 9s-5 5-5 9"/><path d="M19 3c0 4-5 5-5 9s5 5 5 9"/><line x1="7" y1="7" x2="17" y2="7"/><line x1="6.4" y1="11" x2="17.6" y2="11"/><line x1="6.4" y1="13" x2="17.6" y2="13"/><line x1="7" y1="17" x2="17" y2="17"/></svg></span>
+          <span class="panel-label">Classe de Biomolécula</span>
+          <span class="panel-badge">4</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-bio" role="region" aria-labelledby="hdr-bio">
+          <div class="opt-grid cols-1" id="bio-grid" data-group="bio" role="listbox"
+               aria-label="Classe de biomolécula a estudar"></div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="bio-next"><span aria-hidden="true">↻</span> Próxima classe</button>
+          </div>
+          <p class="hint-text">Toda ligação entre monômeros aqui sai com <strong>perda de água</strong> — é uma condensação.</p>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 2 — LIGAÇÃO PEPTÍDICA ════════ -->
+      <section class="panel" id="panel-peptidica" data-owner hidden aria-labelledby="hdr-pep">
+        <button type="button" class="panel-header" id="hdr-pep" aria-expanded="true" aria-controls="body-pep">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+          <span class="panel-label">Aminoácidos do Dipeptídeo</span>
+          <span class="panel-badge">7</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-pep" role="region" aria-labelledby="hdr-pep">
+          <p class="fact-label" style="display:block;margin:2px 0 4px;">Primeiro (doa a carboxila)</p>
+          <div class="opt-grid cols-1" id="aa1-grid" data-group="aa1" role="listbox"
+               aria-label="Primeiro aminoácido do dipeptídeo"></div>
+
+          <p class="fact-label" style="display:block;margin:8px 0 4px;">Segundo (doa o grupo amino)</p>
+          <div class="opt-grid cols-1" id="aa2-grid" data-group="aa2" role="listbox"
+               aria-label="Segundo aminoácido do dipeptídeo"></div>
+
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="pep-inverter"><span aria-hidden="true">⇄</span> Inverter a ordem</button>
+          </div>
+          <p class="hint-text">Inverter a ordem gera um <strong>peptídeo diferente</strong>: Gly-Ala não é o mesmo que Ala-Gly.</p>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 3 — ATIVIDADE ENZIMÁTICA ════════ -->
+      <section class="panel" id="panel-enzimas" data-owner hidden aria-labelledby="hdr-enz">
+        <button type="button" class="panel-header" id="hdr-enz" aria-expanded="true" aria-controls="body-enz">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2h6"/><path d="M10 2v6.5L4.5 18a2 2 0 0 0 1.7 3h11.6a2 2 0 0 0 1.7-3L14 8.5V2"/><line x1="6.5" y1="14" x2="17.5" y2="14"/></svg></span>
+          <span class="panel-label">Enzima e Condições</span>
+          <span class="panel-badge">4</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-enz" role="region" aria-labelledby="hdr-enz">
+          <div class="opt-grid cols-1" id="enz-grid" data-group="enzima" role="listbox"
+               aria-label="Enzima a testar"></div>
+
+          <div class="slider-row">
+            <label for="enz-ph">pH</label>
+            <input type="range" id="enz-ph" data-bind="enzph" min="0" max="14" step="0.1" value="7" data-fmt="f1"/>
+            <output id="out-enz-ph" for="enz-ph">7,0</output>
+          </div>
+          <div class="slider-row">
+            <label for="enz-t">Temperatura</label>
+            <input type="range" id="enz-t" data-bind="enzt" min="0" max="90" step="1" value="37" data-unit="°C"/>
+            <output id="out-enz-t" for="enz-t">37 °C</output>
+          </div>
+
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="enz-status"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span> Ler a atividade</button>
+            <button type="button" class="action-btn" data-action="enz-reset"><span aria-hidden="true">↺</span> Repor enzima</button>
+          </div>
+          <p class="hint-text">Passar da temperatura de desnaturação é <strong>irreversível</strong>: só "Repor enzima" recomeça.</p>
+        </div>
+      </section>
+
+      <!-- ════════ RESULTADOS (sempre visível, independe do modo) ════════ -->
+      <section class="panel" aria-labelledby="hdr-result">
+        <button type="button" class="panel-header" id="hdr-result" aria-expanded="true" aria-controls="body-result">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
+          <span class="panel-label">Resultados</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-result" role="region" aria-labelledby="hdr-result">
+          <dl class="data-grid" id="result-grid" aria-live="polite" aria-atomic="true"></dl>
+          <canvas id="result-chart" class="result-chart" hidden aria-label="Gráfico auxiliar do modo atual"></canvas>
+        </div>
+      </section>
+
+    </aside>
+
+  </main>
+
+  <!-- ════════ MODAL — INFORMAÇÕES DO MODO (1ª ATIVAÇÃO, MOBILE) ════════ -->
+  <div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+       aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+    <div class="mode-info-modal" id="modeInfoModal">
+      <div class="mode-info-header">
+        <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+        <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+        <button type="button" class="mode-info-close" id="modeInfoClose"
+                aria-label="Fechar informações do modo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+      </div>
+      <div class="mode-info-body" id="modeInfoBody"></div>
+    </div>
+  </div>
+
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+  <!-- ═══ ORDEM DE CARGA — não reordenar ═══
+       a11y → core → data → ui → simulation → init.
+       Escopo global compartilhado entre as tags: cada arquivo
+       conta com o que os anteriores declararam. -->
+  <script src="js/a11y/anuncios.js"></script>
+  <script src="js/core/formatacao.js"></script>
+  <script src="js/core/grafo-molecular.js"></script>
+  <script src="js/data/dadosbioquimica.js"></script>
+  <script src="js/ui/kit-desenho.js"></script>
+  <script src="js/simulation/mecanica.js"></script>
+  <script src="js/init/app.js"></script>
+  <script src="js/ui/offcanvas-mobile.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'bioquimica', bp: 1100 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

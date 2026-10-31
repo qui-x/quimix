@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+  <title>SIQI — Simulador Interativo de Química Inorgânica</title>
+  <meta name="description" content="Simulador interativo de reações de Química Inorgânica com método socrático" />
+  <meta name="theme-color" content="#09090b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="stylesheet" href="css/stylesiqi.css" />
+</head>
+<body>
+
+<!-- Filtros SVG de daltonismo — mesmo padrão SIEM -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="f-protanopia">  <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/></filter>
+    <filter id="f-deuteranopia"><feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/></filter>
+    <filter id="f-tritanopia">  <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/></filter>
+    <filter id="f-acromatopsia"><feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/></filter>
+  </defs>
+</svg>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     BIBLIOTECA DE ÍCONES SVG — substitui todos os emojis do SIQI
+     ───────────────────────────────────────────────────────────────
+     Mesmo mecanismo do resto da família: um bloco de <symbol>, usado
+     como <svg class="icon"><use href="#ic-NOME"/></svg>. stroke/
+     fill:currentColor herda a cor do texto ao redor; width/height:1em
+     (ver .icon em stylesiqi.css) acompanha o tamanho de fonte do
+     elemento-pai. Cobre tanto os ícones de interface (menu, engrenagem,
+     fechar...) quanto as CHAVES usadas no campo `icon` dos bancos de
+     reação (data/reacoes-livres-*.js, data/experimentos.js) — ali o
+     valor do campo já é a própria chave (ex.: icon:'bolt'), montada em
+     <use href="#ic-‹chave›"> no ponto de renderização (lab/reacoes-livres.js).
+     ═══════════════════════════════════════════════════════════════ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="ic-menu" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5v2.4M12 18.1v2.4M20.5 12h-2.4M5.9 12H3.5M17.8 6.2l-1.7 1.7M7.9 16.1l-1.7 1.7M17.8 17.8l-1.7-1.7M7.9 7.9 6.2 6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-warning" viewBox="0 0 24 24"><path d="M12 3l10 18H2L12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1.15" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-flask" viewBox="0 0 24 24"><path d="M9 2h6M10 2v6.2L4.8 18a2 2 0 0 0 1.75 3h10.9a2 2 0 0 0 1.75-3L14 8.2V2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 15h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-precipitate" viewBox="0 0 24 24"><path d="M9 2h6M10 2v6.2L4.8 18a2 2 0 0 0 1.75 3h10.9a2 2 0 0 0 1.75-3L14 8.2V2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 17.5c1 .8 2.2 1.2 5 1.2s4-.4 5-1.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10.3" cy="16.3" r=".9" fill="currentColor" stroke="none"/><circle cx="13.7" cy="17" r=".8" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-flame" viewBox="0 0 24 24"><path d="M12 21.5c-3.6 0-6.4-2.5-6.4-6 0-2.7 1.7-4.3 2.5-6.4.5 1.4 1.4 2 2.1 1.4-.4-2.6.4-5 3-8 .8 3 3.6 4.7 5 7.4.9 1.7 1.2 3.3 1.2 4.6 0 3.9-3.4 7-7.4 7z" fill="currentColor" opacity=".92" stroke="none"/></symbol>
+    <symbol id="ic-factory" viewBox="0 0 24 24"><path d="M3 21V11l5 3v-3l5 3V6l7-3v18H3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7 21v-4M11 21v-4M15 21v-4M19 21v-4" stroke="currentColor" stroke-width="1.4"/><path d="M17 3.5c0 1.2-1 1.2-1 2.4s1 1.2 1 2.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="ic-thermometer" viewBox="0 0 24 24"><path d="M12 14.5V5a2 2 0 1 0-4 0v9.5a4 4 0 1 0 4 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="10" cy="16.2" r="1.7" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 2.34 5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 17v-5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-droplet" viewBox="0 0 24 24"><path d="M12 2.5c3 3.8 6.5 8 6.5 12A6.5 6.5 0 1 1 5.5 14.5c0-4 3.5-8.2 6.5-12z" fill="currentColor" opacity=".85" stroke="none"/></symbol>
+    <symbol id="ic-cloud" viewBox="0 0 24 24"><path d="M7 18h10.5a3.5 3.5 0 0 0 .5-6.96A5.5 5.5 0 0 0 7.6 9.5 4 4 0 0 0 7 18z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 4-13.5 14-14 -.5 10-6 14-14 14z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6 18c3-4 6.5-7 12-11.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="ic-rocket" viewBox="0 0 24 24"><path d="M12 2c3 2 4.5 5.5 4.5 9.5 0 2-1 4-2 5.2l-2.5 2-2.5-2c-1-1.2-2-3.2-2-5.2C7.5 7.5 9 4 12 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="10" r="1.6" fill="currentColor" stroke="none"/><path d="M9 16l-2.5 1.5.5-3M15 16l2.5 1.5-.5-3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.4 5.6l-1.9 1.9M7.5 16.5l-1.9 1.9M18.4 18.4l-1.9-1.9M7.5 7.5 5.6 5.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="ic-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-explosion" viewBox="0 0 24 24"><path d="M12 2 9.5 8 4 6l3 5-5 2 5.5 1.5L6 20l6-3.5L18 20l-1.5-5.5L22 13l-5-2 3-5-5.5 2z" fill="currentColor" stroke="none" opacity=".9"/></symbol>
+    <symbol id="ic-pill" viewBox="0 0 24 24"><rect x="3" y="9.5" width="18" height="5" rx="2.5" transform="rotate(-32 12 12)" fill="none" stroke="currentColor" stroke-width="1.7"/><line x1="11" y1="7.2" x2="13" y2="16.8" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="ic-snow" viewBox="0 0 24 24"><path d="M12 2v20M4.2 6.5l15.6 11M4.2 17.5l15.6-11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="ic-sparkle" viewBox="0 0 24 24"><path d="M12 3c.6 4 2.6 6 6.5 6.5-3.9.5-5.9 2.5-6.5 6.5-.6-4-2.6-6-6.5-6.5C9.4 9 11.4 7 12 3z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-puzzle" viewBox="0 0 24 24"><path d="M9 4h4a1.6 1.6 0 0 1 0 3.2 1.6 1.6 0 0 0 0 3.2H17a2 2 0 0 1 2 2v3.6a1.6 1.6 0 0 1-3.2 0 1.6 1.6 0 0 0-3.2 0V20H6a2 2 0 0 1-2-2v-4.4a1.6 1.6 0 0 1 3.2 0 1.6 1.6 0 0 0 3.2 0V9H6a2 2 0 0 1-2-2V4z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-tag" viewBox="0 0 24 24"><path d="M11.5 3.5H5a1.5 1.5 0 0 0-1.5 1.5v6.5a1.5 1.5 0 0 0 .44 1.06l9 9a1.5 1.5 0 0 0 2.12 0l6.5-6.5a1.5 1.5 0 0 0 0-2.12l-9-9a1.5 1.5 0 0 0-1.06-.44z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8c.7.5 1.1 1.3 1.1 2.2h5.4c0-.9.4-1.7 1.1-2.2A6.5 6.5 0 0 0 12 2.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v18H6.5A2.5 2.5 0 0 1 4 18.5v-13Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v18h5.5a2.5 2.5 0 0 0 2.5-2.5v-13Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-scale" viewBox="0 0 24 24"><path d="M12 3v18M8 21h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12 6 4 8m8-2 8 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4 8l-2.2 5.2a2.6 2.6 0 0 0 4.9 1L4 8zM20 8l2.2 5.2a2.6 2.6 0 0 1-4.9 1L20 8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-clipboard" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="9" y="2.3" width="6" height="3.4" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 11h8M8 14.5h8M8 18h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="ic-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V7a4 4 0 1 1 8 0v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="15.3" r="1.3" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-microscope" viewBox="0 0 24 24"><path d="M8 21h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 21v-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6.5 17.5h8a2.3 2.3 0 0 0 0-4.6h-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 12.9 7.4 9.3a2.1 2.1 0 1 1 3-3l4.6 4.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="14" y1="4.5" x2="16.5" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<!-- Overlay fixo de daltonismo (backdrop-filter, pointer-events:none) —
+     evita aplicar o filtro direto num wrapper, o que quebraria elementos
+     position:fixed/absolute (modais, tooltips, painéis flutuantes). -->
+<div id="colorblindOverlay" aria-hidden="true"></div>
+
+<nav class="skip-nav" aria-label="Atalhos de navegação">
+  <a href="#main-content"  class="skip-link">Pular para o conteúdo principal</a>
+  <a href="#sidebar-left"  class="skip-link">Pular para os módulos</a>
+  <a href="#sim-area"      class="skip-link">Pular para o laboratório</a>
+  <a href="#sidebar-right" class="skip-link">Pular para a biblioteca, o balanço e a ficha</a>
+</nav>
+
+<!-- Regiões live para leitores de tela -->
+<div id="sr-live"           class="sr-only" aria-live="polite"   aria-atomic="true"></div>
+<div id="sr-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+ 
+  <!-- ═══ CABEÇALHO ═══ -->
+  <header class="app-header">
+    <div class="header-brand">
+      <a class="header-back" href="../indexprimeiroano.html" aria-label="Voltar aos simuladores do 1º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>1º Ano</span>
+      </a>
+      <span class="header-logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 4 L10 20 Q10 27 16 27 Q22 27 22 20 L22 4" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+          <line x1="8" y1="8" x2="24" y2="8" stroke-linecap="round" stroke-width="1.3"/>
+          <circle cx="14" cy="18" r="1.5" fill="currentColor" stroke="none"/>
+          <circle cx="18" cy="18" r="1.5" fill="currentColor" stroke="none"/>
+          <circle cx="16" cy="22" r="1.5" fill="currentColor" stroke="none"/>
+          <line x1="14" y1="18" x2="18" y2="18" stroke-width="0.9"/>
+          <line x1="14" y1="18" x2="16" y2="22" stroke-width="0.9"/>
+          <line x1="18" y1="18" x2="16" y2="22" stroke-width="0.9"/>
+          <circle cx="16" cy="11" r="1.2" fill="currentColor" stroke="none" opacity="0.4"/>
+          <circle cx="13" cy="13" r="1" fill="currentColor" stroke="none" opacity="0.5"/>
+          <circle cx="19" cy="14" r="0.9" fill="currentColor" stroke="none" opacity="0.45"/>
+        </svg>
+      </span>
+      <div>
+        <h1>SIQI</h1>
+        <p class="header-sub">Simulador Interativo de Química Inorgânica</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <!-- Mesmo padrao do SIEM: rotulo invisivel para leitor de tela e
+           texto visivel num span proprio. Aqui o badge mostra a FUNCAO
+           inorganica (acido, base, sal, oxido), nao estado fisico. -->
+      <span class="state-pill state-pill--vazio" id="state-pill" role="status" aria-live="polite">
+        <span class="sr-only">Função inorgânica do composto: </span><span id="state-pill-text">sem composto</span>
+      </span>
+      <button type="button" class="mobile-menu-btn" id="mobile-menu-btn-right"
+        aria-label="Abrir propriedades e laboratório"
+        aria-expanded="false" aria-controls="sidebar-right"><svg class="icon" aria-hidden="true"><use href="#ic-gear"/></svg></button>
+    </div>
+  </header>
+
+  <!-- ════════ BARRA DE MODOS (MOBILE) ════════
+       Só aparece em telas estreitas — substitui a gaveta esquerda (☰)
+       pelos módulos (Construtor/Nomenclatura) como abas roláveis.
+       Preenchida em buildModeTabsMobile() (js/ui/modo-mobile.js). -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Módulos de química inorgânica" aria-orientation="horizontal"></nav>
+
+  <!-- ═══ CORPO ═══ -->
+  <div class="app-body" id="main-content">
+
+    <!-- ══ PAINEL ESQUERDO — compostos + busca ══ -->
+    <aside class="sidebar sidebar--left" id="sidebar-left" aria-label="Módulos de química inorgânica">
+
+      <!-- ══ MÓDULOS — Plano de Ação SIQI Modular (2026) ══
+           Réplica fiel da mecânica e estética dos cards de modelo do
+           SIMA (.panel--mode / .mode-activate-btn / .fact-grid /
+           .canvas-interactions / .chip-row / .mode-note — ver
+           indexsima.html e stylesima.css). Cada módulo é o seu próprio
+           card recolhível, com cor de acento própria (--mod/--mod-rgb),
+           selo "Ativo" e sufixo "✓ ativo" no botão — ambos 100% via
+           CSS :has()/[aria-pressed], sem nenhuma classe extra no JS
+           (trocarModulo() só alterna aria-pressed, igual ao SIMA).
+           Único ajuste em relação ao SIMA: aqui a expansão/recolhimento
+           usa o [data-open] do PRÓPRIO .panel (mecânica real do SIQI,
+           via initPaineis()), não o [aria-expanded] do header. -->
+      <section class="panel panel--mode" data-mode-card="construtor" data-open="false" aria-labelledby="hdr-mode-construtor">
+        <button type="button" class="panel-header" id="hdr-mode-construtor"
+                aria-expanded="false" aria-controls="body-mode-construtor">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-puzzle"/></svg></span>
+          <span class="panel-label">Construtor</span>
+          <span class="panel-badge">96</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-construtor" role="region" aria-labelledby="hdr-mode-construtor">
+
+          <button type="button" class="action-btn mode-activate-btn" data-module="construtor"
+                  title="Selecionar o módulo Construtor de Nomenclatura" aria-pressed="false" aria-describedby="def-mod-construtor">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <span aria-hidden="true">▶</span> Selecionar módulo <span class="model-name">Construtor</span>
+          </button>
+
+          <p class="mode-define" id="def-mod-construtor">
+            <strong>A "gramática" inorgânica</strong>: monte o nome IUPAC peça por peça —
+            prefixo, ligante, metal e NOX — como blocos que se encaixam, e veja a
+            fórmula nascer conforme você constrói.
+          </p>
+
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Desafios</span><span class="fact-value">96 compostos reais</span></div>
+            <div class="fact-cell"><span class="fact-label">Tipos</span><span class="fact-value">Sal · Ácido · Base · Óxido · Complexos</span></div>
+            <div class="fact-cell"><span class="fact-label">Mecânica</span><span class="fact-value">Monte com blocos</span></div>
+            <div class="fact-cell"><span class="fact-label">Nível</span><span class="fact-value">Química de coordenação</span></div>
+          </div>
+
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Ao ativar este módulo</p>
+            <p>A barra lateral mostra a <strong>Biblioteca</strong> de compostos (por fórmula,
+               nome escondido) e a ficha de informações sem revelar o nome. A área
+               central vira uma <strong>bancada de montagem</strong>: arraste ou clique nos
+               blocos para encaixá-los nos slots certos.</p>
+          </div>
+
+          <div class="recommended">
+            <p class="recommended-title">Bons exemplos</p>
+            <div class="chip-row">
+              <button type="button" class="chip" data-desafio="construtor_anion">hexa+ciano+ferrato</button><button type="button" class="chip" data-desafio="construtor_cation">tetra+amino+cobre</button>
+              <button type="button" class="chip" data-desafio="construtor_neutro">di+amino+di+cloro</button>
+            </div>
+          </div>
+
+          <p class="mode-note">
+            <span class="mode-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-puzzle"/></svg></span>
+            <span><strong>Ideal para começar</strong>: monte o nome peça por peça e entenda a
+               gramática por trás dele — antes de simplesmente consultar fichas prontas
+               na Nomenclatura.</span>
+          </p>
+        </div>
+      </section>
+
+      <!-- ORDEM: Construtor vem ANTES de Nomenclatura de propósito —
+           pedido do usuário: o Construtor ensina a GRAMÁTICA (montar o
+           nome do zero, com blocos), a Nomenclatura serve DEPOIS como
+           referência mais concisa/direta (fichas prontas, dados
+           completos) — não faz sentido consultar a resposta pronta
+           antes de tentar construí-la. -->
+      <section class="panel panel--mode" data-mode-card="nomenclatura" data-open="false" aria-labelledby="hdr-mode-nomenclatura">
+        <button type="button" class="panel-header" id="hdr-mode-nomenclatura"
+                aria-expanded="false" aria-controls="body-mode-nomenclatura">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-tag"/></svg></span>
+          <span class="panel-label">Nomenclatura</span>
+          <span class="panel-badge">100</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body collapsed" id="body-mode-nomenclatura" role="region" aria-labelledby="hdr-mode-nomenclatura">
+
+          <button type="button" class="action-btn mode-activate-btn" data-module="nomenclatura"
+                  title="Selecionar o módulo de Nomenclatura" aria-pressed="false" aria-describedby="def-mod-nomenclatura">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <span aria-hidden="true">▶</span> Selecionar módulo <span class="model-name">Nomenclatura</span>
+          </button>
+
+          <p class="mode-define" id="def-mod-nomenclatura">
+            <strong>Desafio socrático</strong>: veja a fórmula e tente descobrir o nome IUPAC
+            antes de consultar — cada acerto desbloqueia a ficha completa do composto.
+          </p>
+
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Compostos</span><span class="fact-value">100 catalogados</span></div>
+            <div class="fact-cell"><span class="fact-label">Funções</span><span class="fact-value">Ácido · Base · Sal · Óxido</span></div>
+            <div class="fact-cell"><span class="fact-label">Mecânica</span><span class="fact-value">Acerte p/ desbloquear</span></div>
+            <div class="fact-cell"><span class="fact-label">Fonte</span><span class="fact-value">IUPAC Red Book 2005</span></div>
+          </div>
+
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Ao ativar este módulo</p>
+            <p>A barra lateral mostra a <strong>Biblioteca</strong> de compostos com busca e abas
+               por função. Cada composto começa bloqueado — acerte a nomenclatura na
+               <em>Ficha</em> para revelar nome, propriedades e estrutura de Lewis.</p>
+          </div>
+
+          <div class="recommended">
+            <p class="recommended-title">Bons exemplos</p>
+            <div class="chip-row">
+              <button type="button" class="chip" data-formula="H2SO4">H₂SO₄</button><button type="button" class="chip" data-formula="NaCl">NaCl</button><button type="button" class="chip" data-formula="CO2">CO₂</button>
+              <button type="button" class="chip" data-formula="NH3">NH₃</button><button type="button" class="chip" data-formula="CaCO3">CaCO₃</button><button type="button" class="chip" data-formula="KMnO4">KMnO₄</button>
+            </div>
+          </div>
+
+          <p class="mode-note">
+            <span class="mode-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-tag"/></svg></span>
+            <span>Consulta mais direta e concisa: depois de treinar a construção do nome no
+               Construtor, use este módulo para conferir dados completos de cada composto
+               (propriedades, estrutura, aplicações).</span>
+          </p>
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- ══ CENTRO ══ -->
+    <main class="sim-area" id="sim-area" role="main" aria-label="Simulador">
+
+      <!-- Toggle Lab / Ficha -->
+      <div class="view-toggle" role="group" aria-label="Modo" hidden>
+        <button type="button" class="view-toggle-btn" id="view-lab-btn" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#ic-flask"/></svg> Lab</button>
+        <button type="button" class="view-toggle-btn" id="view-info-btn" aria-pressed="false">◈ Ficha</button>
+      </div>
+
+      <!-- ══ NENHUM MÓDULO ATIVO — estado inicial, igual ao SIMA ══
+           No SIMA, sim.model começa null: canvas em branco + dica
+           central "Escolha um modelo atômico ao lado e clique em
+           Ativar". Réplica exata aqui: SIQI agora também abre com os
+           2 módulos desativados (nenhum aria-pressed=true, nenhum
+           card expandido), e esta view é a que aparece por padrão —
+           trocada automaticamente para Lab/Ficha/Construtor assim que
+           algum módulo é ativado (ver trocarModulo() em
+           js/modulos/alternar.js), e de volta pra cá ao desativar
+           (desativarModulo()). -->
+      <div id="panel-none" class="sim-panel">
+        <div class="sim-hint">
+          <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-flask"/></svg></span>
+          <p>Escolha um módulo ao lado e clique em <strong>"Selecionar módulo"</strong> para começar.</p>
+        </div>
+      </div>
+
+      <!-- ══ LAB ══ -->
+      <div id="panel-lab" class="sim-panel" hidden>
+
+        <!-- Cabeçalho slim do experimento -->
+        <div class="exp-header" id="exp-header" hidden>
+          <div class="exp-header-left">
+            <span class="exp-num" id="exp-num">—</span>
+            <span class="exp-fam" id="exp-fam">—</span>
+          </div>
+          <div class="exp-header-right"></div>
+        </div>
+
+        <!-- Builder interativo (ocupa o espaço todo) -->
+        <div id="rxn-wrapper" class="rxn-wrapper" hidden></div>
+
+        <!-- Toast de feedback — aparece e desaparece automaticamente -->
+        <div id="lab-toast" class="lab-toast" hidden aria-live="assertive"></div>
+
+      </div>
+
+      <!-- ══ FICHA ══ -->
+      <div id="panel-info" class="sim-panel" hidden>
+        <div class="ficha-scroll">
+
+          <!-- Hero: fórmula grande + nome + função -->
+          <div class="ficha-hero">
+            <div class="ficha-hero-left">
+              <div class="ficha-formula" id="ficha-formula">—</div>
+              <div class="ficha-name"    id="ficha-name">—</div>
+              <div class="ficha-badges"  id="ficha-badges"></div>
+            </div>
+            <div class="ficha-hero-right">
+              <div class="funcao-banner" id="funcao-banner">
+                <span class="funcao-tag"  id="funcao-tag">—</span>
+                <span class="funcao-desc" id="funcao-desc">—</span>
+              </div>
+              <div class="ionizacao-box">
+                <p class="ficha-section-label">Ionização / Dissociação</p>
+                <div class="equacao-txt" id="equacao-display">—</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grid de propriedades -->
+          <div class="ficha-props-grid">
+            <div class="ficha-prop-card">
+              <span class="ficha-prop-label">Nomenclatura</span>
+              <span class="ficha-prop-val"  id="ficha-nomenclatura">—</span>
+            </div>
+            <div class="ficha-prop-card">
+              <span class="ficha-prop-label">Geometria</span>
+              <span class="ficha-prop-val"  id="ficha-geometria">—</span>
+            </div>
+            <div class="ficha-prop-card">
+              <span class="ficha-prop-label">Massa Molar</span>
+              <span class="ficha-prop-val mono" id="ficha-massa">—</span>
+            </div>
+            <div class="ficha-prop-card">
+              <span class="ficha-prop-label">Estado (25 °C)</span>
+              <span class="ficha-prop-val mono" id="ficha-estado">—</span>
+            </div>
+            <div class="ficha-prop-card">
+              <span class="ficha-prop-label">Ponto de Fusão</span>
+              <span class="ficha-prop-val mono" id="ficha-pf">—</span>
+            </div>
+            <div class="ficha-prop-card">
+              <span class="ficha-prop-label">Ponto de Ebulição</span>
+              <span class="ficha-prop-val mono" id="ficha-pe">—</span>
+            </div>
+            <div class="ficha-prop-card">
+              <span class="ficha-prop-label">Densidade</span>
+              <span class="ficha-prop-val mono" id="ficha-densidade">—</span>
+            </div>
+            <div class="ficha-prop-card">
+              <span class="ficha-prop-label">pH aprox.</span>
+              <span class="ficha-prop-val mono" id="ficha-ph">—</span>
+            </div>
+            <div class="ficha-prop-card ficha-prop-wide">
+              <span class="ficha-prop-label">Solubilidade</span>
+              <span class="ficha-prop-val" id="ficha-solu">—</span>
+            </div>
+            <div class="ficha-prop-card ficha-prop-wide">
+              <span class="ficha-prop-label">Uso principal</span>
+              <span class="ficha-prop-val" id="ficha-uso">—</span>
+            </div>
+          </div>
+
+          <!-- Estrutura Molecular central — motor de desenho: SILQ
+               (Simulador Interativo de Ligações Químicas), mesma
+               integração entre simuladores da plataforma, em vez de
+               um desenho 2D próprio e paralelo. #viewer3d é o
+               container que js/render/view3d-silq.js (o motor 3D do
+               SILQ, importado sem alteração de lógica) localiza via
+               getElementById() e usa pra criar seu próprio <canvas>
+               — só existe UM #viewer3d na página (o motor foi
+               desenhado pra 1 instância só), por isso este é o único
+               lugar do app com visualização 3D; a sidebar e a "pista
+               visual" do desafio bloqueado continuam com o SVG 2D
+               (js/render/lewis.js). A ponte de dados fica em
+               js/render/silq-integracao.js, chamada por
+               js/nomenclatura/desafio.js a cada troca de composto. -->
+          <div class="ficha-lewis-wrap">
+            <p class="ficha-section-label">Estrutura molecular <span class="silq-selo" title="Renderizado pelo motor 3D do SILQ">via SILQ 3D</span></p>
+            <div id="viewer3d-wrap" class="viewer3d-wrap viewer3d-wrap--ficha">
+              <div id="viewer3d" role="application"
+                aria-label="Visualização 3D da estrutura molecular do composto — arraste para rotacionar, use a roda do mouse para zoom"></div>
+            </div>
+            <p class="ficha-lewis-leg" id="ficha-lewis-leg">—</p>
+          </div>
+
+          <!-- Reação modelo -->
+          <div class="ficha-reacao-wrap">
+            <p class="ficha-section-label">Reação modelo</p>
+            <pre class="reacao-txt" id="reacao-txt">—</pre>
+          </div>
+
+          <!-- Curiosidade -->
+          <div class="ficha-curiosidade-wrap">
+            <p class="ficha-section-label"><svg class="icon" aria-hidden="true"><use href="#ic-bulb"/></svg> Curiosidade</p>
+            <p class="curiosidade-txt" id="curiosidade-txt">—</p>
+          </div>
+
+          <!-- Botão voltar ao Lab -->
+          <div class="ficha-footer">
+            <button type="button" class="ficha-btn-lab" onclick="if(window._setView)window._setView('lab')">
+              <svg class="icon" aria-hidden="true"><use href="#ic-flask"/></svg> Voltar ao Laboratório
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ══ CONSTRUTOR — 3ª view central, gerada pelo Módulo 2 ══
+           Mesmo padrão de 3 camadas dos outros módulos: sidebar-left
+           seleciona o módulo, sidebar-right traz Biblioteca/
+           Informações/Validador, e a ÁREA CENTRAL vira a "bancada de
+           montagem" — paleta de blocos clicáveis + slots posicionais +
+           fórmula preliminar desenhada dinamicamente. Populado por
+           mod2* (js/construtor/*); trocado para cá ao escolher um
+           composto na Biblioteca (window._setView('construtor')).
+
+           SEM RODAPÉ "Voltar ao Laboratório" de propósito: o Construtor
+           é autocontido — nenhuma menção a outro módulo aparece aqui
+           enquanto ele estiver ativo (sair é só desativar o card na
+           barra esquerda, igual à Nomenclatura). -->
+      <div id="panel-construtor" class="sim-panel" hidden>
+        <div class="ficha-scroll">
+          <div id="construtor-central-content" class="construtor-central">
+            <div class="construtor-central-empty">
+              <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-puzzle"/></svg></span>
+              <p>Escolha um composto na <strong>Biblioteca</strong>, na barra lateral, para começar a montar o nome aqui.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         PAINEL DIREITO — reordenado e integrado
+
+         Antes: Dados Gerais · Estrutura · Balanço Atômico (nesta ordem).
+         O Balanço, que e o painel que o aluno consulta A CADA tentativa
+         no laboratorio, ficava por ULTIMO — depois de duas fichas longas,
+         so alcancavel rolando a coluna inteira.
+
+         Agora:
+           1) BALANÇO ATÔMICO   — no topo, sempre a vista durante o lab.
+           2) DADOS & ESTRUTURA — as duas fichas de consulta integradas num
+                                  painel unico: "Dados Gerais" e "Estrutura"
+                                  descrevem o MESMO composto, um com numeros
+                                  e o outro com o desenho. Um unico ⤢ agora
+                                  expande as duas coisas juntas
+                                  (data-expand="ficha").
+    ══════════════════════════════════════════════════════════════ -->
+    <aside class="sidebar sidebar--right" id="sidebar-right" aria-label="Controles do módulo ativo, balanço atômico e dados do composto">
+
+      <!-- ══════════ CONTROLES DE CADA MÓDULO — estrutura real do SIMA
+           No SIMA, sidebar-left tem só os cards de modelo (seletores
+           puros); os controles/dados de cada modelo ficam em
+           sidebar-right (Tabela Periódica, Projeção, Dados do
+           Elemento). Réplica exata aqui: os 3 cards de módulo ficam
+           sozinhos em sidebar-left (ver mecânica :has() que oculta os
+           outros ao ativar um — mesmo seletor do SIMA, adaptado), e o
+           painel de CONTROLES de cada módulo mora aqui, mostrado só
+           quando aquele módulo está ativo (data-module-content). ══ -->
+
+      <!-- ══ MÓDULO 1 — Nomenclatura (Biblioteca, já existente) ══ -->
+      <section class="panel" data-open="true" data-module-content="nomenclatura" hidden>
+        <button class="panel-header" id="hdr-compostos" type="button" aria-expanded="true" aria-controls="body-compostos">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-tag"/></svg></span>
+          <span class="panel-label">Biblioteca</span>
+          <span class="panel-badge" id="badge-total">14</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-compostos" role="region" aria-labelledby="hdr-compostos">
+          <p class="mode-define">Biblioteca de compostos inorgânicos com dados reais. O composto escolhido aqui <strong>alimenta todos os outros painéis</strong>: dados, estrutura de Lewis e balanço.</p>
+          <div class="search-wrap">
+            <label for="sub-search" class="sr-only">Buscar composto por nome ou fórmula</label>
+            <input type="search" id="sub-search" class="search-input"
+              placeholder="Nome ou fórmula…" autocomplete="off" spellcheck="false"/>
+            <span class="search-icon" aria-hidden="true">⌕</span>
+          </div>
+          <div class="mol-cat-tabs" id="sub-cat-tabs" role="tablist" aria-label="Filtrar por função inorgânica"></div>
+          <ul id="sub-list" class="sub-list" role="listbox" aria-label="Lista de compostos"></ul>
+        </div>
+      </section>
+
+      <!-- ══ MÓDULO 2 — Construtor de Nomenclatura (química de coordenação) ══
+           IDs consumidos por mod2* (js/construtor/*): seletor de tipo →
+           lista de desafios → informações do composto (sem nome) →
+           validador de sintaxe. A montagem em si (blocos + fórmula
+           preliminar) acontece na ÁREA CENTRAL (#panel-construtor). -->
+      <!-- ══ MÓDULO 2a — Construtor: BIBLIOTECA DE COMPOSTOS ══
+           Mesmo padrão visual/estrutural da Biblioteca do Módulo 1
+           (busca + abas + lista) — só a fonte muda: em vez do
+           catálogo geral, usa DESAFIOS_CONSTRUTOR (5 compostos já
+           existentes no programa). Mostra só FÓRMULA nos itens — o
+           nome IUPAC fica escondido de propósito até o aluno acertar
+           a montagem. -->
+      <section class="panel" data-open="true" data-module-content="construtor" hidden>
+        <button class="panel-header" id="hdr-construtor-biblioteca" type="button" aria-expanded="true" aria-controls="body-construtor-biblioteca">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-book"/></svg></span>
+          <span class="panel-label">Biblioteca</span>
+          <span class="panel-badge" id="construtor-badge-total">5</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-construtor-biblioteca" role="region" aria-labelledby="hdr-construtor-biblioteca">
+          <p class="mode-define">Escolha um composto pela <strong>fórmula</strong> — o nome fica em segredo
+            até você montá-lo certo na área central.</p>
+          <div class="search-wrap">
+            <label for="construtor-search" class="sr-only">Buscar composto por fórmula</label>
+            <input type="search" id="construtor-search" class="search-input"
+              placeholder="Buscar por fórmula…" autocomplete="off" spellcheck="false"/>
+            <span class="search-icon" aria-hidden="true">⌕</span>
+          </div>
+          <div class="mol-cat-tabs" id="construtor-tipo-tabs" role="tablist" aria-label="Filtrar por tipo de composto"></div>
+          <ul id="construtor-lista" class="sub-list" role="listbox" aria-label="Compostos disponíveis"></ul>
+        </div>
+      </section>
+
+      <!-- ══ MÓDULO 2b — Construtor: INFORMAÇÕES DO COMPOSTO (sem nome) ══
+           Ficha "cega": mostra fórmula e composição química bruta
+           (espécie, papel, quantidade, carga) do composto selecionado
+           na Biblioteca — o suficiente para o aluno RACIOCINAR sobre
+           NOX, prefixos e sufixos sozinho, sem a resposta pronta. -->
+      <section class="panel" data-open="true" data-module-content="construtor" hidden>
+        <button class="panel-header" id="hdr-construtor-info" type="button" aria-expanded="true" aria-controls="body-construtor-info">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-flask"/></svg></span>
+          <span class="panel-label">Informações do Composto</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-construtor-info" role="region" aria-labelledby="hdr-construtor-info">
+          <p class="mode-define">Dados químicos brutos — o nome IUPAC fica escondido de propósito,
+            pra você descobrir montando.</p>
+          <div id="construtor-info-content">
+            <p class="no-results">Selecione um composto na Biblioteca.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ MÓDULO 2c — Construtor: VALIDADOR ══
+           O "Guia de Regras IUPAC" que existia aqui foi removido —
+           feedback do usuário: as regras gerais já ficam implícitas
+           nas "Informações do Composto" (dados brutos pra raciocinar)
+           e no card seletor (dica fixa "a ordem dos blocos importa");
+           ter uma 3ª explicação de regras virou "cola" demais pra um
+           exercício que deveria testar se o aluno já sabe a regra, não
+           ensiná-la de novo a cada composto. O Validador continua —
+           tem função diferente (feedback AO VIVO do progresso, não
+           explicação), sem ele o exercício perde a única confirmação
+           agregada de acerto/erro. -->
+      <section class="panel" data-open="true" data-module-content="construtor" hidden>
+        <button class="panel-header" id="hdr-construtor-regras" type="button" aria-expanded="true" aria-controls="body-construtor-regras">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-check"/></svg></span>
+          <span class="panel-label">Validador</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-construtor-regras" role="region" aria-labelledby="hdr-construtor-regras">
+          <p class="mode-define">Acompanhe aqui se a montagem está no caminho certo.</p>
+          <div class="construtor-validador" id="construtor-validador" aria-live="polite">
+            <p class="construtor-validador-vazio">Monte os blocos na área central para validar.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ BALANÇO ATÔMICO — oculto em Nomenclatura e
+           Construtor: os únicos menus específicos desses 2 módulos
+           hoje são Biblioteca (Nomenclatura) e Biblioteca+Informações
+           do Composto (Construtor). A mecânica de reação livre que
+           alimenta este painel continua acessível pelo toggle
+           Lab/Ficha no topo do canvas central — só sai da SIDEBAR. ══ -->
+      <section class="panel" data-open="true" data-hide-for-module="construtor,nomenclatura">
+        <button class="panel-header" id="hdr-balanco" type="button" aria-expanded="true" aria-controls="body-balanco">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-scale"/></svg></span>
+          <span class="panel-label">Balanço Atômico</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body scroll-ready" id="body-balanco" role="region" aria-labelledby="hdr-balanco">
+          <p class="mode-define">Contagem de átomos de cada elemento nos dois lados da equação. Serve para verificar se a reação está <strong>balanceada</strong>.</p>
+          <div class="bal-equacao" id="bal-equacao" aria-live="polite">—</div>
+          <div class="bal-grid"   id="bal-grid"    aria-live="polite"></div>
+        </div>
+      </section>
+
+      <!-- ══════════ DADOS & ESTRUTURA — oculto em Nomenclatura e
+           Construtor: Nomenclatura já mostra a mesma coisa na Ficha
+           central (Lab/Ficha, no topo do canvas); Construtor tem sua
+           própria "Informações do Composto" (sem nome) ══════════ -->
+      <section class="panel" data-open="true" data-hide-for-module="construtor,nomenclatura">
+        <div class="panel-header-row">
+          <button class="panel-header" id="hdr-ficha" type="button" aria-expanded="true" aria-controls="body-ficha">
+            <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-clipboard"/></svg></span>
+            <span class="panel-label">Dados &amp; Estrutura</span>
+            <span class="chevron" aria-hidden="true">▾</span>
+          </button>
+          <button type="button" class="expand-btn" data-expand="ficha"
+            aria-label="Expandir dados e estrutura do composto" title="Expandir">⤢</button>
+        </div>
+        <div class="panel-body" id="body-ficha" role="region" aria-labelledby="hdr-ficha">
+          <p class="mode-define">Ficha do composto em consulta: identificação, função inorgânica, propriedades físicas medidas e a estrutura de Lewis correspondente.</p>
+
+          <!-- Chip de contexto: mostra qual composto está em consulta.
+               Tambem sinaliza o estado BLOQUEADO — ver _limparPainelFicha()
+               em js/nomenclatura/desafio.js. -->
+          <div class="consulta-chip" id="consulta-chip" aria-live="polite">
+            <span class="consulta-chip-label">Consulta</span>
+            <span class="consulta-chip-formula" id="consulta-formula">—</span>
+            <span class="consulta-chip-nome" id="consulta-nome">Selecione um composto</span>
+          </div>
+
+          <!-- ── Estrutura primeiro: é a leitura visual, mais rápida ── -->
+          <p class="data-subhead">Estrutura molecular</p>
+          <svg id="lewis-svg" class="lewis-canvas" role="img"
+            aria-label="Representação estrutural simplificada do composto selecionado"
+            viewBox="0 0 300 180"></svg>
+          <p class="lewis-legenda" id="lewis-legenda">Selecione um composto</p>
+
+          <p class="data-subhead">Identificação</p>
+          <dl class="data-grid">
+            <div class="dr"><dt>Fórmula</dt>        <dd id="d-formula">—</dd></div>
+            <div class="dr"><dt>Função</dt>          <dd id="d-funcao">—</dd></div>
+            <div class="dr"><dt>Nomenclatura</dt>   <dd id="d-nomenclatura">—</dd></div>
+            <div class="dr"><dt>Geometria</dt>      <dd id="d-geometria">—</dd></div>
+          </dl>
+          <p class="data-subhead">Propriedades físicas</p>
+          <dl class="data-grid">
+            <div class="dr"><dt>Massa Molar</dt>    <dd id="d-massa">—</dd></div>
+            <div class="dr"><dt>Estado (25°C)</dt>  <dd id="d-estado">—</dd></div>
+            <div class="dr"><dt>Solubilidade</dt>   <dd id="d-solu">—</dd></div>
+            <div class="dr"><dt>pH aprox.</dt>      <dd id="d-ph">—</dd></div>
+            <div class="dr"><dt>Pt. Fusão</dt>      <dd id="d-pf">—</dd></div>
+            <div class="dr"><dt>Pt. Ebulição</dt>   <dd id="d-pe">—</dd></div>
+            <div class="dr"><dt>Densidade</dt>      <dd id="d-densidade">—</dd></div>
+          </dl>
+          <p class="data-subhead">Aplicações</p>
+          <dl class="data-grid">
+            <div class="dr"><dt>Uso principal</dt>  <dd id="d-uso">—</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <!-- Ações do Lab — Verificar e Reiniciar -->
+      <!-- Ocultas também em Nomenclatura e Construtor, mesmo raciocínio
+           dos 2 painéis acima — a Biblioteca é o único menu "próprio"
+           da Nomenclatura pedido pelo usuário; Construtor já tem seu
+           validador ao vivo, não precisa de um botão "Verificar". -->
+      <div class="lab-actions-panel" data-hide-for-module="construtor,nomenclatura">
+        <button type="button" id="btn-verificar-side" class="lab-action-verify">
+          Verificar reação ↗
+        </button>
+        <button type="button" id="btn-reiniciar" class="lab-action-reset">
+          ↺ Reiniciar
+        </button>
+      </div>
+
+    </aside>
+  </div>
+
+<!-- Backdrop mobile -->
+<div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+<!-- Modal de expansão — leitura ampliada (mesmo padrão SIEM) -->
+<div class="expand-overlay a11y-content" id="expand-overlay" hidden
+  role="dialog" aria-modal="true" aria-labelledby="expand-title">
+  <div class="expand-modal">
+    <div class="expand-modal-hd">
+      <h2 id="expand-title">Detalhes</h2>
+      <button type="button" class="expand-close" id="expand-close" aria-label="Fechar painel expandido"><svg class="icon" aria-hidden="true"><use href="#ic-close"/></svg></button>
+    </div>
+    <div class="expand-modal-bd" id="expand-body"></div>
+  </div>
+</div>
+
+<!-- ════════ MODAL — INFORMAÇÕES DO MÓDULO (1ª ATIVAÇÃO, MOBILE) ════════ -->
+<div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+     aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+  <div class="mode-info-modal" id="modeInfoModal">
+    <div class="mode-info-header">
+      <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+      <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+      <button type="button" class="mode-info-close" id="modeInfoClose"
+              aria-label="Fechar informações do módulo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+    </div>
+    <div class="mode-info-body" id="modeInfoBody"></div>
+  </div>
+</div>
+
+<!-- VLibras -->
+<div vw class="enabled">
+  <div vw-access-button class="active"></div>
+  <div vw-plugin-wrapper><div class="vw-plugin-top-wrapper"></div></div>
+</div>
+<script>
+  (function(){
+    var s=document.createElement('script');
+    s.src='https://vlibras.gov.br/app/vlibras-plugin.js';
+    s.onload=function(){ try{ new window.VLibras.Widget('https://vlibras.gov.br/app'); }catch(e){} };
+    document.body.appendChild(s);
+  })();
+</script>
+<!-- ═══ CAMADA DE DADOS ═══ -->
+<script src="js/data/metadados-funcao.js"></script>
+<script src="js/data/catalogo-compostos.js"></script>
+<script src="js/data/experimentos.js"></script>
+<script src="js/data/reacoes-livres-base.js"></script>
+<script src="js/data/reacoes-livres-expansao-1.js"></script>
+<script src="js/data/reacoes-livres-expansao-2.js"></script>
+<script src="js/data/reacoes-livres-expansao-3.js"></script>
+<script src="js/data/reacoes-livres-expansao-4.js"></script>
+<script src="js/data/reacoes-livres-expansao-5.js"></script>
+<script src="js/data/reacoes-livres-expansao-6.js"></script>
+<script src="js/data/reacoes-livres-expansao-7.js"></script>
+<script src="js/data/ligantes-metais.js"></script>
+<script src="js/data/desafios-construtor.js"></script>
+<script src="js/data/regras-iupac.js"></script>
+
+<!-- ═══ ACESSIBILIDADE ═══ -->
+<script src="js/a11y/preferencias.js"></script>
+
+<!-- ═══ NÚCLEO ═══ -->
+<script src="js/core/dados-adapter.js"></script>
+<script src="js/core/desbloqueio.js"></script>
+<script src="js/core/estado.js"></script>
+<script src="js/core/dom-utils.js"></script>
+
+<!-- ═══ INTERFACE GERAL ═══ -->
+<script src="js/ui/paineis.js"></script>
+<script src="js/ui/modal-expandir.js"></script>
+<script src="js/ui/menu-mobile.js"></script>
+<script src="js/ui/sidebar-resizer.js"></script>
+<script src="js/ui/canvas-particulas.js"></script>
+
+<!-- ═══ MÓDULO 1: NOMENCLATURA ═══ -->
+<script src="js/nomenclatura/biblioteca.js"></script>
+<script src="js/nomenclatura/desafio.js"></script>
+<script src="js/render/lewis.js"></script>
+
+<!-- ═══ INTEGRAÇÃO COM O SILQ — motor 3D da "Estrutura Molecular" ═══
+     Ordem importa: os 2 arquivos de dados (ELEMENTS e
+     MOLECULE_GEOMETRY_DB) precisam existir ANTES de silq-integracao.js
+     rodar (ele os lê no topo do arquivo, em tempo de parse, pra montar
+     window.SILQ_VIEW3D_STATE). view3d-silq.js — o motor de desenho em
+     si, importado do SILQ sem alteração de lógica — vem por último,
+     e só precisa achar #viewer3d no DOM e a STATE já montada quando
+     seu próprio init() rodar (DOMContentLoaded). -->
+<script src="js/data/elementos-silq.js"></script>
+<script src="js/data/geometrias-moleculares-silq.js"></script>
+<script src="js/render/silq-integracao.js"></script>
+<script src="js/render/silq-2d-preview.js"></script>
+<script src="js/render/view3d-silq.js"></script>
+
+<!-- ═══ INTERFACE DO SIMULADOR ═══ -->
+<script src="js/ui/view-toggle.js"></script>
+<script src="js/init/bootstrap-simulador.js"></script>
+
+<!-- ═══ LABORATÓRIO (reação livre) ═══ -->
+<script src="js/lab/toast.js"></script>
+<script src="js/lab/reacoes-livres.js"></script>
+<script src="js/lab/parser-formula.js"></script>
+<script src="js/lab/estado-fisico.js"></script>
+<script src="js/lab/builder-estado.js"></script>
+<script src="js/lab/builder-mecanica.js"></script>
+<script src="js/lab/builder-verificacao.js"></script>
+<script src="js/lab/eventos.js"></script>
+
+<!-- ═══ ALTERNÂNCIA DE MÓDULOS ═══ -->
+<script src="js/modulos/alternar.js"></script>
+
+<!-- ═══ TOUR GUIADO (COACHMARK) — boas-vindas + por módulo ═══ -->
+<script src="../../coachmark.js"></script>
+<script src="js/a11y/tour.js"></script>
+<script src="js/ui/modo-mobile.js"></script>
+
+<!-- ═══ MÓDULO 2: CONSTRUTOR ═══ -->
+<script src="js/construtor/estado-biblioteca.js"></script>
+<script src="js/construtor/bancada.js"></script>
+
+<!-- ═══ PONTO DE ENTRADA ═══
+     js/redox/eventos-finais.js é o composition-root do app inteiro
+     (nome do arquivo é histórico — era o disparo final do antigo
+     módulo de Redox — mas não é específico de módulo nenhum: liga os
+     botões "Selecionar módulo" de TODOS os cards e faz a
+     inicialização geral da página). Continua no lugar mesmo depois
+     da remoção do 3º módulo. -->
+<script src="js/redox/eventos-finais.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'siqi', bp: 900 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

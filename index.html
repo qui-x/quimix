@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark" data-colorblind="none" data-reading="off" data-contrast="off" data-spacing="off" data-motion="off">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0E1320">
+<title>QuímiX</title>
+<!-- Precisa vir ANTES do a11y.js: o script roda na hora (síncrono) e
+     já tenta trocar o favicon pela variante clara/escura certa: se o
+     <link> ainda não existir no DOM nesse momento, não acha nada pra
+     trocar. -->
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
+<link rel="shortcut icon" href="favicon.ico">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="a11y.js"></script>
+<!-- Fontes auto-hospedadas (antes vinham do Google Fonts por CDN) —
+     ver vendor/fonts/fontes-locais.css. Funciona 100% offline depois
+     da primeira visita, sem depender de fonts.googleapis.com. -->
+<link rel="stylesheet" href="vendor/fonts/fontes-locais.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<a href="#conteudo" class="skip-link">Pular para o conteúdo principal</a>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <filter id="f-protanopia">
+      <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+    </filter>
+    <filter id="f-deuteranopia">
+      <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+    </filter>
+    <filter id="f-tritanopia">
+      <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+    </filter>
+    <filter id="f-acromatopsia">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+    </filter>
+  </defs>
+</svg>
+
+<div id="colorblindOverlay" aria-hidden="true"></div>
+
+<div class="shell" id="shell">
+
+  <header class="top">
+    <div class="brand">
+      <h1 class="brand-name">
+        <span class="qm-sr-only">QuímiX</span>
+        <span aria-hidden="true">Qu<span class="i-bond">ı<svg class="i-bond-accent" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <defs>
+                  <linearGradient id="qm-i-bond-grad" x1="0" y1="1" x2="1" y2="0">
+                    <stop offset="0" stop-color="#00e5ff"/>
+                    <stop offset="1" stop-color="#ff2a8d"/>
+                  </linearGradient>
+                </defs>
+                <line x1="4" y1="16.5" x2="15" y2="4.5" stroke="url(#qm-i-bond-grad)" stroke-width="2.3" stroke-linecap="round"/>
+                <circle cx="4" cy="16.5" r="2.1" fill="#00c2e6"/>
+                <circle cx="4" cy="16.5" r="0.8" fill="#ffffff"/>
+                <circle cx="15" cy="4.5" r="2.8" fill="#ff2a8d"/>
+                <circle cx="15" cy="4.5" r="1" fill="#ffffff"/>
+              </svg></span>mi</span>
+      </h1>
+      <span class="brand-mark-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" width="100%" height="100%">
+          <defs>
+          <filter id="qm-glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="12" result="blur1" />
+          <feGaussianBlur stdDeviation="24" result="blur2" />
+          <feMerge>
+          <feMergeNode in="blur2" />
+          <feMergeNode in="blur1" />
+          <feMergeNode in="SourceGraphic" />
+          </feMerge>
+          </filter>
+          <filter id="qm-glow-pink" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="12" result="blur1" />
+          <feGaussianBlur stdDeviation="24" result="blur2" />
+          <feMerge>
+          <feMergeNode in="blur2" />
+          <feMergeNode in="blur1" />
+          <feMergeNode in="SourceGraphic" />
+          </feMerge>
+          </filter>
+          <filter id="qm-node-glow-cyan" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="5" result="blur" />
+          <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+          </feMerge>
+          </filter>
+          <filter id="qm-node-glow-pink" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="5" result="blur" />
+          <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+          </feMerge>
+          </filter>
+          <clipPath id="qm-left-half">
+          <rect x="0" y="0" width="450" height="650" />
+          </clipPath>
+          <clipPath id="qm-right-half">
+          <rect x="450" y="0" width="450" height="650" />
+          </clipPath>
+          </defs>
+          
+          <line x1="450" y1="50" x2="450" y2="600" stroke="#4a5568" stroke-width="1.5" />
+          
+          <g clip-path="url(#qm-left-half)">
+          <path d="M 265,100 L 370,100 L 450,270 L 530,100 L 635,100 L 495,325 L 635,550 L 530,550 L 450,380 L 370,550 L 265,550 L 405,325 Z" fill="none" stroke="#00e5ff" stroke-width="28" opacity="0.65" filter="url(#qm-glow-cyan)" />
+          </g>
+          
+          <g clip-path="url(#qm-right-half)">
+          <path d="M 265,100 L 370,100 L 450,270 L 530,100 L 635,100 L 495,325 L 635,550 L 530,550 L 450,380 L 370,550 L 265,550 L 405,325 Z" fill="none" stroke="#ff2a8d" stroke-width="28" opacity="0.65" filter="url(#qm-glow-pink)" />
+          </g>
+          
+          <path d="M 265,100 L 370,100 L 450,270 L 530,100 L 635,100 L 495,325 L 635,550 L 530,550 L 450,380 L 370,550 L 265,550 L 405,325 Z" fill="currentColor" stroke="#4a5568" stroke-width="4" stroke-linejoin="miter" stroke-miterlimit="10" />
+          
+          <g stroke="#4a5568" stroke-width="2.5" stroke-linecap="round">
+          <line x1="380" y1="180" x2="433" y2="325" />
+          <line x1="380" y1="470" x2="433" y2="325" />
+          <line x1="520" y1="180" x2="467" y2="325" />
+          <line x1="520" y1="470" x2="467" y2="325" />
+          </g>
+          
+          <circle cx="380" cy="180" r="7" fill="#00d2ff" filter="url(#qm-node-glow-cyan)" />
+          <circle cx="380" cy="180" r="2.5" fill="currentColor" />
+          <circle cx="380" cy="470" r="7" fill="#00d2ff" filter="url(#qm-node-glow-cyan)" />
+          <circle cx="380" cy="470" r="2.5" fill="currentColor" />
+          <circle cx="433" cy="325" r="7" fill="#00d2ff" filter="url(#qm-node-glow-cyan)" />
+          <circle cx="433" cy="325" r="2.5" fill="currentColor" />
+          
+          <circle cx="520" cy="180" r="7" fill="#ff3385" filter="url(#qm-node-glow-pink)" />
+          <circle cx="520" cy="180" r="2.5" fill="currentColor" />
+          <circle cx="520" cy="470" r="7" fill="#ff3385" filter="url(#qm-node-glow-pink)" />
+          <circle cx="520" cy="470" r="2.5" fill="currentColor" />
+          <circle cx="467" cy="325" r="7" fill="#ff3385" filter="url(#qm-node-glow-pink)" />
+          <circle cx="467" cy="325" r="2.5" fill="currentColor" />
+          
+          <line x1="433" y1="325" x2="260" y2="325" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="260" cy="325" r="22" fill="none" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="260" cy="325" r="13" fill="none" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="260" cy="325" r="7" fill="#8b5cf6" filter="url(#qm-node-glow-cyan)" />
+          <circle cx="260" cy="325" r="2.5" fill="currentColor" />
+          
+          <polyline points="245,310 200,210 110,210" fill="none" stroke="#4a5568" stroke-width="2.5" stroke-linejoin="round" />
+          <polyline points="245,340 200,440 110,440" fill="none" stroke="#4a5568" stroke-width="2.5" stroke-linejoin="round" />
+          
+          <circle cx="200" cy="210" r="14" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="200" cy="210" r="6" fill="#00d2ff" filter="url(#qm-node-glow-cyan)" />
+          <circle cx="200" cy="210" r="2" fill="currentColor" />
+          
+          <circle cx="110" cy="210" r="14" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="110" cy="210" r="6" fill="#00d2ff" filter="url(#qm-node-glow-cyan)" />
+          <circle cx="110" cy="210" r="2" fill="currentColor" />
+          
+          <circle cx="200" cy="440" r="14" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="200" cy="440" r="6" fill="#ff3385" filter="url(#qm-node-glow-pink)" />
+          <circle cx="200" cy="440" r="2" fill="currentColor" />
+          
+          <circle cx="110" cy="440" r="11" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          
+          <line x1="467" y1="325" x2="575" y2="325" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="575" cy="325" r="6" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          
+          <line x1="575" y1="325" x2="535" y2="260" stroke="#4a5568" stroke-width="2.5" />
+          <line x1="575" y1="325" x2="535" y2="390" stroke="#4a5568" stroke-width="2.5" />
+          
+          <line x1="585" y1="319" x2="640" y2="319" stroke="#4a5568" stroke-width="2.5" />
+          <line x1="585" y1="331" x2="640" y2="331" stroke="#4a5568" stroke-width="2.5" />
+          
+          <line x1="640" y1="325" x2="720" y2="210" stroke="#4a5568" stroke-width="2.5" />
+          <line x1="640" y1="325" x2="720" y2="440" stroke="#4a5568" stroke-width="2.5" />
+          
+          <circle cx="720" cy="210" r="14" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          <circle cx="720" cy="210" r="6" fill="#ff3385" filter="url(#qm-node-glow-pink)" />
+          <circle cx="720" cy="210" r="2" fill="currentColor" />
+          
+          <circle cx="720" cy="440" r="11" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          </svg>
+      </span>
+    </div>
+
+    <button type="button" class="drawer-toggle" id="drawerToggle"
+            aria-haspopup="true" aria-expanded="false" aria-controls="appDrawer" aria-label="Abrir menu">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </header>
+
+  <!-- ════════ GAVETA (MENU PRINCIPAL) ════════
+       Reúne o que antes ficava solto no cabeçalho — conta e
+       acessibilidade — e agora também dá acesso direto aos 20
+       simuladores, organizados por ano (mesmo padrão de categoria
+       expansível de um menu de loja: toca no ano, a lista daquele ano
+       abre ali mesmo, sem sair da gaveta). Os links de simulador usam
+       data-file do mesmo jeito que os cards de ano já usavam — ver
+       bindDrawerSimLinks() em script.js: abre respeitando tema,
+       contraste, fonte etc. já escolhidos aqui. -->
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+  <nav class="drawer" id="appDrawer" aria-label="Menu principal" aria-hidden="true">
+    <div class="drawer-head">
+      <span class="drawer-title">Menu</span>
+      <button type="button" class="drawer-close" id="drawerClose" aria-label="Fechar menu">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Conta e Simuladores só fazem sentido depois do login (ver
+           identidade.js: mostrarMenuPrincipal()/esconderMenuPrincipal()
+           alternam este bloco). Acessibilidade fica DE FORA de
+           propósito — precisa continuar disponível mesmo na tela de
+           login, pra quem depende de alto contraste, fonte maior etc.
+           só pra conseguir usar o formulário de entrar. -->
+      <div id="drawerAuthOnlySection" hidden>
+      <!-- Barra de identidade: some/aparece com a sessão (ver identidade.js) — mesmos ids de sempre, só mudou de lugar. -->
+      <div class="identity-bar hidden" id="identity-bar">
+        <span class="identity-status" id="identity-status-texto"></span>
+        <a class="identity-btn" data-requer="conta" href="minha-conta.html"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg> Minha conta</a>
+        <a class="identity-btn hidden" data-papel="administrador" href="administracao.html"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3.5v5c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9v-5z"/></svg> Administração</a>
+        <button type="button" class="identity-btn" onclick="handleLogout()">Sair</button>
+      </div>
+
+      <div class="drawer-section" id="drawerSimuladoresSection">
+        <p class="drawer-section-title">Simuladores</p>
+      <div class="drawer-cat" data-cat="1">
+        <div class="drawer-cat-row">
+          <a class="drawer-cat-link" href="primeiroano/indexprimeiroano.html" data-file="primeiroano/indexprimeiroano.html">
+            <span class="drawer-cat-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="16" cy="16" r="2.8" fill="currentColor" opacity="0.95"/>
+              <ellipse cx="16" cy="16" rx="12" ry="4.2" stroke="currentColor" stroke-width="1.3" opacity="0.8"/>
+              <ellipse cx="16" cy="16" rx="12" ry="4.2" stroke="currentColor" stroke-width="1.3" opacity="0.8" transform="rotate(60 16 16)"/>
+              <ellipse cx="16" cy="16" rx="12" ry="4.2" stroke="currentColor" stroke-width="1.3" opacity="0.8" transform="rotate(120 16 16)"/>
+            </svg></span>
+            <span class="drawer-cat-label">1º Ano</span>
+            <span class="drawer-cat-count">8</span>
+          </a>
+          <button type="button" class="drawer-cat-expand" aria-expanded="false" aria-controls="drawerCat1" aria-label="Mostrar simuladores do 1º Ano">
+            <svg class="drawer-cat-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+        <ul class="drawer-cat-list" id="drawerCat1" hidden>
+          <li><a class="drawer-sim-link" href="primeiroano/sime/indexsime.html" data-file="primeiroano/sime/indexsime.html">
+            <span class="drawer-sim-sigla">SIME</span>
+            <span class="drawer-sim-nome">Matéria e Estados</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="primeiroano/sima/indexsima.html" data-file="primeiroano/sima/indexsima.html">
+            <span class="drawer-sim-sigla">SIMA</span>
+            <span class="drawer-sim-nome">Modelos Atômicos</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="primeiroano/sitp/indexsitp.html" data-file="primeiroano/sitp/indexsitp.html">
+            <span class="drawer-sim-sigla">SITP</span>
+            <span class="drawer-sim-nome">Tabela Periódica</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="primeiroano/siem/indexsiem.html" data-file="primeiroano/siem/indexsiem.html">
+            <span class="drawer-sim-sigla">SIEM</span>
+            <span class="drawer-sim-nome">Estrutura da Matéria</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="primeiroano/silq/indexsilq.html" data-file="primeiroano/silq/indexsilq.html">
+            <span class="drawer-sim-sigla">SILQ</span>
+            <span class="drawer-sim-nome">Ligações Químicas</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="primeiroano/sifi/indexsifi.html" data-file="primeiroano/sifi/indexsifi.html">
+            <span class="drawer-sim-sigla">SIFI</span>
+            <span class="drawer-sim-nome">Forças Intermoleculares</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="primeiroano/sie/indexsie.html" data-file="primeiroano/sie/indexsie.html">
+            <span class="drawer-sim-sigla">SIE</span>
+            <span class="drawer-sim-nome">Estequiometria</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="primeiroano/siqi/indexsiqi.html" data-file="primeiroano/siqi/indexsiqi.html">
+            <span class="drawer-sim-sigla">SIQI</span>
+            <span class="drawer-sim-nome">Química Inorgânica</span>
+          </a></li>
+        </ul>
+      </div>
+
+      <div class="drawer-cat" data-cat="2">
+        <div class="drawer-cat-row">
+          <a class="drawer-cat-link" href="segundoano/indexsegundoano.html" data-file="segundoano/indexsegundoano.html">
+            <span class="drawer-cat-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M10 4 L10 20 Q10 27 16 27 Q22 27 22 20 L22 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="8" y1="8" x2="24" y2="8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <circle cx="14" cy="18" r="1.5" fill="currentColor"/>
+              <circle cx="18" cy="18" r="1.5" fill="currentColor"/>
+            </svg></span>
+            <span class="drawer-cat-label">2º Ano</span>
+            <span class="drawer-cat-count">8</span>
+          </a>
+          <button type="button" class="drawer-cat-expand" aria-expanded="false" aria-controls="drawerCat2" aria-label="Mostrar simuladores do 2º Ano">
+            <svg class="drawer-cat-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+        <ul class="drawer-cat-list" id="drawerCat2" hidden>
+          <li><a class="drawer-sim-link" href="segundoano/gases/index.html" data-file="segundoano/gases/index.html">
+            <span class="drawer-sim-sigla">SIGAS</span>
+            <span class="drawer-sim-nome">Gases</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="segundoano/solucoes/index.html" data-file="segundoano/solucoes/index.html">
+            <span class="drawer-sim-sigla">SISOL</span>
+            <span class="drawer-sim-nome">Soluções</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="segundoano/coligativas/index.html" data-file="segundoano/coligativas/index.html">
+            <span class="drawer-sim-sigla">SIPC</span>
+            <span class="drawer-sim-nome">Propriedades Coligativas</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="segundoano/termoquimica/index.html" data-file="segundoano/termoquimica/index.html">
+            <span class="drawer-sim-sigla">SITQ</span>
+            <span class="drawer-sim-nome">Termoquímica</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="segundoano/cinetica/index.html" data-file="segundoano/cinetica/index.html">
+            <span class="drawer-sim-sigla">SICQ</span>
+            <span class="drawer-sim-nome">Cinética Química</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="segundoano/equilibrio/index.html" data-file="segundoano/equilibrio/index.html">
+            <span class="drawer-sim-sigla">SIEQ</span>
+            <span class="drawer-sim-nome">Equilíbrio Químico e Iônico</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="segundoano/eletroquimica/index.html" data-file="segundoano/eletroquimica/index.html">
+            <span class="drawer-sim-sigla">SIEL</span>
+            <span class="drawer-sim-nome">Eletroquímica</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="segundoano/radioatividade/index.html" data-file="segundoano/radioatividade/index.html">
+            <span class="drawer-sim-sigla">SIRAD</span>
+            <span class="drawer-sim-nome">Radioatividade</span>
+          </a></li>
+        </ul>
+      </div>
+
+      <div class="drawer-cat" data-cat="3">
+        <div class="drawer-cat-row">
+          <a class="drawer-cat-link" href="terceiroano/indexterceiroano.html" data-file="terceiroano/indexterceiroano.html">
+            <span class="drawer-cat-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M16 6 L23 10 L23 18 L16 22 L9 18 L9 10 Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="16" cy="14" r="4.5" stroke="currentColor" stroke-width="1.2"/>
+            </svg></span>
+            <span class="drawer-cat-label">3º Ano</span>
+            <span class="drawer-cat-count">5</span>
+          </a>
+          <button type="button" class="drawer-cat-expand" aria-expanded="false" aria-controls="drawerCat3" aria-label="Mostrar simuladores do 3º Ano">
+            <svg class="drawer-cat-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+        <ul class="drawer-cat-list" id="drawerCat3" hidden>
+          <li><a class="drawer-sim-link" href="terceiroano/indexcarbono.html" data-file="terceiroano/indexcarbono.html">
+            <span class="drawer-sim-sigla">SIQC</span>
+            <span class="drawer-sim-nome">Química do Carbono</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="terceiroano/indexfuncoes.html" data-file="terceiroano/indexfuncoes.html">
+            <span class="drawer-sim-sigla">SIFO</span>
+            <span class="drawer-sim-nome">Funções Orgânicas</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="terceiroano/indexreacoes.html" data-file="terceiroano/indexreacoes.html">
+            <span class="drawer-sim-sigla">SIRO</span>
+            <span class="drawer-sim-nome">Reações Orgânicas</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="terceiroano/indexambiental.html" data-file="terceiroano/indexambiental.html">
+            <span class="drawer-sim-sigla">SIQA</span>
+            <span class="drawer-sim-nome">Química Ambiental</span>
+          </a></li>
+          <li><a class="drawer-sim-link" href="terceiroano/indexbioquimica.html" data-file="terceiroano/indexbioquimica.html">
+            <span class="drawer-sim-sigla">SIQB</span>
+            <span class="drawer-sim-nome">Bioquímica</span>
+          </a></li>
+        </ul>
+      </div>
+
+      </div>
+      </div><!-- /#drawerAuthOnlySection -->
+
+      <div class="drawer-section">
+        <p class="drawer-section-title">Preferências</p>
+        <div class="drawer-cat" data-cat="a11y">
+          <button class="drawer-cat-btn a11y-btn" id="a11yToggle" aria-haspopup="true" aria-expanded="false" aria-controls="a11yPanel">
+            <span class="drawer-cat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="4.5" r="1.8"/><path d="M5 8.5l7 2 7-2M12 10.5v4.5M9 21l3-6 3 6M8.5 13l-3 1.5M15.5 13l3 1.5"/></svg></span>
+            <span class="drawer-cat-label">Acessibilidade</span>
+            <svg class="drawer-cat-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+
+          <div class="a11y-panel" id="a11yPanel" role="menu" aria-label="Opções de acessibilidade">
+            <p class="a11y-panel-title">Aparência</p>
+            <div class="a11y-row">
+              <span class="a11y-row-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v1.5M12 19.5V21M4.2 4.2l1.1 1.1M18.7 18.7l1.1 1.1M3 12h1.5M19.5 12H21M4.2 19.8l1.1-1.1M18.7 5.3l1.1-1.1"/><circle cx="12" cy="12" r="4.5"/></svg>
+                Modo escuro
+              </span>
+              <label class="switch">
+                <input type="checkbox" id="themeToggle">
+                <span class="track"><span class="thumb"></span></span>
+              </label>
+            </div>
+
+            <div class="a11y-row">
+              <span class="a11y-row-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/></svg>
+                Alto contraste
+              </span>
+              <label class="switch">
+                <input type="checkbox" id="contrastToggle">
+                <span class="track"><span class="thumb"></span></span>
+              </label>
+            </div>
+
+            <div class="a11y-row">
+              <span class="a11y-row-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19h16M5 19l4.5-13h1L15 19M6.8 14.5h6.4"/></svg>
+                Tamanho da fonte
+              </span>
+              <span class="fontstep">
+                <button type="button" class="fontstep-btn" id="fontDec" aria-label="Diminuir tamanho da fonte">A−</button>
+                <span class="fontstep-pct" id="fontPct" aria-live="polite" aria-atomic="true">100%</span>
+                <button type="button" class="fontstep-btn" id="fontInc" aria-label="Aumentar tamanho da fonte">A+</button>
+              </span>
+            </div>
+
+            <div class="a11y-row">
+              <span class="a11y-row-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h14"/></svg>
+                Espaçamento de letras
+              </span>
+              <label class="switch">
+                <input type="checkbox" id="spacingToggle">
+                <span class="track"><span class="thumb"></span></span>
+              </label>
+            </div>
+
+            <div class="a11y-row">
+              <span class="a11y-row-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5h2v5h-2zM12.5 9.5h2v5h-2z"/></svg>
+                Reduzir animações
+              </span>
+              <label class="switch">
+                <input type="checkbox" id="motionToggle">
+                <span class="track"><span class="thumb"></span></span>
+              </label>
+            </div>
+
+            <div class="a11y-row">
+              <span class="a11y-row-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19h16M6 15l4-8 4 8M7.5 12h5"/></svg>
+                Leitura simples
+              </span>
+              <label class="switch">
+                <input type="checkbox" id="readingToggle">
+                <span class="track"><span class="thumb"></span></span>
+              </label>
+            </div>
+
+            <hr class="divider">
+            <p class="a11y-panel-title">Visão de cores</p>
+            <div class="a11y-row">
+              <span class="a11y-row-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 010 17 4.3 4.3 0 010-8.5 4.3 4.3 0 000-8.5z"/></svg>
+                Daltonismo
+              </span>
+              <select id="colorblindSelect" aria-label="Selecionar espectro do daltonismo">
+                <option value="none">Nenhum</option>
+                <option value="protanopia">Protanopia</option>
+                <option value="deuteranopia">Deuteranopia</option>
+                <option value="tritanopia">Tritanopia</option>
+                <option value="acromatopsia">Acromatopsia</option>
+              </select>
+            </div>
+
+            <hr class="divider">
+            <p class="a11y-panel-title">Outros recursos</p>
+            <div class="a11y-row" style="cursor:default;">
+              <span class="a11y-row-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 4.5c-3.6 0-6.7 2-8.3 5 1.6 3 4.7 5 8.3 5s6.7-2 8.3-5c-1.6-3-4.7-5-8.3-5z"/><circle cx="12" cy="9.5" r="2.2"/></svg>
+                VLibras (Libras) — script independente nesta página
+              </span>
+              <span style="font-size:11px; color:var(--muted); font-family:var(--font-mono);">sempre ativo</span>
+            </div>
+            <div class="a11y-row" style="cursor:default;">
+              <span class="a11y-row-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M10.5 10h.01M14 10h.01M17.5 10h.01M7 13.5h10"/></svg>
+                Navegação por teclado
+              </span>
+              <span style="font-size:11px; color:var(--muted); font-family:var(--font-mono);">sempre ativa</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===================== PORTÃO DE LOGIN ===================== -->
+  <!-- Visível por padrão (falha "fechado": se o JS falhar, quem abre
+       a página vê a tela de login, nunca o conteúdo). identidade.js
+       esconde isso e mostra #conteudo assim que confirma a sessão. -->
+  <div class="auth-gate" id="auth-gate">
+    <div class="auth-card">
+    <div class="auth-brand-lockup">
+      <div class="brand">
+            <p class="brand-name">
+              <span class="qm-sr-only">QuímiX</span>
+              <span aria-hidden="true">Qu<span class="i-bond">ı<svg class="i-bond-accent" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                      <defs>
+                        <linearGradient id="qm-i-bond-grad-login" x1="0" y1="1" x2="1" y2="0">
+                          <stop offset="0" stop-color="#00e5ff"/>
+                          <stop offset="1" stop-color="#ff2a8d"/>
+                        </linearGradient>
+                      </defs>
+                      <line x1="4" y1="16.5" x2="15" y2="4.5" stroke="url(#qm-i-bond-grad-login)" stroke-width="2.3" stroke-linecap="round"/>
+                      <circle cx="4" cy="16.5" r="2.1" fill="#00c2e6"/>
+                      <circle cx="4" cy="16.5" r="0.8" fill="#ffffff"/>
+                      <circle cx="15" cy="4.5" r="2.8" fill="#ff2a8d"/>
+                      <circle cx="15" cy="4.5" r="1" fill="#ffffff"/>
+                    </svg></span>mi</span>
+            </p>
+            <span class="brand-mark-icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" width="100%" height="100%">
+                <defs>
+                <filter id="qm-glow-cyan-login" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="12" result="blur1" />
+                <feGaussianBlur stdDeviation="24" result="blur2" />
+                <feMerge>
+                <feMergeNode in="blur2" />
+                <feMergeNode in="blur1" />
+                <feMergeNode in="SourceGraphic" />
+                </feMerge>
+                </filter>
+                <filter id="qm-glow-pink-login" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="12" result="blur1" />
+                <feGaussianBlur stdDeviation="24" result="blur2" />
+                <feMerge>
+                <feMergeNode in="blur2" />
+                <feMergeNode in="blur1" />
+                <feMergeNode in="SourceGraphic" />
+                </feMerge>
+                </filter>
+                <filter id="qm-node-glow-cyan-login" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="5" result="blur" />
+                <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+                </feMerge>
+                </filter>
+                <filter id="qm-node-glow-pink-login" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="5" result="blur" />
+                <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+                </feMerge>
+                </filter>
+                <clipPath id="qm-left-half-login">
+                <rect x="0" y="0" width="450" height="650" />
+                </clipPath>
+                <clipPath id="qm-right-half-login">
+                <rect x="450" y="0" width="450" height="650" />
+                </clipPath>
+                </defs>
+          
+                <line x1="450" y1="50" x2="450" y2="600" stroke="#4a5568" stroke-width="1.5" />
+          
+                <g clip-path="url(#qm-left-half-login)">
+                <path d="M 265,100 L 370,100 L 450,270 L 530,100 L 635,100 L 495,325 L 635,550 L 530,550 L 450,380 L 370,550 L 265,550 L 405,325 Z" fill="none" stroke="#00e5ff" stroke-width="28" opacity="0.65" filter="url(#qm-glow-cyan-login)" />
+                </g>
+          
+                <g clip-path="url(#qm-right-half-login)">
+                <path d="M 265,100 L 370,100 L 450,270 L 530,100 L 635,100 L 495,325 L 635,550 L 530,550 L 450,380 L 370,550 L 265,550 L 405,325 Z" fill="none" stroke="#ff2a8d" stroke-width="28" opacity="0.65" filter="url(#qm-glow-pink-login)" />
+                </g>
+          
+                <path d="M 265,100 L 370,100 L 450,270 L 530,100 L 635,100 L 495,325 L 635,550 L 530,550 L 450,380 L 370,550 L 265,550 L 405,325 Z" fill="currentColor" stroke="#4a5568" stroke-width="4" stroke-linejoin="miter" stroke-miterlimit="10" />
+          
+                <g stroke="#4a5568" stroke-width="2.5" stroke-linecap="round">
+                <line x1="380" y1="180" x2="433" y2="325" />
+                <line x1="380" y1="470" x2="433" y2="325" />
+                <line x1="520" y1="180" x2="467" y2="325" />
+                <line x1="520" y1="470" x2="467" y2="325" />
+                </g>
+          
+                <circle cx="380" cy="180" r="7" fill="#00d2ff" filter="url(#qm-node-glow-cyan-login)" />
+                <circle cx="380" cy="180" r="2.5" fill="currentColor" />
+                <circle cx="380" cy="470" r="7" fill="#00d2ff" filter="url(#qm-node-glow-cyan-login)" />
+                <circle cx="380" cy="470" r="2.5" fill="currentColor" />
+                <circle cx="433" cy="325" r="7" fill="#00d2ff" filter="url(#qm-node-glow-cyan-login)" />
+                <circle cx="433" cy="325" r="2.5" fill="currentColor" />
+          
+                <circle cx="520" cy="180" r="7" fill="#ff3385" filter="url(#qm-node-glow-pink-login)" />
+                <circle cx="520" cy="180" r="2.5" fill="currentColor" />
+                <circle cx="520" cy="470" r="7" fill="#ff3385" filter="url(#qm-node-glow-pink-login)" />
+                <circle cx="520" cy="470" r="2.5" fill="currentColor" />
+                <circle cx="467" cy="325" r="7" fill="#ff3385" filter="url(#qm-node-glow-pink-login)" />
+                <circle cx="467" cy="325" r="2.5" fill="currentColor" />
+          
+                <line x1="433" y1="325" x2="260" y2="325" stroke="#4a5568" stroke-width="2.5" />
+                <circle cx="260" cy="325" r="22" fill="none" stroke="#4a5568" stroke-width="2.5" />
+                <circle cx="260" cy="325" r="13" fill="none" stroke="#4a5568" stroke-width="2.5" />
+                <circle cx="260" cy="325" r="7" fill="#8b5cf6" filter="url(#qm-node-glow-cyan-login)" />
+                <circle cx="260" cy="325" r="2.5" fill="currentColor" />
+          
+                <polyline points="245,310 200,210 110,210" fill="none" stroke="#4a5568" stroke-width="2.5" stroke-linejoin="round" />
+                <polyline points="245,340 200,440 110,440" fill="none" stroke="#4a5568" stroke-width="2.5" stroke-linejoin="round" />
+          
+                <circle cx="200" cy="210" r="14" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+                <circle cx="200" cy="210" r="6" fill="#00d2ff" filter="url(#qm-node-glow-cyan-login)" />
+                <circle cx="200" cy="210" r="2" fill="currentColor" />
+          
+                <circle cx="110" cy="210" r="14" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+                <circle cx="110" cy="210" r="6" fill="#00d2ff" filter="url(#qm-node-glow-cyan-login)" />
+                <circle cx="110" cy="210" r="2" fill="currentColor" />
+          
+                <circle cx="200" cy="440" r="14" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+                <circle cx="200" cy="440" r="6" fill="#ff3385" filter="url(#qm-node-glow-pink-login)" />
+                <circle cx="200" cy="440" r="2" fill="currentColor" />
+          
+                <circle cx="110" cy="440" r="11" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          
+                <line x1="467" y1="325" x2="575" y2="325" stroke="#4a5568" stroke-width="2.5" />
+                <circle cx="575" cy="325" r="6" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+          
+                <line x1="575" y1="325" x2="535" y2="260" stroke="#4a5568" stroke-width="2.5" />
+                <line x1="575" y1="325" x2="535" y2="390" stroke="#4a5568" stroke-width="2.5" />
+          
+                <line x1="585" y1="319" x2="640" y2="319" stroke="#4a5568" stroke-width="2.5" />
+                <line x1="585" y1="331" x2="640" y2="331" stroke="#4a5568" stroke-width="2.5" />
+          
+                <line x1="640" y1="325" x2="720" y2="210" stroke="#4a5568" stroke-width="2.5" />
+                <line x1="640" y1="325" x2="720" y2="440" stroke="#4a5568" stroke-width="2.5" />
+          
+                <circle cx="720" cy="210" r="14" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+                <circle cx="720" cy="210" r="6" fill="#ff3385" filter="url(#qm-node-glow-pink-login)" />
+                <circle cx="720" cy="210" r="2" fill="currentColor" />
+          
+                <circle cx="720" cy="440" r="11" fill="currentColor" stroke="#4a5568" stroke-width="2.5" />
+                </svg>
+            </span>
+          </div>
+      <p class="auth-subtitle">Laboratório Virtual</p>
+    </div>
+
+      <div class="auth-view" id="auth-view-login">
+        <p class="panel-title">Entrar</p>
+        <form class="auth-form" onsubmit="handleLogin(event)">
+          <label class="campo"><span>E-mail cadastrado</span>
+            <input type="email" id="login-email" required autocomplete="username">
+          </label>
+          <label class="campo"><span>Senha</span>
+            <input type="password" id="login-senha" required autocomplete="current-password">
+          </label>
+          <button type="submit" class="launch-submit" id="login-btn">Entrar</button>
+        </form>
+        <div id="login-msg" class="auth-msg hidden"></div>
+        <div class="auth-links">
+          <button type="button" class="link-btn" onclick="mostrarAuthView('esqueci')">Esqueceu sua senha?</button>
+          <button type="button" class="link-btn" onclick="mostrarAuthView('cadastro')">Criar conta</button>
+        </div>
+        <hr class="auth-divider">
+        <!-- Modo visitante: sem token, sem "Minha conta"/"Administração"
+             — só os simuladores (100% client-side, então funcionam
+             igual). Ver entrarComoVisitante() em identidade.js. -->
+        <button type="button" class="link-btn link-btn--visitante" onclick="entrarComoVisitante()">Usar sem conta (offline)</button>
+      </div>
+
+      <div class="auth-view hidden" id="auth-view-cadastro">
+        <p class="panel-title">Criar conta</p>
+        <p class="panel-hint">Sua conta fica pendente até um administrador aprovar o acesso.</p>
+        <form class="auth-form" onsubmit="handleCadastro(event)">
+          <label class="campo"><span>Nome</span>
+            <input type="text" id="cadastro-nome" required autocomplete="name">
+          </label>
+          <label class="campo"><span>E-mail</span>
+            <input type="email" id="cadastro-email" required autocomplete="username">
+          </label>
+          <label class="campo"><span>Senha</span>
+            <input type="password" id="cadastro-senha" required minlength="6" autocomplete="new-password">
+          </label>
+          <label class="campo"><span>Repetir senha</span>
+            <input type="password" id="cadastro-senha2" required minlength="6" autocomplete="new-password">
+          </label>
+          <button type="submit" class="launch-submit" id="cadastro-btn">Criar conta</button>
+        </form>
+        <div id="cadastro-msg" class="auth-msg hidden"></div>
+        <div class="auth-links">
+          <button type="button" class="link-btn" onclick="mostrarAuthView('login')"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg> Voltar para o login</button>
+        </div>
+      </div>
+
+      <div class="auth-view hidden" id="auth-view-esqueci">
+        <p class="panel-title">Esqueceu sua senha?</p>
+        <p class="panel-hint">Informe seu e-mail cadastrado. Se ele existir, mandamos um código temporário — use-o no lugar da senha pra entrar, e depois você escolhe uma senha nova.</p>
+        <form class="auth-form" onsubmit="handleEsqueciSenha(event)">
+          <label class="campo"><span>E-mail cadastrado</span>
+            <input type="email" id="esqueci-email" required autocomplete="username">
+          </label>
+          <button type="submit" class="launch-submit" id="esqueci-btn">Enviar código</button>
+        </form>
+        <div id="esqueci-msg" class="auth-msg hidden"></div>
+        <div class="auth-links">
+          <button type="button" class="link-btn" onclick="mostrarAuthView('login')"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg> Voltar para o login</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main id="conteudo" class="hidden">
+
+    <!-- Aviso fixo pra sessão em cache (sem internet agora) ou modo
+         visitante — hidden por padrão, ligado por identidade.js
+         (mostrarAvisoModoSessao_). Nunca aparece numa sessão normal. -->
+    <p id="aviso-modo-sessao" class="aviso-modo-sessao" hidden role="status"></p>
+
+    <!-- ════════ HERO — apresentação da proposta ════════ -->
+    <section class="hero" aria-labelledby="heroTitle">
+      <p class="hero-eyebrow" id="heroEyebrow">Bem-vindo</p>
+      <h2 class="hero-title" id="heroTitle">Química que dá pra <span>ver, mexer e entender</span></h2>
+      <p class="hero-lead">
+        O QuímiX traduz os conceitos mais abstratos da Química do Ensino Médio — orbitais,
+        equilíbrios, ligações, curvas que só existiam no quadro — em simulações que respondem
+        ao toque, na hora. São <strong>21 simuladores</strong>, cobrindo os <strong>3 anos</strong>
+        do Ensino Médio, pensados desde o início pra funcionar bem pra qualquer estudante.
+      </p>
+      <div class="hero-actions">
+        <button type="button" class="btn-secondary" id="btnReverTour">Rever tour guiado</button>
+      </div>
+
+      <div class="trilha-anos" role="group" aria-label="Escolha o ano que você está cursando">
+        <a class="trilha-ano" href="primeiroano/indexprimeiroano.html" data-file="primeiroano/indexprimeiroano.html">
+          <span class="trilha-ano-badge">1º Ano</span>
+          <h3>Fundamentos</h3>
+          <p>Átomos, ligações e a tabela periódica — as bases de tudo.</p>
+          <span class="trilha-ano-cta">8 simuladores <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
+        <svg class="trilha-conector" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <a class="trilha-ano" href="segundoano/indexsegundoano.html" data-file="segundoano/indexsegundoano.html">
+          <span class="trilha-ano-badge">2º Ano</span>
+          <h3>Química em movimento</h3>
+          <p>Gases, soluções, equilíbrios e reações que acontecem de verdade.</p>
+          <span class="trilha-ano-cta">8 simuladores <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
+        <svg class="trilha-conector" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <a class="trilha-ano" href="terceiroano/indexterceiroano.html" data-file="terceiroano/indexterceiroano.html">
+          <span class="trilha-ano-badge">3º Ano</span>
+          <h3>Química orgânica</h3>
+          <p>Do carbono à bioquímica, com foco no que cai no dia a dia.</p>
+          <span class="trilha-ano-cta">5 simuladores <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ════════ NOSSA PROPOSTA — a ideia por trás do projeto ════════ -->
+    <section class="proposta" aria-labelledby="propostaTitle">
+      <h2 class="section-title" id="propostaTitle">Nossa proposta</h2>
+      <div class="proposta-grid">
+        <div class="proposta-pilar">
+          <span class="proposta-pilar-icone" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v5.5L5 18a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9.5V3"/><path d="M7.5 14h9"/></svg>
+          </span>
+          <h3>Da abstração à prática</h3>
+          <p>Orbitais, equilíbrios, curvas de titulação — conceitos que sempre foram estáticos no quadro
+            aqui reagem de verdade: mude uma variável e veja a consequência na hora, não só a fórmula dela.</p>
+        </div>
+        <div class="proposta-pilar">
+          <span class="proposta-pilar-icone" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          </span>
+          <h3>Acessível de verdade</h3>
+          <p>Alto contraste, leitura simples, ajuste de fonte, simulação de daltonismo — não é um adendo
+            que só existe numa tela separada: acompanha você em qualquer simulador que abrir.</p>
+        </div>
+        <div class="proposta-pilar">
+          <span class="proposta-pilar-icone" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </span>
+          <h3>Cobertura completa</h3>
+          <p>Os 3 anos do Ensino Médio, do modelo atômico à química orgânica — pensado pra acompanhar
+            o aluno do começo ao fim, não só um conteúdo isolado.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ DESTAQUES — alguns exemplos, pra dar gosto de explorar ════════ -->
+    <section class="destaques" aria-labelledby="destaquesTitle">
+      <h2 class="section-title" id="destaquesTitle">Alguns exemplos</h2>
+      <div class="destaques-grid">
+        <a class="destaque-card" href="primeiroano/sitp/indexsitp.html" data-file="primeiroano/sitp/indexsitp.html">
+          <div class="destaque-preview">
+            <iframe class="destaque-preview-frame" data-src="primeiroano/sitp/indexsitp.html" title="Prévia ao vivo do simulador" tabindex="-1" aria-hidden="true" loading="lazy"></iframe>
+          </div>
+          <span class="destaque-badge">1º Ano</span>
+          <h3>Tabela Periódica</h3>
+          <p>Clique em qualquer elemento e veja fotos reais, raio atômico, distribuição eletrônica, diagramas de Bohr e Lewis.</p>
+          <span class="destaque-cta">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
+        <a class="destaque-card" href="segundoano/equilibrio/index.html" data-file="segundoano/equilibrio/index.html">
+          <div class="destaque-preview">
+            <iframe class="destaque-preview-frame" data-src="segundoano/equilibrio/index.html" title="Prévia ao vivo do simulador" tabindex="-1" aria-hidden="true" loading="lazy"></iframe>
+          </div>
+          <span class="destaque-badge">2º Ano</span>
+          <h3>Equilíbrio Químico</h3>
+          <p>Acompanhe reações reversíveis atingindo o equilíbrio, com gráficos de concentração em tempo real.</p>
+          <span class="destaque-cta">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
+        <a class="destaque-card" href="primeiroano/sima/indexsima.html" data-file="primeiroano/sima/indexsima.html">
+          <div class="destaque-preview">
+            <iframe class="destaque-preview-frame" data-src="primeiroano/sima/indexsima.html" title="Prévia ao vivo do simulador" tabindex="-1" aria-hidden="true" loading="lazy"></iframe>
+          </div>
+          <span class="destaque-badge">1º Ano</span>
+          <h3>Modelos Atômicos</h3>
+          <p>De Dalton ao modelo quântico — veja como a ideia de átomo evoluiu, um modelo de cada vez.</p>
+          <span class="destaque-cta">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
+        <a class="destaque-card" href="terceiroano/indexcarbono.html" data-file="terceiroano/indexcarbono.html">
+          <div class="destaque-preview">
+            <iframe class="destaque-preview-frame" data-src="terceiroano/indexcarbono.html" title="Prévia ao vivo do simulador" tabindex="-1" aria-hidden="true" loading="lazy"></iframe>
+          </div>
+          <span class="destaque-badge">3º Ano</span>
+          <h3>Química do Carbono</h3>
+          <p>Hibridizações, geometria molecular e as bases da química orgânica, de forma visual.</p>
+          <span class="destaque-cta">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ════════ ACESSIBILIDADE — diferencial do projeto ════════ -->
+    <section class="a11y-showcase" aria-labelledby="a11yShowcaseTitle">
+      <h2 class="section-title" id="a11yShowcaseTitle">Feito pra todo mundo</h2>
+      <p class="a11y-showcase-lead">Acessibilidade não é um extra aqui — as preferências ajustadas
+        no menu valem em qualquer simulador que você abrir, sem precisar configurar de novo.</p>
+      <ul class="a11y-showcase-list">
+        <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Modo escuro e alto contraste</li>
+        <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Leitura simples</li>
+        <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Ajuste de tamanho de fonte e espaçamento</li>
+        <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Simulação de daltonismo (4 tipos)</li>
+        <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Suporte a Libras (VLibras)</li>
+        <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Totalmente navegável por teclado</li>
+      </ul>
+    </section>
+
+  </main>
+
+  <!-- Os 3 modais abaixo ficam DENTRO de .shell de propósito: assim
+       entram na mesma "pilha" de exibição (stacking context) que o
+       painel de acessibilidade no cabeçalho, e dá pra garantir que o
+       painel de acessibilidade sempre aparece por cima de qualquer
+       modal aberto (ver z-index de .a11y-panel vs .modal-overlay em
+       style.css) — sem precisar mexer no z-index do resto do site. -->
+
+  <!-- ===================== TROCA DE SENHA OBRIGATÓRIA ===================== -->
+  <!-- Aparece por cima de tudo quando o login foi feito com um código
+       temporário (via "Esqueceu sua senha?" ou reenviado por um admin). -->
+  <div class="modal-overlay hidden" id="modal-nova-senha">
+    <div class="modal-card">
+      <p class="panel-title">Defina sua nova senha</p>
+      <p class="panel-hint">Você entrou com um código temporário. Escolha uma senha nova pra continuar.</p>
+      <form class="auth-form" onsubmit="handleDefinirNovaSenha(event)">
+        <label class="campo"><span>Nova senha</span>
+          <input type="password" id="nova-senha-1" required minlength="6" autocomplete="new-password">
+        </label>
+        <label class="campo"><span>Repetir nova senha</span>
+          <input type="password" id="nova-senha-2" required minlength="6" autocomplete="new-password">
+        </label>
+        <button type="submit" class="launch-submit" id="nova-senha-btn">Salvar nova senha</button>
+      </form>
+      <div id="nova-senha-msg" class="auth-msg hidden"></div>
+    </div>
+  </div>
+
+  <!-- ===================== ADMINISTRAÇÃO DE USUÁRIOS ===================== -->
+  <!-- Só quem tem papel="administrador" consegue abrir (ver aplicarPermissoesPapel
+       em identidade.js, que esconde o botão que chama isso pra quem é membro,
+       e exigirAdministrador() aqui, que barra a chamada mesmo assim). -->
+  <footer class="foot">
+    <span> desenvolvido por <b>Thiago Weslei - Licenciando em Química</b></span>
+    <span>Laboratório Virtual</span>
+  </footer>
+</div>
+
+<div vw class="enabled" id="vlibrasWidget">
+  <div vw-access-button class="active"></div>
+  <div vw-plugin-wrapper>
+    <div class="vw-plugin-top-wrapper"></div>
+  </div>
+</div>
+
+<script src="coachmark.js"></script>
+<script src="script.js"></script>
+
+<!-- ===================== LOGIN (Apps Script) ===================== -->
+<!-- Veja LEIA-ME-LOGIN.md — precisa colar a URL do backend em
+     config-api.js antes disso funcionar de verdade. -->
+<script src="config-api.js"></script>
+<script src="estado-sessao.js"></script>
+<script src="identidade.js"></script>
+<script src="auth-formularios.js"></script>
+<script src="conta.js"></script>
+
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

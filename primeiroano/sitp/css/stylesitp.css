@@ -1,0 +1,1706 @@
+/* =====================================================================
+   LEITURA SIMPLES — SELETOR CORRIGIDO
+   ---------------------------------------------------------------------
+   BUG: as regras abaixo esperavam [data-simple="on"], escrito pelo
+   proprio scriptsitp.js. O a11y.js escreve [data-reading="on"] no
+   <html> (e liga .simple-read no <body>). O modo de leitura simples
+   nunca ligava vindo da Central — inclusive a regra que esconde a
+   massa atomica nos cards, que era o efeito principal.
+   ===================================================================== */
+
+/* =====================================================================
+   ALTO CONTRASTE — SELETOR CORRIGIDO
+   ---------------------------------------------------------------------
+   BUG: as regras abaixo esperavam data-contrast="high", mas o a11y.js
+   escreve data-contrast="on" (e tambem liga .high-contrast no <body>).
+   Nenhuma delas ligava. O aluno ativava o alto contraste na Central e
+   este simulador continuava com a paleta normal — inclusive as regras
+   que redefinem a PALETA INTEIRA de alto contraste.
+
+   O valor "high" vem de um script antigo (accessibilitysiem.js), que
+   nao existe mais no projeto. Trocado para "on".
+   ===================================================================== */
+
+/* =====================================================================
+   LEGENDAS DENTRO DA TABELA — CORRECAO DO CORTE
+   ---------------------------------------------------------------------
+   BUG: a legenda "Estado Fisico" tem 4 BOTOES DE FILTRO (Solido, Liquido,
+   Gasoso, Desconhecido) arranjados em 2 colunas x 2 linhas, dentro de
+   grid-row: 4/5 — ou seja, a altura de UMA linha de periodo (~46px). Com
+   fonte de 15px a caixa precisa de ~79px. O overflow:hidden cortava a
+   diferenca, e a SEGUNDA LINHA (Gasoso e Desconhecido) desaparecia.
+
+   Nao era so texto oculto: eram dois FILTROS inacessiveis. A 67% de zoom
+   as fontes em px encolhem mas a altura da linha vem de 1fr (fracao da
+   tela), entao passava a caber — foi assim que o problema apareceu.
+
+   CORRECAO EM TRES PARTES:
+
+   1) LARGURA — as legendas ocupavam grid-column 6/13 (colunas 6 a 12).
+      O grid e "18px repeat(18,1fr)": a coluna 1 e o rotulo do numero do
+      periodo, entao o GRUPO 1 e a coluna 2 e o GRUPO 2 e a coluna 3.
+      Medindo as posicoes reais no DOM, as colunas livres nos tres
+      periodos sao 4 a 13. Passar para 4/14 da 10 colunas em vez de 7:
+      43% mais largura, o que reduz a altura necessaria.
+
+      ATENCAO para quem mexer aqui depois: 3/13 parece certo pela conta
+      dos grupos, mas invade o grupo 2 e cobre o Berilio e o Magnesio.
+      A coluna extra do rotulo desloca tudo em 1.
+
+      VALOR FINAL 5/13 (colunas 5 a 12): deixa a coluna 4 e a coluna 13
+      VAZIAS, criando um vao de uma coluna entre a legenda e os elementos
+      Be/Mg (a esquerda) e B/Al (a direita) — a legenda nao encosta neles.
+
+   2) ARRANJO — a legenda de estado vira 4 colunas x 1 linha. Quatro
+      rotulos curtos cabem lado a lado na largura nova.
+
+   3) DEGRADACAO SEGURA — overflow-y: auto no lugar de hidden. Na fonte
+      maxima do a11y (1.5x) nem uma linha cabe em 46px; com auto o
+      conteudo fica ROLAVEL em vez de invisivel. Um filtro que rola
+      ainda pode ser usado; um filtro cortado, nao.
+   ===================================================================== */
+
+/* =====================================================================
+   ALTURA DE VIEWPORT: dvh com fallback vh
+   ---------------------------------------------------------------------
+   PROBLEMA: no Safari do iOS e no Chrome do Android, 100vh e a altura da
+   tela COM a barra de endereco escondida — a maior possivel. Quando a
+   barra esta visivel (o estado normal ao abrir a pagina), a casca do app
+   fica mais alta que a area visivel e o rodape do canvas cai abaixo da
+   dobra. Como .app-main tem overflow:hidden, nao ha rolagem para
+   alcancar o pedaco perdido: ele simplesmente desaparece. E como 100vh e
+   estatico, nao reage quando a barra aparece ou some.
+
+   SOLUCAO: dvh (dynamic viewport height) acompanha a barra do navegador.
+   Cada altura aparece DUAS vezes neste arquivo:
+
+       height: calc(100vh  - var(--header-h));   <- fallback
+       height: calc(100dvh - var(--header-h));   <- navegadores modernos
+
+   Navegador que nao entende dvh simplesmente ignora a segunda declaracao
+   e fica com a primeira. Navegador moderno usa a segunda, que vem
+   depois. Nenhum @supports e necessario: e a cascata normal do CSS.
+
+   Por que dvh e nao svh: estes simuladores tem overflow:hidden e nao
+   rolam, entao o dvh nao causa o tremor de reflow que provoca em paginas
+   rolaveis — e o canvas aproveita a tela inteira quando a barra some.
+   ===================================================================== */
+
+:root {
+  --bg-deep:      #080c14;  --bg-panel:     #0c1520;  --bg-card:      #101c2b;
+  --bg-hover:     #172334;  --border:       #1c2e44;  --accent:       #5CD9FF;
+  --text-main:    #f0f0f8;  --text-dim:     #b0b0d0;
+  --c-solid:      #5aabff;  --c-liquid:     #ff6e6e;  --c-gas:        #7df5b8;
+  --c-unknown:    #bbbbbb;  --c-transition: #f5a623;  --c-lanthanide: #c084e0;
+  --cat-alcalino:    #e74c3c; --cat-alcalino-t:  #e67e22; --cat-lantanideo:  #b07edc;
+  --cat-actinideo:   #a060cc; --cat-transicao:   #f5a623; --cat-representat: #22d4ae;
+  --cat-semimetal:   #3acf74; --cat-naometal:    #5aabff; --cat-halogeno:    #4fa8e8;
+  --cat-gasNobre:    #20c9a0;
+  --orb-s: #5aabff; --orb-p: #7df5b8; --orb-d: #f5a623; --orb-f: #c084e0;
+  --en-cinza: #3a3a46;   /* fundo do card sem dado de eletronegatividade */
+  --font-scale: 1;
+  --header-accent: #5CD9FF;
+}
+[data-theme="light"] {
+  --bg-deep:#f0f4f8; --bg-panel:#e4eaf2; --bg-card:#d8e2ee; --bg-hover:#ccd6e6;
+  --border:#9badc4; --accent:#04627C; --text-main:#08081e; --text-dim:#2e2e50;
+  --c-solid:#005fa3; --c-liquid:#b00020; --c-gas:#006b40; --c-unknown:#5a5a5a;
+  --c-transition:#7a4800; --c-lanthanide:#6a1fa0;
+  --cat-alcalino:#a01825; --cat-alcalino-t:#7a3e00; --cat-lantanideo:#5c1a8c;
+  --cat-actinideo:#55127f; --cat-transicao:#7a4d00; --cat-representat:#006b53;
+  --cat-semimetal:#0d6b38; --cat-naometal:#00508a; --cat-halogeno:#004d8c;
+  --cat-gasNobre:#006152;
+  --orb-s:#005fa3; --orb-p:#006b40; --orb-d:#7a4800; --orb-f:#6a1fa0;
+  --en-cinza: #b9c0cd;   /* fundo do card sem dado de eletronegatividade */
+  --header-accent: #04627C;
+}
+[data-contrast="on"] {
+  --bg-deep:#000; --bg-panel:#000; --bg-card:#111; --bg-hover:#222;
+  --border:#fff; --accent:#ffff00; --text-main:#fff; --text-dim:#f0f0f0;
+  --header-accent: #ffff00;
+  --c-solid:#6fc8ff; --c-liquid:#ff8080; --c-gas:#80ffc0; --c-unknown:#ddd;
+  --c-transition:#ffbe40; --c-lanthanide:#d8a0ff;
+  --cat-alcalino:#ff6060; --cat-alcalino-t:#ffaa40; --cat-lantanideo:#d090ff;
+  --cat-actinideo:#c070ff; --cat-transicao:#ffbe40; --cat-representat:#40ffd8;
+  --cat-semimetal:#60ff90; --cat-naometal:#80c8ff; --cat-halogeno:#70b8ff;
+  --cat-gasNobre:#50ffcc;
+  --orb-s:#6fc8ff; --orb-p:#80ffc0; --orb-d:#ffbe40; --orb-f:#d8a0ff;
+  --en-cinza: #2a2a2a;   /* fundo do card sem dado de eletronegatividade */
+}
+[data-contrast="on"] .header-brand h1,
+[data-contrast="on"] .header-logo{animation:pulse-logo-sitp 3s ease-in-out infinite;}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* Os 4 skip links vivem dentro de um <nav class="skip-nav">: o leitor de
+   tela anuncia "navegacao, Atalhos de navegacao" uma vez, em vez de ler
+   4 links soltos antes do cabecalho (WCAG 1.3.1 + 2.4.1). O container
+   nao ocupa espaco — os links sao position:fixed. */
+.skip-nav { position: absolute; top: 0; left: 0; z-index: 10000; }
+.skip-link {
+  position: absolute; top: -999px; left: -999px;
+  background: var(--accent); color: #000;
+  padding: 8px 16px; border-radius: 4px; font-weight: 700;
+  z-index: 9999; font-family: 'Rajdhani', sans-serif; text-decoration: none;
+}
+.skip-link:focus { top: 8px; left: 8px; }
+body {
+  background: var(--bg-deep); color: var(--text-main);
+  font-family: 'Rajdhani', sans-serif;
+  display: flex; flex-direction: column;
+  height: 100vh; height: 100dvh; overflow: hidden;
+}
+.page-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+.main-content  { flex: 1; display: flex; flex-direction: column; padding: 6px 8px 0; overflow: hidden; min-width: 0; min-height: 0; }
+.footer-fontes {
+  flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 3px 12px; padding: 4px 10px 5px; border-top: 1px solid var(--border); background: var(--bg-deep);
+}
+.footer-fontes-titulo { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-main); white-space: nowrap; flex-shrink: 0; }
+.footer-fonte-item { font-size: 10px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; white-space: nowrap; }
+.footer-fonte-item b { color: var(--text-main); font-family: 'Rajdhani', sans-serif; font-weight: 700; }
+.footer-fonte-item a { color: var(--accent); text-decoration: none; }
+.footer-fonte-item a:hover, .footer-fonte-item a:focus-visible { text-decoration: underline; outline: 1px solid var(--accent); outline-offset: 2px; }
+#periodic-table {
+  display: grid;
+  grid-template-columns: 18px repeat(18, 1fr);
+  grid-template-rows: 18px repeat(7, 1fr) 5px 1fr 1fr;
+  gap: 3px; flex: 1; min-height: 0;
+}
+.family-label {
+  grid-row: 1; display: flex; align-items: center; justify-content: center;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(calc(7px * var(--font-scale)), calc(0.65vw * var(--font-scale)), calc(12px * var(--font-scale)));
+  color: var(--text-dim); border-bottom: 1px solid var(--border); user-select: none;
+}
+.period-label {
+  grid-column: 1; display: flex; align-items: center; justify-content: center;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(calc(7px * var(--font-scale)), calc(0.65vw * var(--font-scale)), calc(12px * var(--font-scale)));
+  color: var(--text-dim); user-select: none;
+}
+.legend-grid-cats {
+  /* GRUPOS 3 a 10 (colunas 4 a 11 da grade: grupo g = coluna g+1).
+     Os grupos 11 e 12 ficam para a celula de propriedades, que sobe ao
+     lado com a mesma altura. */
+  grid-column: 4 / 12; grid-row: 2 / 4;
+  background: var(--bg-deep); border: 1px solid var(--border); border-radius: 4px;
+  padding: calc(4px * var(--font-scale)) calc(6px * var(--font-scale)) calc(3px * var(--font-scale));
+  display: flex; flex-direction: column; gap: calc(3px * var(--font-scale));
+  /* auto, nao hidden: na fonte ampliada o conteudo rola em vez de sumir */
+  overflow-y: auto; overflow-x: hidden; min-height: 0; z-index: 2;
+}
+.legend-grid-cats .legend-section-label { font-size: clamp(calc(10px * var(--font-scale)), calc(1.02vw * var(--font-scale)), calc(15px * var(--font-scale))); font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-main); flex-shrink: 0; }
+.legend-grid-cats .legend-cats {
+  /* auto-fit: o numero de colunas se adapta a largura disponivel. Com o vao
+     reduzido a 8 colunas, 4 itens por linha apertariam "Metal
+     alcalino-terroso" em janelas estreitas. Assim vira 3 por linha sozinho,
+     em vez de truncar o rotulo com "...". */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(120px * var(--font-scale)), 1fr));
+  grid-auto-rows: min-content;
+  gap: calc(2px * var(--font-scale)); flex: 1; min-height: 0;
+}
+.legend-grid-cats .legend-item {
+  display: flex; align-items: center; gap: calc(5px * var(--font-scale));
+  /* Era 11px fixo. A celula da legenda e uma FRACAO da largura da janela
+     (8 dos 18 grupos), entao texto de tamanho fixo nao tem como caber em
+     toda janela. Agora escala com vw, igual ao que os cards ja fazem. */
+  font-size: clamp(calc(8.5px * var(--font-scale)), calc(0.86vw * var(--font-scale)), calc(13px * var(--font-scale)));
+  font-weight: 700;
+  padding: calc(2px * var(--font-scale)) calc(5px * var(--font-scale));
+  border-radius: calc(4px * var(--font-scale)); line-height: 1.2;
+  /* Quebrar e melhor que truncar: com o vao de 8 colunas o rotulo mais longo
+     ("Metal alcalino-terroso") pode nao caber numa linha em janelas estreitas.
+     Com nowrap + ellipsis o texto viraria "Metal alcalino-terr..."; com wrap
+     ele ocupa duas linhas e, se a caixa estourar, o overflow-y:auto rola. */
+  overflow: hidden; white-space: normal; min-width: 0;
+}
+/* SEM text-overflow:ellipsis. Ele contradizia o comentario da regra acima:
+   com ellipsis o rotulo virava "Metal alcalino-terr..." em vez de quebrar
+   em duas linhas. Esconder texto e pior que ocupar uma linha a mais. */
+.legend-grid-cats .legend-item span:last-child { min-width: 0; overflow-wrap: break-word; }
+.legend-grid-cats .legend-dot { width: calc(10px * var(--font-scale)); height: calc(10px * var(--font-scale)); flex-shrink: 0; border-radius: 50%; }
+.legend-grid-states {
+  grid-column: 4 / 12; grid-row: 4 / 5;   /* grupos 3-10, como a de cima */
+  background: var(--bg-deep); border: 1px solid var(--border); border-radius: 4px;
+  padding: calc(4px * var(--font-scale)) calc(7px * var(--font-scale)) calc(3px * var(--font-scale));
+  display: flex; flex-direction: column; gap: calc(3px * var(--font-scale));
+  /* auto, nao hidden: na fonte maxima o conteudo rola em vez de sumir */
+  overflow-y: auto; overflow-x: hidden; min-height: 0; z-index: 2;
+}
+.legend-grid-states .legend-section-label { font-size: clamp(calc(10px * var(--font-scale)), calc(1.1vw * var(--font-scale)), calc(16px * var(--font-scale))); font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-main); flex-shrink: 0; }
+.legend-grid-states .legend-states {
+  /* Era repeat(4,1fr): quatro colunas IGUAIS para rotulos de tamanhos
+     diferentes. "Desconhecido" (12 letras) recebia a mesma largura que
+     "Sólido" (6) e virava "Desco..." enquanto o primeiro sobrava espaco.
+     Com flex cada item pede a largura do proprio texto e todos encolhem
+     junto quando falta espaco. */
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: calc(3px * var(--font-scale)); flex: 1; min-height: 0;
+}
+.legend-grid-states .legend-item {
+  /* gap era 15px entre emoji e rotulo — o de categorias e 5px. Reduzido
+     para 6px: libera largura e ajuda os 4 filtros a caberem numa linha. */
+  display: flex; align-items: center; gap: calc(6px * var(--font-scale));
+  /* mesma razao das categorias: escala com vw em vez de px fixo */
+  font-size: clamp(calc(9px * var(--font-scale)), calc(1.02vw * var(--font-scale)), calc(14px * var(--font-scale)));
+  font-weight: 700;
+  padding: calc(2px * var(--font-scale)) calc(4px * var(--font-scale));
+  border-radius: calc(4px * var(--font-scale)); line-height: 1.25;
+  white-space: nowrap; min-width: 0; flex: 0 1 auto;
+}
+/* SEM ellipsis: era o que produzia "Desco...". A fonte encolhe com a
+   janela, entao o rotulo inteiro cabe sem precisar cortar. */
+.legend-grid-states .legend-item span:last-child { min-width: 0; }
+
+/* 🥚 EASTER EGG — "Posso lamber isso?" — sem botão visível; ativado
+   digitando a palavra "lamber" em qualquer lugar da página. */
+/* ── CELULA "PROPRIEDADES" ────────────────────────────────────────────
+   GRUPOS 11 e 12 (colunas 12-13 da grade), LINHAS 2 a 4 — mesma altura
+   dos filtros, que terminam no grupo 10. Os dois blocos ficam lado a
+   lado e alinhados em cima e embaixo.
+
+   Os grupos 11 e 12 estao livres nas TRES linhas (nas linhas 3 e 4 os
+   ocupados sao os grupos 1-2 e 13-18), o que da ~146 x 160px. Com essa
+   altura os tres botoes empilham com o NOME POR EXTENSO — nao dependem
+   de reconhecer o icone.
+
+   NAO usa .legend-item de proposito. Filtro e propriedade fazem coisas
+   diferentes — um atenua elementos, o outro troca o que os cards
+   mostram — e o formato deixa isso obvio: aqui o botao ativo ganha
+   BORDA, nao o fundo preenchido dos filtros.
+   -------------------------------------------------------------------- */
+.legend-grid-props {
+  grid-column: 12 / 14; grid-row: 2 / 5;
+  background: var(--bg-deep); border: 1px solid var(--border); border-radius: 4px;
+  padding: calc(3px * var(--font-scale)) calc(6px * var(--font-scale));
+  display: flex; flex-direction: column; gap: calc(2px * var(--font-scale));
+  /* auto, nao hidden: na fonte ampliada rola em vez de sumir */
+  overflow-y: auto; overflow-x: hidden; min-height: 0; z-index: 2;
+}
+.legend-grid-props .legend-section-label {
+  font-size: clamp(calc(8.5px * var(--font-scale)), calc(0.82vw * var(--font-scale)), calc(13px * var(--font-scale)));
+  font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--text-main); flex-shrink: 0; line-height: 1.1; white-space: nowrap;
+}
+/* Forma curta do rotulo: entra abaixo do ponto em que "PROPRIEDADES" deixa
+   de caber nos 2 grupos de largura da celula. Ver a media query no fim. */
+.lp-nome-curto { display: none; }
+.legend-props {
+  display: flex; flex-wrap: wrap; align-content: flex-start;
+  gap: calc(2px * var(--font-scale)) calc(3px * var(--font-scale));
+  flex: 1; min-height: 0;
+}
+/* empilhados: a celula e estreita (2 grupos) e alta (3 linhas), entao o
+   sentido natural e vertical, com o nome ao lado do icone */
+.legend-props { flex-direction: column; }
+.legend-prop-item {
+  display: flex; align-items: center; gap: calc(4px * var(--font-scale)); width: 100%;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(calc(9px * var(--font-scale)), calc(0.78vw * var(--font-scale)), calc(12.5px * var(--font-scale)));
+  font-weight: 700; line-height: 1.15;
+  padding: calc(2px * var(--font-scale)) calc(5px * var(--font-scale));
+  background: transparent; border: 1px solid var(--border); border-radius: calc(4px * var(--font-scale));
+  color: var(--text-dim); cursor: pointer; min-width: 0; text-align: left;
+  transition: color .15s, border-color .15s;
+}
+/* quebra em vez de truncar: "Eletronegatividade" e o rotulo mais longo e,
+   com a fonte ampliada, precisa de duas linhas em vez de virar "Eletron..." */
+.legend-prop-item > span:last-child { min-width: 0; overflow-wrap: break-word; hyphens: auto; }
+.lp-ico { display: flex; flex-shrink: 0; font-size: calc(13px * var(--font-scale)); }
+.legend-prop-item:hover, .legend-prop-item:focus-visible {
+  color: var(--text-main); border-color: var(--accent);
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+/* ativo: borda e texto no acento, SEM fundo preenchido — e o que separa
+   visualmente de um filtro ligado, que preenche o fundo */
+.legend-prop-item.ativo {
+  color: var(--accent); border-color: var(--accent); border-width: 2px;
+  padding: calc(1px * var(--font-scale)) calc(4px * var(--font-scale));
+}
+[data-contrast="on"] .legend-prop-item.ativo { background: var(--accent); color: var(--bg-deep); }
+@media (prefers-reduced-motion: reduce) { .legend-prop-item { transition: none; } }
+
+/* ── RESPONSIVIDADE DA CELULA "PROPRIEDADES" ──────────────────────────
+   A celula tem 2 dos 18 grupos, entao a largura dela e uma FRACAO da
+   janela: ~275px em 2560px, ~71px em 720px (o minimo da tabela). Nao ha
+   tamanho de fonte que sirva para as duas pontas.
+
+   O CORTE E 1100px, calculado e nao chutado: "Eletronegatividade" tem 18
+   caracteres e, com o icone, o gap e o padding, precisa de ~110px. A
+   celula so alcanca isso a partir de 1100px de janela.
+
+   ABAIXO DE 1100px o nome sai da tela e sobra o icone. O texto NAO e
+   removido do DOM — vira sr-only —, entao continua sendo o nome
+   acessivel do botao para leitor de tela. E o title/aria-label seguem
+   com o nome completo para quem usa mouse.
+   Era isso ou o que a captura mostrava: "Raio atômic o", "Eletron
+   egativi dade" — quebra no meio da palavra.
+   -------------------------------------------------------------------- */
+@media (max-width: 1100px) {
+  /* rotulo curto: "PROPRIEDADES" nao cabe e era cortado pelo overflow,
+     aparecendo como "PROPRIEDADE" */
+  .lp-nome-longo { display: none; }
+  .lp-nome-curto { display: inline; }
+  /* botao vira so-icone, centrado */
+  .legend-prop-item { justify-content: center; padding: calc(3px * var(--font-scale)) 0; }
+  .legend-prop-item > span:not(.lp-ico) {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .legend-grid-props .legend-props { gap: calc(3px * var(--font-scale)); }
+  .lp-ico { font-size: clamp(calc(12px * var(--font-scale)), calc(1.5vw * var(--font-scale)), calc(16px * var(--font-scale))); }
+}
+/* Telas grandes: a celula fica larga e o nome respira. Sem isto o texto
+   pararia de crescer e a caixa ficaria vazia em monitores 4K. */
+@media (min-width: 1700px) {
+  .legend-prop-item { padding: calc(3px * var(--font-scale)) calc(7px * var(--font-scale)); }
+}
+
+.legend-grid-lamber {
+  /* mesma faixa das outras duas legendas: grupos 3-10 */
+  grid-column: 4 / 12; grid-row: 2 / 5;
+  background: var(--bg-deep); border: 1px dashed var(--accent); border-radius: 4px;
+  padding: calc(6px * var(--font-scale)) calc(8px * var(--font-scale));
+  display: flex; flex-direction: column; gap: calc(6px * var(--font-scale));
+  /* auto, nao hidden: na fonte ampliada rola em vez de sumir */
+  overflow-y: auto; overflow-x: hidden; min-height: 0; z-index: 3;
+}
+.legend-grid-lamber .legend-section-label { font-size: calc(15px * var(--font-scale)); font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-main); flex-shrink: 0; }
+.legend-lamber-grid { display: grid; grid-template-columns: repeat(2,1fr); grid-template-rows: repeat(2,1fr); gap: calc(5px * var(--font-scale)); flex: 1; min-height: 0; }
+.legend-lamber-grid .legend-item { display: flex; align-items: center; gap: calc(6px * var(--font-scale)); font-size: calc(13px * var(--font-scale)); font-weight: 700; padding: calc(4px * var(--font-scale)) calc(6px * var(--font-scale)); border-radius: calc(4px * var(--font-scale)); line-height: 1.25; white-space: normal; }
+.legend-lamber-grid .legend-dot { width: calc(11px * var(--font-scale)); height: calc(11px * var(--font-scale)); flex-shrink: 0; border-radius: 50%; }
+.legend-grid-lamber[hidden] { display: none; }
+.legend-grid-cats[hidden], .legend-grid-states[hidden] { display: none; }
+.lamber-sticker {
+  position: absolute; top: 2px; right: 2px;
+  font-size: clamp(calc(8px * var(--font-scale)),calc(0.7vw * var(--font-scale)),calc(13px * var(--font-scale)));
+  line-height: 1; background: transparent; pointer-events: none;
+}
+.lamber-banner {
+  flex-shrink: 0; width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: var(--bg-panel); border-bottom: 2px solid var(--accent);
+  padding: calc(8px * var(--font-scale)) calc(14px * var(--font-scale));
+  font-family: 'Rajdhani', sans-serif; animation: lamberPop .25s ease;
+}
+.lamber-banner-txt { font-size: calc(0.85rem * var(--font-scale)); color: var(--text-main); line-height: 1.4; }
+.lamber-banner-close {
+  flex-shrink: 0; background: transparent; border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text-dim); min-width: 30px; min-height: 30px; cursor: pointer; font-size: 1rem;
+}
+.lamber-banner-close:hover, .lamber-banner-close:focus-visible { color: var(--text-main); border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 1px; }
+@keyframes lamberPop { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+body.modo-lamber .element[data-z] { transition: transform .15s, background .15s, box-shadow .15s, opacity .2s, border-color .3s; }
+.legend-demo-cell {
+  grid-column: 2 / 5; grid-row: 10 / 12;
+  background: var(--bg-card); border: 1px solid var(--accent); border-radius: 6px;
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+  gap: 0; overflow: hidden; z-index: 2; cursor: pointer;
+  transition: background .15s, border-color .15s, box-shadow .15s;
+  padding: 0; font-family: 'Rajdhani', sans-serif; text-align: left;
+}
+.legend-demo-cell:hover, .legend-demo-cell:focus-visible {
+  background: var(--bg-hover); border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(92,217,255,.2); outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.legend-demo-body { display: flex; align-items: center; justify-content: center; flex: 1; min-height: 0; padding: clamp(3px,0.3vw,6px); overflow: hidden; }
+.legend-demo-cell .demo-card { width: 90%; height: 100%; flex-shrink: 0; pointer-events: none; }
+.legend-demo-cell .demo-card .d-num  { font-size: clamp(12px,1vw,16px); }
+.legend-demo-cell .demo-card .d-sym  { font-size: clamp(22px,3vw,52px); }
+.legend-demo-cell .demo-card .d-name { font-size: clamp(9px,0.9vw,16px); }
+.legend-demo-cell .demo-card .d-mass { font-size: clamp(8px,0.7vw,13px); }
+.legend-demo-cell .demo-card .d-dot  { font-size: clamp(10px,0.9vw,16px); }
+.legend-demo-footer {
+  border-top: 1px solid var(--border);
+  padding: clamp(2px,0.22vw,4px) clamp(5px,0.5vw,9px);
+  display: flex; align-items: center; justify-content: center; gap: 4px; flex-shrink: 0;
+}
+.legend-demo-footer-text { font-size: clamp(6px,0.45vw,9px); color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; line-height: 1; white-space: nowrap; }
+.guia-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.80); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 600; opacity: 0; visibility: hidden; transition: opacity .22s, visibility .22s;
+}
+.guia-overlay.aberto { opacity: 1; visibility: visible; }
+.guia-modal {
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: 14px;
+  width: min(calc(640px * var(--font-scale)), 96vw); max-height: 90vh; max-height: 90dvh;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,.7);
+  transform: scale(.93) translateY(14px);
+  transition: transform .24s cubic-bezier(.34,1.56,.64,1);
+}
+.guia-overlay.aberto .guia-modal { transform: scale(1) translateY(0); }
+.guia-header { padding: calc(14px * var(--font-scale)) calc(18px * var(--font-scale)) calc(10px * var(--font-scale)); background: var(--bg-deep); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.guia-titulo { font-size: calc(1rem * var(--font-scale)); font-weight: 700; color: var(--text-main); font-family: 'Rajdhani', sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+.guia-close { background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--text-dim); min-width: calc(36px * var(--font-scale)); min-height: calc(36px * var(--font-scale)); cursor: pointer; font-size: calc(1.1rem * var(--font-scale)); display: flex; align-items: center; justify-content: center; transition: all .15s; flex-shrink: 0; }
+.guia-close:hover, .guia-close:focus-visible { background: var(--bg-hover); color: var(--text-main); border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 2px; }
+.guia-body { padding: calc(16px * var(--font-scale)) calc(18px * var(--font-scale)); overflow-y: auto; display: flex; flex-direction: column; gap: calc(16px * var(--font-scale)); }
+.guia-body::-webkit-scrollbar { width: 4px; }
+.guia-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.guia-card-section { display: flex; align-items: center; justify-content: center; gap: calc(24px * var(--font-scale)); flex-wrap: wrap; }
+.guia-demo-card { position: relative; width: calc(120px * var(--font-scale)); height: calc(140px * var(--font-scale)); background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; overflow: visible; }
+.guia-demo-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width: calc(5px * var(--font-scale)); background: var(--c-transition); border-radius: 6px 0 0 6px; }
+.guia-dc-num { font-family:'Share Tech Mono',monospace; font-size: calc(0.85rem * var(--font-scale)); color: var(--text-dim); align-self: flex-start; padding-left: calc(8px * var(--font-scale)); line-height: 1.4; }
+.guia-dc-sym { font-family:'Rajdhani',sans-serif; font-size: calc(3.2rem * var(--font-scale)); font-weight: 700; color: var(--c-transition); line-height: 1; }
+.guia-dc-name { font-size: calc(0.78rem * var(--font-scale)); color: var(--text-dim); line-height: 1.3; }
+.guia-dc-mass { font-family:'Share Tech Mono',monospace; font-size: calc(0.65rem * var(--font-scale)); color: var(--text-dim); line-height: 1.2; }
+.guia-dc-dot { position:absolute; top: calc(4px * var(--font-scale)); right: calc(4px * var(--font-scale)); font-size: calc(0.9rem * var(--font-scale)); }
+.guia-table { width: 100%; border-collapse: collapse; font-family: 'Rajdhani', sans-serif; }
+.guia-table th, .guia-table td { padding: calc(6px * var(--font-scale)) calc(10px * var(--font-scale)); text-align: left; font-size: calc(0.9rem * var(--font-scale)); border-bottom: 1px solid var(--border); }
+.guia-table th { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-main); font-size: calc(0.72rem * var(--font-scale)); background: var(--bg-deep); }
+.guia-table td { color: var(--text-main); }
+.guia-table td:first-child { color: var(--accent); font-weight: 700; }
+.guia-table tr:last-child td { border-bottom: none; }
+.demo-card { width: clamp(56px,4.8vw,80px); height: clamp(68px,5.8vw,96px); flex-shrink: 0; background: var(--bg-card); position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border); border-radius: 3px; padding: 2px; }
+.demo-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--c-transition); }
+.demo-card .d-num  { font-family:'Share Tech Mono',monospace; font-size:clamp(8px,0.7vw,12px); color:var(--text-dim); align-self:flex-start; padding-left:4px; line-height:1.3; }
+.demo-card .d-sym  { font-family:'Rajdhani',sans-serif; font-size:clamp(18px,1.8vw,30px); font-weight:700; color:var(--c-transition); line-height:1; }
+.demo-card .d-name { font-size:clamp(7px,0.6vw,11px); color:var(--text-dim); white-space:nowrap; line-height:1.2; }
+.demo-card .d-mass { font-family:'Share Tech Mono',monospace; font-size:clamp(6px,0.5vw,9px); color:var(--text-dim); white-space:nowrap; line-height:1.2; }
+.demo-card .d-dot  { position:absolute; top:2px; right:2px; font-size:clamp(8px,0.7vw,12px); }
+.legend-section-label { font-size:clamp(9px,0.7vw,12px); font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-main); padding-bottom:1px; }
+.legend-cats { display:grid; grid-template-columns:repeat(5,1fr); grid-template-rows:repeat(2,auto); gap:3px 6px; }
+.legend-states { display:grid; grid-template-columns:repeat(4,1fr); gap:3px; }
+.legend-item { display:flex; align-items:center; gap:4px; font-size:clamp(10px,0.8vw,13px); font-weight:700; color:var(--text-dim); cursor:pointer; padding:clamp(2px,0.25vw,5px) clamp(4px,0.5vw,8px); border-radius:4px; border:1px solid transparent; transition:background .15s, color .15s, border-color .15s; user-select:none; background:transparent; font-family:'Rajdhani',sans-serif; white-space:nowrap; appearance:none; -webkit-appearance:none; line-height:1.3; }
+.legend-item:hover, .legend-item:focus-visible { background:var(--bg-hover); color:var(--text-main); border-color:var(--border); outline:2px solid var(--accent); outline-offset:2px; }
+.legend-item.ativo { color:var(--item-color,var(--accent)); border-color:var(--item-color,var(--accent)); background:var(--item-bg,rgba(92,217,255,0.15)); }
+[data-contrast="on"] .legend-item.ativo { color:#000!important; background:var(--accent)!important; border-color:var(--accent)!important; }
+.legend-dot { width:clamp(8px,0.65vw,12px); height:clamp(8px,0.65vw,12px); border-radius:50%; flex-shrink:0; }
+.element { background:var(--bg-card); border:1px solid var(--border); border-radius:3px; padding:2px 2px 1px; text-align:center; cursor:pointer; transition:transform .15s, background .15s, box-shadow .15s, opacity .2s; user-select:none; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; min-height:0; }
+.element::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--cat-color,#444); border-radius:3px 0 0 3px; }
+.element:hover, .element:focus-visible { transform:scale(1.15); background:var(--bg-hover); box-shadow:0 0 12px rgba(92,217,255,.3); z-index:20; border-color:var(--accent); outline:2px solid var(--accent); outline-offset:2px; }
+.element.selected { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 10%,var(--bg-card)); box-shadow:0 0 10px rgba(92,217,255,.3); }
+.element.dim { opacity:.1 !important; pointer-events:none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition:none!important;
+    animation:none!important;
+    scroll-behavior:auto!important;
+  }
+  .element:hover, .element:focus-visible { transform:none!important; }
+  .modal, .guia-modal, .fullscreen-modal { transform:none!important; }
+  .serie-toggle .toggle-arrow { transition:none!important; }
+}
+.el-number { font-family:'Share Tech Mono',monospace; font-size:clamp(calc(7px * var(--font-scale)),calc(0.75vw * var(--font-scale)),calc(13px * var(--font-scale))); color:var(--text-dim); align-self:flex-start; line-height:1.4; padding-left:4px; }
+.el-symbol { font-family:'Rajdhani',sans-serif; font-size:clamp(calc(13px * var(--font-scale)),calc(1.5vw * var(--font-scale)),calc(28px * var(--font-scale))); font-weight:700; line-height:1; margin:1px 0; }
+.el-name   { font-size:clamp(calc(7px * var(--font-scale)),calc(0.6vw * var(--font-scale)),calc(12px * var(--font-scale))); color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; text-align:center; line-height:1.15; }
+.el-mass   { font-family:'Share Tech Mono',monospace; font-size:clamp(calc(6px * var(--font-scale)),calc(0.48vw * var(--font-scale)),calc(10px * var(--font-scale))); color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; text-align:center; line-height:1.1; }
+.state-dot { position:absolute; top:2px; right:2px; font-size:clamp(calc(8px * var(--font-scale)),calc(0.7vw * var(--font-scale)),calc(13px * var(--font-scale))); background:transparent; }
+
+/* ── ICONES SVG (substituiram os emojis) ─────────────────────────────
+   Todo icone e emitido com width/height="1em", entao o tamanho continua
+   sendo controlado pelo font-size do container — as regras de tamanho
+   que ja existiam (.state-dot, .d-dot, .guia-dc-dot ...) seguem valendo
+   sem alteracao.
+
+   Aqui so se resolve o que o emoji resolvia sozinho: alinhamento na
+   linha de base e cor. A cor vem de --c-solid/--c-liquid/--c-gas/
+   --c-unknown, que ja existiam em :root, [data-theme="light"] e
+   [data-contrast="on"] com os mesmos hex do JS. Como o SVG usa
+   currentColor, trocar de tema repinta tudo pelo proprio CSS.
+   ------------------------------------------------------------------- */
+.ico { vertical-align: -0.14em; flex-shrink: 0; }
+/* dentro de titulo/botao com texto ao lado, uma folga a direita */
+h4 > .ico, .legend-demo-footer-text > .ico, .raio-tend-titulo > .ico,
+.ec-aviso > .ico, .painel-fullscreen-btn > .ico { margin-right: .32em; }
+.legend-demo-footer-text > .ico:last-child { margin-right: 0; margin-left: .2em; }
+
+/* cor por estado fisico — mesma fonte para card, legenda, guia e demo */
+.state-dot, .d-dot, .guia-dc-dot, .legend-est-ico { color: var(--c-unknown); }
+.element[data-est="S"] .state-dot, .legend-est-ico[data-est="S"],
+.d-dot, .guia-dc-dot                        { color: var(--c-solid); }
+.element[data-est="L"] .state-dot, .legend-est-ico[data-est="L"] { color: var(--c-liquid); }
+.element[data-est="G"] .state-dot, .legend-est-ico[data-est="G"] { color: var(--c-gas); }
+.element[data-est="?"] .state-dot, .legend-est-ico[data-est="?"] { color: var(--c-unknown); }
+
+/* alto contraste: traco mais grosso, ja que o glow e o gradiente somem */
+[data-contrast="on"] .ico { stroke-width: 2.3; }
+
+/* ── MODOS DE PROPRIEDADE no card (GENERICO) ─────────────────────────
+   NENHUMA regra aqui menciona "raio" ou "en". Elas reagem so a tres
+   atributos no #periodic-table, escritos por aplicarModoPropriedade():
+     data-modo="<id>"   -> algum modo esta ligado (troca a massa pelo valor)
+     data-modo-desenho  -> a propriedade desenha no lugar do simbolo
+     data-modo-mapa     -> a propriedade tonaliza o fundo do card
+   Consequencia: acrescentar uma propriedade em PROPRIEDADES nao pede
+   uma linha de CSS. Antes cada propriedade exigia seu proprio bloco.
+
+   O .el-symbol NAO e removido do DOM, so escondido: pintarModoLamber()
+   e o redesenharCores() do receptor de acessibilidade fazem
+   querySelector('.el-symbol') e quebrariam se ele deixasse de existir.
+
+   Os cards de serie (La-Lu / Ac-Lr) ficam de fora: representam 15
+   elementos cada, logo nao tem UM valor para mostrar.
+   ------------------------------------------------------------------- */
+.el-prop-desenho, .el-prop-valor { display: none; }
+/* valor no lugar da massa atomica */
+#periodic-table[data-modo] .element:not(.serie-toggle) > .el-mass { display: none; }
+#periodic-table[data-modo] .element:not(.serie-toggle) > .el-prop-valor { display: block; }
+/* desenho no lugar do simbolo */
+#periodic-table[data-modo-desenho] .element:not(.serie-toggle) > .el-symbol { display: none; }
+#periodic-table[data-modo-desenho] .element:not(.serie-toggle) > .el-prop-desenho { display: block; }
+
+.el-prop-valor {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(calc(6px * var(--font-scale)), calc(0.48vw * var(--font-scale)), calc(10px * var(--font-scale)));
+  color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  width: 100%; text-align: center; line-height: 1.1;
+}
+
+/* ESCALA DO DESENHO — mesma formula do circulo do modal: um piso fixo
+   mais a parte proporcional, senao o menor valor da faixa viraria um
+   ponto invisivel ao lado do maior. Aqui: 28% de piso + 72% proporcional,
+   sobre a MESMA expressao clamp() que dimensionava o simbolo, de modo que
+   o maior valor ocupa exatamente o espaco do simbolo e nao ha salto de
+   layout ao ligar ou desligar o modo. --prop-frac vem do JS. */
+.el-prop-desenho {
+  --prop-base: clamp(calc(13px * var(--font-scale)), calc(1.5vw * var(--font-scale)), calc(28px * var(--font-scale)));
+  --prop-diam: calc(var(--prop-base) * (0.28 + var(--prop-frac, 0.5) * 0.72));
+  width: var(--prop-diam); height: var(--prop-diam);
+  margin: 1px 0; border-radius: 50%; flex-shrink: 0;
+  background: radial-gradient(circle at 38% 35%, rgba(255,255,255,.22) 0%, var(--prop-cor, #888) 55%, rgba(0,0,0,.38) 100%);
+  border: 1px solid var(--prop-cor, #888);
+  box-shadow: 0 0 calc(5px * var(--font-scale)) var(--prop-glow, rgba(136,136,136,.5));
+  transition: width .3s, height .3s;
+}
+/* leitura simples: o desenho acompanha o simbolo aumentado */
+[data-reading="on"] .el-prop-desenho {
+  --prop-base: clamp(calc(15px * var(--font-scale)), calc(1.7vw * var(--font-scale)), calc(32px * var(--font-scale)));
+}
+[data-contrast="on"] .el-prop-desenho { border-width: 2px; }
+
+/* MAPA DE CALOR — o fundo recebe a tonalidade (--prop-bg) e o texto a
+   cor legivel sobre ela (--prop-txt), as duas calculadas no JS com
+   garantia de contraste WCAG AA. O .el-symbol precisa de !important
+   porque tem cor inline vinda do criarEl. A barra de categoria
+   (.element::before) e o numero atomico continuam como estao. */
+#periodic-table[data-modo-mapa] .element:not(.serie-toggle) {
+  background: var(--prop-bg, var(--bg-card));
+}
+#periodic-table[data-modo-mapa] .element:not(.serie-toggle) .el-symbol {
+  color: var(--prop-txt, var(--text-main)) !important;
+}
+#periodic-table[data-modo-mapa] .element:not(.serie-toggle) .el-name,
+#periodic-table[data-modo-mapa] .element:not(.serie-toggle) .el-number,
+#periodic-table[data-modo-mapa] .element:not(.serie-toggle) .el-prop-valor,
+#periodic-table[data-modo-mapa] .element:not(.serie-toggle) .state-dot {
+  color: var(--prop-txt, var(--text-main));
+}
+/* :hover trocaria o background e seria vencido por estas regras
+   (especificidade de id); o realce vira brightness, que preserva a
+   tonalidade e ainda da retorno visual. */
+#periodic-table[data-modo-mapa] .element:not(.serie-toggle):hover,
+#periodic-table[data-modo-mapa] .element:not(.serie-toggle):focus-visible {
+  background: var(--prop-bg, var(--bg-hover));
+  filter: brightness(1.28);
+}
+/* SEM DADO PUBLICADO: cinza neutro do tema e traco no valor. Nunca uma
+   cor da escala, que seria lida como "valor baixo" em vez de "sem
+   medida". Vale para qualquer propriedade. */
+#periodic-table[data-modo-mapa] .element[data-prop-sem-dado]:not(.serie-toggle) {
+  background: var(--en-cinza);
+  --prop-txt: var(--text-dim);
+}
+#periodic-table[data-modo] .element[data-prop-sem-dado]:not(.serie-toggle) > .el-prop-valor {
+  opacity: .75; letter-spacing: .08em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .el-prop-desenho { transition: none; }
+  #periodic-table[data-modo-mapa] .element:not(.serie-toggle) { transition: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   BLOCO RECUPERADO — modal, info-card, raio-*, series, particulas
+   Estas regras foram apagadas por engano num recorte de arquivo e
+   restauradas do original. Sem .modal-overlay o modal perde
+   position:fixed e renderiza no fluxo, o que empurra a pagina toda
+   e destroi a grade da tabela.
+   ══════════════════════════════════════════════════════════════════ */
+.serie-toggle { border-style:dashed!important; padding:4px 2px!important; }
+.serie-toggle .toggle-arrow { font-size:calc(0.42rem * var(--font-scale)); display:block; transition:transform .3s; line-height:1; }
+.serie-toggle.aberta .toggle-arrow { transform:rotate(180deg); }
+/* ── LINHAS E CELULAS ARIA DA GRADE ───────────────────────────────────
+   role="grid" so admite role="row" como filho direto, e role="row" so
+   admite gridcell/columnheader/rowheader. Os wrappers existem para isso.
+   display:contents faz o wrapper desaparecer da caixa de layout: os
+   filhos continuam participando do CSS grid do #periodic-table e o
+   posicionamento por grid-column/grid-row nao muda nada.
+   A tecnica ja era usada em .linha-serie, entao esta provada aqui.
+   -------------------------------------------------------------------- */
+.grid-row-wrap, .grid-cell-wrap { display: contents; }
+.linha-serie { display:contents; }
+.linha-serie.recolhida > .element { display:none; }
+@keyframes fadeIn { from{opacity:0;transform:scaleY(.5);}to{opacity:1;transform:scaleY(1);} }
+.linha-serie .element { animation:fadeIn .2s ease forwards; }
+.serie-separator { grid-column:1/-1; height:5px; }
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.82); backdrop-filter:blur(5px); display:flex; align-items:center; justify-content:center; z-index:500; opacity:0; visibility:hidden; transition:opacity .25s,visibility .25s; }
+.modal-overlay.aberto { opacity:1; visibility:visible; }
+.modal { background:var(--bg-panel); border:1px solid var(--border); border-radius:14px; width:min(calc(580px * var(--font-scale)),97vw); max-height:92vh; max-height:92dvh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 28px 64px rgba(0,0,0,.75); transform:scale(.93) translateY(16px); transition:transform .25s cubic-bezier(.34,1.56,.64,1); }
+/* Sem botão ✕ próprio: o modal recebe o foco ao abrir (tabindex="-1" no
+   HTML), pra Tab funcionar e leitores de tela anunciarem o diálogo —
+   mas sem o contorno azul padrão do navegador em volta da caixa toda. */
+.modal:focus { outline:none; }
+.modal-overlay.aberto .modal { transform:scale(1) translateY(0); }
+.modal-header {
+  padding:calc(14px * var(--font-scale)) calc(16px * var(--font-scale)) calc(10px * var(--font-scale));
+  border-bottom:1px solid var(--border); flex-shrink:0; position:relative;
+  /* Foto real do elemento como plano de fundo (ver js/render/imagem-
+     fundo.js) — a variável --foto-elemento é escrita pelo JS a cada
+     elemento aberto. Uma camada escura (color-mix com --bg-deep,
+     funciona em qualquer tema sem precisar de uma cor em RGB
+     separada) fica POR CIMA da foto, só o bastante pra manter o
+     texto legível. background-image (não <img>): se a foto não
+     carregar — sem internet, ou o arquivo mudou de lugar no Commons —
+     o cabeçalho só fica na cor sólida de sempre, sem ícone de link
+     quebrado. */
+  background-color: var(--bg-deep);
+  background-image:
+    linear-gradient(160deg,
+      color-mix(in srgb, var(--bg-deep) 55%, transparent) 0%,
+      color-mix(in srgb, var(--bg-deep) 78%, transparent) 60%,
+      color-mix(in srgb, var(--bg-deep) 92%, transparent) 100%),
+    var(--foto-elemento, none);
+  background-size: cover, cover;
+  background-position: center, center;
+  transition: background-image .35s ease;
+}
+/* Crédito da foto — pequeno, discreto, mas visível (a maioria das
+   licenças CC BY/BY-SA exige atribuição, não é só cortesia). */
+.modal-foto-credito {
+  margin: .4rem 0 0; font-size: calc(.62rem * var(--font-scale));
+  color: var(--text-dim); opacity: .75; text-align: right;
+}
+.modal-top-row { display:flex; align-items:flex-start; gap:12px; }
+.modal-sym-col { display:flex; flex-direction:column; align-items:flex-start; }
+.modal-symbol  { font-family:'Rajdhani',sans-serif; font-size:calc(4.2rem * var(--font-scale)); font-weight:700; line-height:1; }
+.modal-number  { font-family:'Share Tech Mono',monospace; font-size:calc(1.1rem * var(--font-scale)); color:var(--text-dim); }
+.modal-info-col { flex:1; display:flex; flex-direction:column; gap:4px; padding-top:4px; }
+.modal-name    { font-size:calc(1.4rem * var(--font-scale)); font-weight:700; line-height:1.3; }
+.modal-mass    { font-family:'Share Tech Mono',monospace; font-size:calc(1rem * var(--font-scale)); color:var(--accent); }
+.modal-meta    { font-size:calc(0.82rem * var(--font-scale)); color:var(--text-main); letter-spacing:.04em; text-transform:uppercase; line-height:1.5; }
+.modal-badges  { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+.badge { padding:3px 10px; border-radius:20px; font-size:calc(0.7rem * var(--font-scale)); font-weight:700; letter-spacing:.04em; text-transform:uppercase; border:1px solid transparent; }
+
+/* ════════ NAVEGAÇÃO ENTRE ELEMENTOS (◀ ▶) ════════
+   No lugar do antigo botão ✕ de fechar — duas setas pequenas, no
+   cabeçalho, que trocam de elemento SEM fechar o modal (chamam
+   abrirModal() de novo por dentro, ver js/modal/navegacao.js).
+   Fechar deixou de precisar de um botão próprio: toque fora do
+   modal, Esc, ou arrastar o cabeçalho pra baixo já bastam (ver
+   initDragToDismiss() em js/modal/abrir-fechar.js). */
+.modal-nav-mini {
+  margin-left:auto; align-self:flex-start; flex-shrink:0;
+  display:flex; background:var(--bg-card); border:1px solid var(--border);
+  border-radius:999px; overflow:hidden;
+}
+.modal-nav-mini-btn {
+  background:transparent; border:none; color:var(--text-dim); cursor:pointer; transition:all .15s;
+  width:calc(34px * var(--font-scale)); height:calc(34px * var(--font-scale));
+  display:flex; align-items:center; justify-content:center;
+}
+.modal-nav-mini-btn + .modal-nav-mini-btn { border-left:1px solid var(--border); }
+.modal-nav-mini-btn:hover:not(:disabled) { background:var(--bg-hover); color:var(--accent); }
+.modal-nav-mini-btn:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; color:var(--accent); }
+.modal-nav-mini-btn:disabled { opacity:.35; cursor:default; }
+@media (pointer: coarse) { .modal-nav-mini-btn { width:40px; height:40px; } }
+.modal-body { padding:calc(14px * var(--font-scale)) calc(16px * var(--font-scale)); display:flex; flex-direction:column; gap:calc(10px * var(--font-scale)); overflow-y:auto; }
+.modal-body::-webkit-scrollbar { width:5px; }
+.modal-body::-webkit-scrollbar-track { background:transparent; }
+.modal-body::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+.info-card { background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent); border-radius:8px; padding:calc(10px * var(--font-scale)) calc(14px * var(--font-scale)); }
+.info-card h4 { font-size:calc(0.72rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-main); margin-bottom:calc(7px * var(--font-scale)); }
+.info-card p { font-size:calc(1rem * var(--font-scale)); line-height:calc(1.7 * var(--font-scale)); color:var(--text-main); }
+
+/* ── CONTEINER DAS PROPRIEDADES ───────────────────────────────────────
+   O .modal-body e flex-column com gap: o gap so vale entre FILHOS
+   DIRETOS. Como o #modalPropriedades e um div que CONTEM os cards de
+   eletronegatividade e ionizacao, o gap ficava entre ele e as secoes
+   vizinhas, e os dois cards de dentro apareciam colados.
+
+   display:contents dissolve a caixa deste div: os cards passam a ser
+   filhos diretos do .modal-body para efeito de layout e recebem o mesmo
+   gap de todas as outras secoes.
+
+   Por que nao repetir "display:flex; gap:calc(10px * var(--font-scale))"
+   aqui: seria duplicar o valor do espacamento em dois lugares, e uma
+   mudanca futura no .modal-body deixaria os dois fora de sincronia.
+   Assim ha uma unica fonte para o espacamento do modal.
+   -------------------------------------------------------------------- */
+#modalPropriedades { display: contents; }
+.particles-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:calc(8px * var(--font-scale)); margin-top:calc(8px * var(--font-scale)); }
+.particle-box { background:var(--bg-deep); border-radius:6px; padding:calc(8px * var(--font-scale)) 4px; text-align:center; border:1px solid var(--border); }
+.particle-box .pval   { font-family:'Share Tech Mono',monospace; font-size:calc(1.5rem * var(--font-scale)); font-weight:700; display:block; line-height:1.2; }
+.particle-box .plabel { font-size:calc(0.68rem * var(--font-scale)); color:var(--text-dim); text-transform:uppercase; letter-spacing:.05em; }
+.electron-config { display:flex; flex-direction:column; gap:5px; }
+.ec-title  { font-size:calc(0.65rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-main); margin-bottom:2px; }
+.ec-full   { font-family:'Share Tech Mono',monospace; font-size:calc(1rem * var(--font-scale)); color:var(--accent); line-height:1.6; word-break:break-all; margin-bottom:6px; }
+.ec-aviso  { font-size:calc(0.72rem * var(--font-scale)); color:var(--text-dim); font-style:italic; margin-bottom:5px; line-height:1.5; }
+.ec-camadas { display:flex; flex-direction:column; gap:4px; }
+.ec-row    { display:flex; align-items:baseline; gap:8px; }
+.ec-camada-name { font-size:calc(0.88rem * var(--font-scale)); font-weight:700; color:var(--text-main); width:calc(18px * var(--font-scale)); flex-shrink:0; font-family:'Share Tech Mono',monospace; }
+.ec-orbitals { display:flex; flex-wrap:wrap; gap:4px; }
+.ec-orbital  { font-size:calc(0.88rem * var(--font-scale)); font-family:'Share Tech Mono',monospace; white-space:nowrap; }
+.raio-wrap { display:flex; flex-direction:column; gap:calc(10px * var(--font-scale)); }
+.raio-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.raio-view-toggle { display:flex; gap:3px; background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:2px; }
+.raio-vbtn { background:transparent; border:none; color:var(--text-dim); font-size:calc(0.62rem * var(--font-scale)); font-family:'Rajdhani',sans-serif; font-weight:700; padding:2px 8px; border-radius:4px; cursor:pointer; transition:background .15s, color .15s; white-space:nowrap; line-height:1.6; }
+.raio-vbtn:hover,.raio-vbtn:focus-visible{background:var(--bg-hover);color:var(--text-main);outline:2px solid var(--accent);outline-offset:1px;}
+.raio-vbtn.ativo{background:var(--accent);color:#000;}
+.raio-visual { display:flex; align-items:flex-end; gap:calc(10px * var(--font-scale)); padding:calc(8px * var(--font-scale)) 0; }
+.raio-circulo-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
+.raio-circulo { border-radius:50%; background:radial-gradient(circle at 38% 35%, rgba(255,255,255,.22) 0%, var(--atom-color) 55%, rgba(0,0,0,.38) 100%); border:2px solid var(--atom-color); box-shadow:0 0 calc(12px * var(--font-scale)) var(--atom-color-glow); transition:width .4s,height .4s; flex-shrink:0; }
+.raio-circulo-label { font-size:calc(0.68rem * var(--font-scale)); color:var(--text-dim); font-family:'Share Tech Mono',monospace; text-align:center; white-space:nowrap; }
+.raio-info-col { flex:1; display:flex; flex-direction:column; gap:calc(6px * var(--font-scale)); }
+.raio-valor-box { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:calc(8px * var(--font-scale)) calc(12px * var(--font-scale)); display:flex; flex-direction:column; gap:3px; }
+.raio-valor-titulo { font-size:calc(0.6rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-main); }
+.raio-valor-num { font-family:'Share Tech Mono',monospace; font-size:calc(1.5rem * var(--font-scale)); font-weight:700; color:var(--atom-color); line-height:1.1; }
+.raio-valor-unit { font-size:calc(0.72rem * var(--font-scale)); color:var(--text-dim); }
+.raio-valor-fonte { font-size:calc(0.6rem * var(--font-scale)); color:var(--text-dim); margin-top:2px; }
+.raio-grade-wrap { display:none; flex-direction:column; gap:calc(6px * var(--font-scale)); }
+.raio-grade-wrap.visivel { display:flex; }
+.raio-grade-titulo { font-size:calc(0.6rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-main); }
+.raio-grade { display:flex; flex-wrap:wrap; gap:calc(8px * var(--font-scale)); align-items:flex-end; padding:calc(6px * var(--font-scale)) 0; }
+.raio-grade-item { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.raio-grade-esfera { border-radius:50%; background:radial-gradient(circle at 38% 35%, rgba(255,255,255,.22) 0%, var(--esfera-cor) 55%, rgba(0,0,0,.38) 100%); border:1.5px solid var(--esfera-cor); box-shadow:0 0 8px var(--esfera-glow); flex-shrink:0; }
+.raio-grade-sim { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:calc(0.75rem * var(--font-scale)); color:var(--text-main); line-height:1.1; }
+.raio-grade-val { font-family:'Share Tech Mono',monospace; font-size:calc(0.58rem * var(--font-scale)); color:var(--text-dim); line-height:1; }
+.raio-grade-setas { display:flex; align-items:center; justify-content:space-between; font-size:calc(0.6rem * var(--font-scale)); color:var(--text-dim); padding:0 2px; }
+.raio-sub-box { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:calc(7px * var(--font-scale)) calc(12px * var(--font-scale)); display:flex; flex-direction:column; gap:3px; }
+.raio-sub-titulo { font-size:calc(0.6rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-main); }
+.raio-sub-valor  { font-family:'Share Tech Mono',monospace; font-size:calc(1rem * var(--font-scale)); color:var(--accent); }
+.raio-sub-tipo   { font-size:calc(0.68rem * var(--font-scale)); color:var(--text-dim); }
+.raio-status-badge { display:inline-block; padding:calc(2px * var(--font-scale)) calc(9px * var(--font-scale)); border-radius:99px; font-size:calc(0.72rem * var(--font-scale)); font-weight:700; letter-spacing:.04em; font-family:'Rajdhani',sans-serif; border:1px solid; }
+.raio-status-preenchido    { color:var(--c-gas);        border-color:var(--c-gas);        background:rgba(125,245,184,.12); }
+.raio-status-semipreenchido{ color:var(--c-transition);  border-color:var(--c-transition);  background:rgba(245,166,35,.12); }
+.raio-status-parcial       { color:var(--c-solid);      border-color:var(--c-solid);      background:rgba(90,171,255,.12); }
+.raio-status-vazio         { color:var(--c-unknown);    border-color:var(--c-unknown);    background:rgba(187,187,187,.10); }
+.raio-barra-wrap { display:flex; flex-direction:column; gap:4px; }
+.raio-barra-titulo { font-size:calc(0.6rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-main); }
+.raio-barra-track { height:calc(10px * var(--font-scale)); background:var(--bg-deep); border:1px solid var(--border); border-radius:99px; overflow:hidden; }
+.raio-barra-fill  { height:100%; border-radius:99px; background:linear-gradient(90deg,var(--atom-color-glow),var(--atom-color)); transition:width .5s cubic-bezier(.4,0,.2,1); }
+.raio-barra-legenda { display:flex; justify-content:space-between; font-size:calc(0.58rem * var(--font-scale)); color:var(--text-dim); font-family:'Share Tech Mono',monospace; }
+
+/* ── CARD DE ELETRONEGATIVIDADE no modal ─────────────────────────────
+   Espelha as medidas do card do raio, inclusive o calc(px * font-scale)
+   em toda dimensao, para acompanhar o controle de tamanho de fonte da
+   barra de acessibilidade igual ao resto do modal.
+   A cor (--en-cor) vem de corEN() no JS: a mesma do mapa de calor dos
+   cards, entao as duas representacoes nunca divergem.
+   ------------------------------------------------------------------- */
+.en-wrap { display:flex; flex-direction:column; gap:calc(10px * var(--font-scale)); }
+.en-visual { display:flex; align-items:stretch; gap:calc(10px * var(--font-scale)); padding:calc(6px * var(--font-scale)) 0; flex-wrap:wrap; }
+.en-valor-box {
+  background:var(--bg-deep); border:1px solid var(--border); border-radius:6px;
+  border-left:calc(3px * var(--font-scale)) solid var(--en-cor, var(--accent));
+  padding:calc(8px * var(--font-scale)) calc(12px * var(--font-scale));
+  display:flex; flex-direction:column; gap:3px; min-width:0;
+}
+.en-valor-titulo { font-size:calc(0.6rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-dim); font-family:'Rajdhani',sans-serif; }
+.en-valor-num { font-family:'Share Tech Mono',monospace; font-size:calc(1.5rem * var(--font-scale)); font-weight:700; color:var(--en-cor, var(--accent)); line-height:1.1; }
+.en-valor-escala { font-size:calc(0.58rem * var(--font-scale)); color:var(--text-dim); font-family:'Share Tech Mono',monospace; }
+/* unidade alternativa (ex.: eV convertido em kJ/mol). A conversao aparece
+   no modal de proposito: e conteudo de aula, nao detalhe tecnico. */
+.en-valor-alt {
+  font-family:'Share Tech Mono',monospace; font-size:calc(0.68rem * var(--font-scale));
+  color:var(--text-main); opacity:.85; margin-top:1px;
+}
+.en-info-col { flex:1; display:flex; flex-direction:column; justify-content:center; gap:calc(6px * var(--font-scale)); min-width:0; }
+.en-faixa-badge {
+  align-self:flex-start; display:inline-block;
+  padding:calc(2px * var(--font-scale)) calc(9px * var(--font-scale));
+  border-radius:99px; font-size:calc(0.72rem * var(--font-scale)); font-weight:700;
+  letter-spacing:.04em; font-family:'Rajdhani',sans-serif;
+  border:1px solid var(--en-cor, var(--accent)); color:var(--en-cor, var(--accent));
+}
+.en-valor-fonte { font-size:calc(0.56rem * var(--font-scale)); color:var(--text-dim); line-height:1.35; }
+.en-barra-wrap { display:flex; flex-direction:column; gap:calc(5px * var(--font-scale)); }
+.en-barra-titulo { font-size:calc(0.6rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-main); }
+/* overflow visivel: a marca do valor fica em cima da trilha e seria
+   cortada se a trilha recortasse o conteudo, como a do raio faz */
+.en-barra-track { position:relative; height:calc(10px * var(--font-scale)); background:var(--bg-deep); border:1px solid var(--border); border-radius:99px; overflow:visible; }
+.en-barra-fill { height:100%; border-radius:99px; background:linear-gradient(90deg, var(--bg-deep), var(--en-cor, var(--accent))); transition:width .5s cubic-bezier(.4,0,.2,1); }
+.en-barra-marca {
+  position:absolute; top:50%; width:calc(9px * var(--font-scale)); height:calc(9px * var(--font-scale));
+  transform:translate(-50%,-50%); border-radius:50%;
+  background:var(--en-cor, var(--accent)); border:2px solid var(--bg-card);
+  transition:left .5s cubic-bezier(.4,0,.2,1);
+}
+.en-barra-legenda { display:flex; justify-content:space-between; font-size:calc(0.58rem * var(--font-scale)); color:var(--text-dim); font-family:'Share Tech Mono',monospace; }
+.en-sem-dados { font-size:calc(0.78rem * var(--font-scale)); color:var(--text-dim); line-height:1.5; font-style:italic; }
+
+/* intervalo de massa no modal: segunda linha, discreta, com tooltip
+   explicando que a variação é isotópica e não erro de medida */
+.modal-mass-intervalo {
+  display:block; font-size:calc(0.62rem * var(--font-scale));
+  color:var(--text-dim); font-family:'Share Tech Mono',monospace;
+  letter-spacing:.02em; margin-top:2px; cursor:help;
+  border-bottom:1px dotted var(--border); align-self:flex-start;
+}
+@media (prefers-reduced-motion: reduce) {
+  .en-barra-fill, .en-barra-marca { transition:none; }
+}
+@media (max-width:520px) {
+  .en-visual { flex-direction:column; }
+  .en-valor-box { width:100%; }
+}
+.raio-tend-titulo { font-size:calc(0.65rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-main); }
+.raio-sem-dados { font-size:calc(0.9rem * var(--font-scale)); color:var(--text-dim); font-style:italic; }
+
+/* ===== BOHR ===== */
+.bohr-wrap { display:flex; flex-direction:column; gap:calc(8px * var(--font-scale)); }
+.bohr-header { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.bohr-titulo { font-size:calc(0.65rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-main); align-self:flex-start; }
+.bohr-svg-wrap { width:100%; display:flex; justify-content:center; }
+/* ── TAMANHO DO DESENHO DENTRO DO MODAL ───────────────────────────────
+   Esta regra faltava, e era o bug.
+
+   O JS emitia style="width:100%;height:auto" INLINE no <svg>. Esse inline
+   foi removido para o CSS poder mandar no tamanho em tela cheia — mas só
+   se criou regra para .fs-bohr-wrap. Resultado: dentro do modal o <svg>
+   ficou SEM largura e SEM altura declaradas.
+
+   Um <svg> com viewBox e sem width/height não tem tamanho intrínseco. Como
+   item de um container flex (.bohr-svg-wrap é display:flex), ele resolve
+   para o tamanho do conteúdo — que é zero — e o desenho desaparecia. Era
+   exatamente o que a captura do modal mostra: cabeçalho, botões de modo e
+   o painel "Elétrons por camada", com um vazio no lugar do diagrama.
+
+   Com uma LARGURA definida e o viewBox 1:1, height:auto passa a derivar a
+   altura da razão do desenho. max-width impede que o quadrado fique alto
+   demais e empurre o painel de camadas para fora da área visível do modal.
+   A especificidade de .fs-bohr-wrap .bohr-svg-wrap svg (0,2,1) é maior que
+   a desta (0,1,1), então tela cheia continua no comando lá. */
+.bohr-svg-wrap svg {
+  display:block; margin:0 auto;
+  width:100%; max-width:calc(340px * var(--font-scale)); height:auto;
+}
+.bohr-camada-info { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:calc(7px * var(--font-scale)) calc(12px * var(--font-scale)); display:flex; flex-direction:column; gap:3px; width:100%; }
+.bohr-camada-titulo { font-size:calc(0.6rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-main); }
+.bohr-camada-row { display:flex; align-items:center; gap:calc(8px * var(--font-scale)); font-size:calc(0.78rem * var(--font-scale)); }
+.bohr-camada-nome { font-family:'Share Tech Mono',monospace; font-weight:700; color:var(--accent); min-width:calc(18px * var(--font-scale)); }
+.bohr-camada-el   { font-family:'Share Tech Mono',monospace; color:var(--text-main); min-width:calc(40px * var(--font-scale)); }
+.bohr-camada-bar-track { flex:1; height:calc(7px * var(--font-scale)); background:var(--bg-card); border:1px solid var(--border); border-radius:99px; overflow:hidden; }
+.bohr-camada-bar-fill  { height:100%; border-radius:99px; }
+.bohr-camada-val-tag { font-size:calc(0.65rem * var(--font-scale)); font-weight:700; color:var(--accent); white-space:nowrap; }
+
+/* ===== LEWIS ===== */
+.lewis-wrap { display:flex; flex-direction:column; gap:calc(8px * var(--font-scale)); }
+.lewis-header { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.lewis-titulo { font-size:calc(0.65rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-main); }
+.lewis-svg-wrap { display:flex; justify-content:center; }
+.lewis-legenda { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:calc(7px * var(--font-scale)) calc(12px * var(--font-scale)); display:flex; flex-direction:column; gap:calc(4px * var(--font-scale)); }
+.lewis-legenda-titulo { font-size:calc(0.6rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-main); }
+.lewis-legenda-row { display:flex; align-items:center; gap:calc(8px * var(--font-scale)); font-size:calc(0.78rem * var(--font-scale)); color:var(--text-main); }
+.lewis-legenda-dot { width:calc(8px * var(--font-scale)); height:calc(8px * var(--font-scale)); border-radius:50%; flex-shrink:0; }
+/* saíram de style inline no JS para poderem ser ajustadas em tela cheia.
+   O min-width de 140px era inline e por isso intocável pelo CSS. */
+.lewis-legenda-lbl { color:var(--text-dim); min-width:calc(140px * var(--font-scale)); }
+.lewis-legenda-val { font-family:'Share Tech Mono',monospace; font-weight:700; }
+
+/* ===== FOCO GLOBAL ===== */
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+/* ===== LIVE REGION ===== */
+#live-region { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+
+/* ===== PAINEL FULLSCREEN BAR ===== */
+.painel-fullscreen-bar { display:flex; justify-content:flex-end; margin-bottom:calc(5px * var(--font-scale)); }
+.painel-fullscreen-btn {
+  background:var(--bg-deep); border:1px solid var(--border); color:var(--text-dim);
+  border-radius:5px; padding:2px 9px; font-size:calc(0.62rem * var(--font-scale));
+  font-family:'Rajdhani',sans-serif; font-weight:700; cursor:pointer;
+  transition:background .15s, color .15s, border-color .15s;
+  display:flex; align-items:center; gap:4px;
+}
+.painel-fullscreen-btn:hover,.painel-fullscreen-btn:focus-visible {
+  background:var(--bg-hover); color:var(--accent); border-color:var(--accent);
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+
+/* ===== FULLSCREEN OVERLAY ===== */
+.fullscreen-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.96); backdrop-filter:blur(8px);
+  display:flex; align-items:stretch; justify-content:stretch;
+  z-index:800; opacity:0; visibility:hidden; transition:opacity .22s, visibility .22s;
+}
+.fullscreen-overlay.aberto { opacity:1; visibility:visible; }
+.fullscreen-modal {
+  background:var(--bg-panel); border:none; border-radius:0;
+  width:100vw; height:100vh; height:100dvh; max-height:100vh; max-height:100dvh;
+  display:flex; flex-direction:column; overflow:hidden;
+  box-shadow:none; transform:scale(.97);
+  transition:transform .2s cubic-bezier(.34,1.2,.64,1); flex:1;
+}
+.fullscreen-overlay.aberto .fullscreen-modal { transform:scale(1); }
+.fullscreen-header {
+  padding:10px 20px; background:var(--bg-deep); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between; flex-shrink:0; height:52px;
+}
+.fullscreen-title {
+  font-family:'Rajdhani',sans-serif; font-size:calc(0.9rem * var(--font-scale));
+  font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--accent);
+}
+.fullscreen-close {
+  background:transparent; border:1px solid var(--border); border-radius:7px;
+  color:var(--text-dim); width:36px; height:36px;
+  cursor:pointer; font-size:1.1rem;
+  display:flex; align-items:center; justify-content:center; transition:all .15s;
+}
+.fullscreen-close:hover,.fullscreen-close:focus-visible {
+  background:var(--bg-hover); color:var(--text-main); border-color:var(--accent);
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+/* ── CORPO DA TELA CHEIA ──────────────────────────────────────────────
+   align-items era "center": num container flex-column isso faz o filho
+   ENCOLHER para a largura do proprio conteudo em vez de esticar. Como o
+   desenho usava width:100%, essa porcentagem se resolvia contra uma
+   largura minima, nao contra a largura da tela — era a causa de o desenho
+   ficar pequeno com a area toda vazia em volta.
+   Agora "stretch" (o padrao): o filho recebe a largura util inteira, e
+   quem centraliza e cada wrapper por dentro.
+
+   justify-content:center em vez de flex-start: quando o desenho e menor
+   que a altura disponivel, ele fica no MEIO da area, nao grudado no topo
+   com a metade de baixo vazia — o que aparecia na captura de 1366x768.
+   -------------------------------------------------------------------- */
+.fullscreen-body {
+  flex:1; overflow:auto; padding:20px 28px;
+  display:flex; flex-direction:column; align-items:stretch; justify-content:center;
+  gap:16px; min-height:0;
+}
+.fullscreen-body::-webkit-scrollbar { width:6px; }
+.fullscreen-body::-webkit-scrollbar-track { background:transparent; }
+.fullscreen-body::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+.fullscreen-body .painel-fullscreen-bar { display:none; }
+
+/* ── Grade fullscreen ── */
+.fs-grade-container { width:100%; display:flex; flex-direction:column; gap:20px; }
+.fs-grade-wrap { gap:12px !important; }
+.fs-grade-titulo { font-size:1rem !important; letter-spacing:.08em; }
+/* justify-content:center — as fileiras de esferas ficavam encostadas a
+   esquerda depois de .fullscreen-body passar de align-items:center para
+   stretch. Antes o encolhimento do container disfarcava o alinhamento. */
+.fs-grade { gap:14px !important; padding:12px 0 !important; justify-content:center; flex-wrap:wrap; }
+.fs-grade-wrap { align-items:center; }
+.fs-grade-titulo { align-self:center; text-align:center; }
+.fs-grade-item { gap:5px !important; }
+.fs-grade-item .raio-grade-esfera { box-shadow:0 0 18px var(--esfera-glow); }
+.fs-grade-sim { font-size:1rem !important; }
+.fs-grade-val { font-size:0.78rem !important; }
+
+/* ── Bohr fullscreen ── */
+/* ── BOHR em tela cheia ───────────────────────────────────────────────
+   POR QUE ISTO ESTAVA ERRADO ANTES
+   O JavaScript emitia style="width:100%;height:auto" INLINE no <svg>, e
+   estilo inline vence regra de classe. Toda tentativa de dimensionar por
+   CSS era silenciosamente ignorada. O inline saiu do JS; o tamanho agora
+   e definido so aqui.
+
+   E height:auto nao serve para preencher altura: com viewBox, a altura
+   passa a ser derivada da largura pela razao do desenho, e nunca do
+   espaco vertical disponivel. A altura precisa ser EXPLICITA.
+
+   COMO FUNCIONA AGORA
+   A caixa recebe largura e altura definidas; o preserveAspectRatio padrao
+   ("xMidYMid meet") ajusta o desenho dentro dela, centrado, sem distorcer
+   e sem transbordar.
+
+   LAYOUT EM DUAS COLUNAS (a reformulacao)
+   O desenho do Bohr e LARGO (razao ~1.5:1, porque a faixa de rotulos fica
+   ao lado do circulo). Empilhar desenho e painel de camadas numa tela
+   16:9 desperdicava a largura: o desenho ficava limitado pela altura que
+   sobrava depois do painel, e ainda restavam centenas de pixels vazios a
+   direita.
+   Em telas largas o layout vira duas colunas — desenho | painel — e o
+   desenho passa a dispor de quase toda a altura. Em telas estreitas ou
+   em retrato continua empilhado, que e o certo ali.
+   -------------------------------------------------------------------- */
+.fs-bohr-wrap { width:100%; display:flex; flex-direction:column; align-items:center; gap:20px; }
+.fs-bohr-wrap .bohr-wrap { width:100%; max-width:100%; align-items:center; gap:clamp(6px,1.2vh,14px); }
+
+/* Cabeçalho centrado, como o do Lewis e o da Nuvem. Antes era
+   justify-content:space-between: o título colava na esquerda e o seletor de
+   modo na direita, a metros de distância numa tela de 1366px, enquanto o
+   Lewis centralizava o dele. */
+.fs-bohr-wrap .bohr-header { flex-direction:column; align-items:center; justify-content:center; width:100%; }
+.fs-bohr-wrap .bohr-titulo { font-size:0.9rem; align-self:center; text-align:center; }
+.fs-bohr-wrap .raio-view-toggle { scale:1.1; }
+
+.fs-bohr-wrap .bohr-svg-wrap { display:flex; justify-content:center; align-items:center; width:100%; min-width:0; }
+/* Com o viewBox agora 1:1 (igual ao Lewis), em tela larga a ALTURA é o
+   gargalo — então é a altura que se declara, e a largura sai da razão do
+   desenho via preserveAspectRatio. Isto é o contrário do que havia antes
+   (width:100% + altura fixa), que esticava a CAIXA e deixava o desenho
+   pequeno no meio dela, com as bordas vazias.
+   A reserva de 300px cobre: cabeçalho 52 + padding 40 + gaps 40 +
+   barra de modo ~40 + painel de camadas ~110. */
+.fs-bohr-wrap .bohr-svg-wrap svg {
+  display:block;
+  width:auto !important; max-width:none !important;
+  height:clamp(190px, calc(100vh - 300px), 1400px);
+}
+/* retrato: desenho quadrado, a largura limita — mesma regra do Lewis */
+@media (max-aspect-ratio: 3/4) {
+  .fs-bohr-wrap .bohr-svg-wrap svg { height:clamp(180px, calc(100vw - 60px), 760px); }
+}
+
+/* O layout de DUAS COLUNAS (grid 68/32 acima de 1000px) foi removido: era a
+   única das três vistas que reflowava assim, e existia só para compensar a
+   razão ~1,5:1 do viewBox antigo. Com o viewBox quadrado o motivo
+   desapareceu, e Bohr, Lewis e Nuvem passam a ter a mesma estrutura em
+   coluna: título → desenho → painel de dados.
+
+   O painel de camadas herda a grade auto-fit da legenda do Lewis e da
+   Nuvem: o número de colunas sai do espaço real, e a tipografia está em
+   clamp() ligado a vh, que é a dimensão escassa em tela cheia. */
+.fs-bohr-wrap .bohr-camada-info {
+  max-width:min(920px, 96%); width:100%; margin:0 auto;
+  padding:clamp(7px, 1.1vh, 16px) clamp(11px, 1.4vw, 20px);
+  display:grid; align-content:start;
+  grid-template-columns:repeat(auto-fit, minmax(clamp(230px, 27vw, 360px), 1fr));
+  gap:clamp(3px, .7vh, 10px) clamp(10px, 1.8vw, 24px);
+}
+.fs-bohr-wrap .bohr-camada-titulo { grid-column:1 / -1; }
+.fs-bohr-wrap .bohr-camada-row { font-size:clamp(0.7rem, 1.5vh, 1rem); gap:clamp(5px,.8vw,10px); min-width:0; }
+.fs-bohr-wrap .bohr-camada-bar-track { height:clamp(6px, 1.1vh, 10px); }
+
+/* ── Lewis fullscreen ── */
+.fs-lewis-wrap { width:100%; display:flex; flex-direction:column; align-items:center; gap:20px; }
+.fs-lewis-wrap .lewis-wrap { width:100%; max-width:100%; align-items:center; }
+.fs-lewis-wrap .lewis-svg-wrap { display:flex; justify-content:center; width:100%; }
+.fs-lewis-wrap .lewis-svg-wrap svg {
+  /* O viewBox do Lewis e QUADRADO (530x530), entao em tela larga a altura
+     e sempre o gargalo. O max-width inline que o JS emite tem de ser
+     neutralizado aqui: em tela cheia ele travaria o desenho em 260px.
+     Reserva menor que a do Bohr — a legenda embaixo e mais baixa que o
+     painel de camadas. */
+  display:block;
+  width:auto !important; max-width:none !important;
+  height:clamp(190px, calc(100vh - 260px), 1400px);
+}
+/* retrato: desenho quadrado, a largura limita */
+@media (max-aspect-ratio: 3/4) {
+  .fs-lewis-wrap .lewis-svg-wrap svg { height:clamp(180px, calc(100vw - 60px), 760px); }
+}
+/* A legenda era flex-wrap com rótulo de min-width 140px fixo e fonte
+   travada em 1rem: em tela estreita quebrava em muitas linhas e empurrava
+   o conteúdo para fora, e em tela baixa a altura não cedia.
+   Agora é grade auto-fit — o número de colunas sai do espaço real — com
+   tipografia e espaçamentos em clamp() ligados à ALTURA da viewport (vh),
+   que é a dimensão escassa aqui, não a largura. */
+.fs-lewis-wrap .lewis-legenda {
+  max-width:min(920px, 96%); width:100%;
+  padding:clamp(7px, 1.1vh, 16px) clamp(11px, 1.4vw, 20px);
+  display:grid; align-content:start;
+  grid-template-columns:repeat(auto-fit, minmax(clamp(148px, 17vw, 240px), 1fr));
+  gap:clamp(3px, .7vh, 10px) clamp(10px, 1.8vw, 24px);
+}
+.fs-lewis-wrap .lewis-legenda-titulo { grid-column:1 / -1; }
+.fs-lewis-wrap .lewis-legenda-row {
+  font-size:clamp(0.7rem, 1.5vh, 1rem); gap:clamp(5px, .8vw, 10px); min-width:0;
+}
+/* o rótulo deixa de exigir largura mínima: quem distribui agora é a grade */
+.fs-lewis-wrap .lewis-legenda-lbl {
+  min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.fs-lewis-wrap .lewis-legenda-dot {
+  width:clamp(7px, 1.1vh, 12px); height:clamp(7px, 1.1vh, 12px);
+}
+.fs-lewis-wrap .lewis-titulo { font-size:0.9rem; }
+
+/* ── Nuvem fullscreen ── */
+.fs-nuvem-wrap { width:100%; display:flex; flex-direction:column; align-items:center; gap:12px; }
+.fs-nuvem-wrap .nuvem-wrap { width:100%; max-width:100%; align-items:center; }
+.fs-nuvem-wrap .nuvem-header { width:100%; max-width:800px; }
+.fs-nuvem-wrap .nuvem-titulo { font-size:0.9rem; }
+.fs-nuvem-canvas,
+.fs-nuvem-wrap .nuvem-canvas {
+  /* A reserva era 120px fixos para cabeçalho + seletor + legenda. Não
+     cobria a legenda de elementos pesados (19 subníveis), e era por isso
+     que a nuvem rolava. Agora a reserva acompanha a altura da tela. */
+  --fs-nuvem-reserva:clamp(148px, 27vh, 260px);
+  width:min(calc(100vw - 56px), calc(100vh - var(--fs-nuvem-reserva))) !important; width:min(calc(100vw - 56px), calc(100dvh - var(--fs-nuvem-reserva))) !important;
+  height:min(calc(100vw - 56px), calc(100vh - var(--fs-nuvem-reserva))) !important; height:min(calc(100vw - 56px), calc(100dvh - var(--fs-nuvem-reserva))) !important;
+  max-width:none !important; aspect-ratio:1/1; display:block;
+  margin:0 auto; border-radius:12px;
+}
+/* A nuvem tem UMA linha de legenda por subnível: 1 para o hidrogênio e
+   19 para o oganessônio. Com flex-wrap e fonte fixa, os elementos pesados
+   geravam uma legenda alta que estourava a tela. A grade auto-fit com
+   colunas estreitas acomoda os 19 em poucas linhas. */
+.fs-nuvem-wrap .nuvem-legenda {
+  max-width:min(920px, 96%); width:100%;
+  display:grid; align-content:start;
+  grid-template-columns:repeat(auto-fit, minmax(clamp(62px, 6.5vw, 96px), 1fr));
+  gap:clamp(2px, .5vh, 8px) clamp(7px, 1.1vw, 18px);
+  padding:clamp(5px, .9vh, 12px) clamp(9px, 1.1vw, 16px);
+}
+.fs-nuvem-wrap .nuvem-leg-row { font-size:clamp(0.6rem, 1.25vh, 0.85rem); gap:clamp(3px,.5vw,7px); min-width:0; }
+.fs-nuvem-wrap .nuvem-leg-dot { width:clamp(6px,1vh,11px); height:clamp(6px,1vh,11px); }
+
+/* ===== NUVEM ELETRÔNICA ===== */
+.nuvem-wrap { display:flex; flex-direction:column; gap:calc(8px * var(--font-scale)); }
+.nuvem-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; }
+.nuvem-titulo { font-size:calc(0.65rem * var(--font-scale)); font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-main); }
+.nuvem-controles { display:flex; align-items:center; gap:6px; }
+.nuvem-label { font-size:calc(0.62rem * var(--font-scale)); color:var(--text-dim); font-family:'Rajdhani',sans-serif; font-weight:700; }
+.nuvem-select {
+  background:var(--bg-deep); border:1px solid var(--border); color:var(--text-main);
+  border-radius:5px; padding:2px 6px; font-size:calc(0.62rem * var(--font-scale));
+  font-family:'Share Tech Mono',monospace; cursor:pointer; outline:none;
+  transition:border-color .15s;
+}
+.nuvem-select:focus { border-color:var(--accent); outline:2px solid var(--accent); outline-offset:2px; }
+.nuvem-canvas {
+  width:100%; aspect-ratio:1/1; display:block; border-radius:8px;
+  border:1px solid var(--border);
+}
+.nuvem-legenda {
+  background:var(--bg-deep); border:1px solid var(--border); border-radius:6px;
+  padding:calc(7px * var(--font-scale)) calc(12px * var(--font-scale));
+  display:flex; flex-wrap:wrap; gap:calc(4px * var(--font-scale)) calc(14px * var(--font-scale));
+}
+.nuvem-leg-row { display:flex; align-items:center; gap:5px; font-size:calc(0.72rem * var(--font-scale)); }
+.nuvem-leg-dot { width:calc(8px * var(--font-scale)); height:calc(8px * var(--font-scale)); border-radius:50%; flex-shrink:0; }
+.nuvem-leg-sub { font-family:'Share Tech Mono',monospace; font-weight:700; color:var(--text-main); }
+.nuvem-leg-e   { color:var(--text-dim); }
+
+/* =====================================================================
+   HEADER SUPERIOR (linha de topo) — padrão da Central, com link "Central"
+   Substitui a antiga toolbar de acessibilidade. A tabela não tem mais
+   controles próprios; só o botão de voltar à Central fica aqui.
+   ===================================================================== */
+.app-header {
+  flex-shrink: 0;
+  height: 54px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 1.1rem;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border);
+}
+.header-brand { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.header-back {
+  display: inline-flex; align-items: center; gap: .3rem;
+  background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+  border-radius: 6px; padding: .3rem .55rem; margin-right: .5rem;
+  font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 12.48px;
+  letter-spacing: .02em; text-decoration: none; white-space: nowrap;
+  transition: color .15s, border-color .15s; flex-shrink: 0;
+}
+.header-back svg { display: block; }
+.header-back:hover, .header-back:focus-visible {
+  color: var(--text-main); border-color: var(--accent);
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.header-logo { font-size: 22.4px; line-height: 1; flex-shrink: 0; color: var(--header-accent); display: flex; animation: pulse-logo-sitp 3s ease-in-out infinite; cursor: pointer; border-radius: 6px; }
+.header-logo:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.header-logo svg { width: 22.4px; height: 22.4px; }
+@keyframes pulse-logo-sitp{
+  0%,100%{ filter:drop-shadow(0 0 5px var(--header-accent)); }
+  50%     { filter:drop-shadow(0 0 14px var(--header-accent)); }
+}
+@media(prefers-reduced-motion:reduce){ .header-logo{ animation:pulse-logo-sitp 3s ease-in-out infinite; } .header-brand h1{ animation:pulse-logo-sitp-txt 3s ease-in-out infinite; } }
+.header-brand > div { display: flex; flex-direction: column; min-width: 0; }
+.header-brand h1 {
+  font-family: 'Rajdhani', sans-serif; font-weight: 700;
+  font-size: 16px; line-height: 1.1; color: var(--header-accent); letter-spacing: .06em;
+  animation: pulse-text-sitp 3s ease-in-out infinite;
+}
+@keyframes pulse-text-sitp{
+  0%,100%{ text-shadow:0 0 5px var(--header-accent); }
+  50%     { text-shadow:0 0 14px var(--header-accent); }
+}
+.header-sub {
+  font-size: 9.92px; color: var(--text-dim);
+  font-family: 'Rajdhani', sans-serif; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+
+/* ── ACOES DO HEADER (canto oposto ao botao de voltar) ────────────────
+   Mesma linguagem visual do .header-back (mesma borda, raio, fonte e
+   tamanho), para os tres controles do topo parecerem da mesma familia.
+   O estado ligado usa .ativo — nao :focus — porque o modo continua
+   ligado depois que o foco sai do botao.
+   ------------------------------------------------------------------- */
+/* canto direito: modos + temperatura, lado a lado */
+.header-right { display: flex; align-items: center; gap: .7rem; flex-shrink: 0; }
+.header-actions { display: flex; align-items: center; gap: .4rem; flex-shrink: 0; }
+
+/* ── CONTROLE DE TEMPERATURA ──────────────────────────────────────────
+   Ao lado dos botoes de modo, mas visualmente separado por uma borda:
+   sao coisas de natureza diferente (modo de exibicao x parametro que
+   recalcula o estado fisico), e o usuario precisa perceber isso.
+   ------------------------------------------------------------------- */
+.header-temp {
+  display: flex; align-items: center; gap: .45rem;
+  padding-left: .7rem; border-left: 1px solid var(--border);
+}
+.ht-ico { color: var(--text-dim); font-size: 15px; display: flex; }
+.ht-slider { width: 108px; }
+/* pontos de fusao e ebulicao no card de estado do modal */
+.est-desc { margin: 0 0 calc(6px * var(--font-scale)); }
+.est-pontos {
+  display: flex; flex-wrap: wrap; gap: calc(6px * var(--font-scale)) calc(16px * var(--font-scale));
+  font-family: 'Share Tech Mono', monospace; font-size: calc(0.72rem * var(--font-scale));
+  color: var(--text-dim);
+}
+.est-pontos b { color: var(--text-main); font-weight: 700; margin-right: .3em; }
+.est-nota { margin: calc(5px * var(--font-scale)) 0 0; font-size: calc(0.68rem * var(--font-scale)); color: var(--text-dim); font-style: italic; line-height: 1.4; }
+.est-temp-aviso {
+  margin: calc(7px * var(--font-scale)) 0 0; font-size: calc(0.7rem * var(--font-scale));
+  color: var(--accent); display: flex; align-items: flex-start; gap: .35em; line-height: 1.4;
+}
+.ht-out {
+  font-family: 'Share Tech Mono', monospace; font-size: 12px;
+  color: var(--text-main); min-width: 52px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* o botao de voltar a 25 aparece so quando a temperatura saiu da
+   referencia — enquanto esta em 25 nao ha o que desfazer */
+.ht-reset {
+  background: transparent; border: 1px solid var(--border); border-radius: 5px;
+  color: var(--text-dim); font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; padding: 1px 5px; cursor: pointer; line-height: 1.4;
+  transition: color .15s, border-color .15s;
+}
+.ht-reset:hover, .ht-reset:focus-visible {
+  color: var(--accent); border-color: var(--accent);
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+/* Fora de 25 C o valor ganha destaque: a tabela nao esta mais na
+   condicao padrao e isso precisa ficar evidente.
+   O gancho e o proprio botao de voltar, que so existe fora de 25 — nao
+   da para partir do #periodic-table[data-temp-fora], porque o cabecalho
+   vem ANTES da tabela no documento e combinador de irmao nao anda para
+   tras. */
+.header-temp:has(#btnTempReset:not([hidden])) .ht-out { color: var(--accent); font-weight: 700; }
+@media (max-width: 900px) { .ht-slider { width: 76px; } .ht-out { min-width: 46px; font-size: 11px; } }
+@media (max-width: 640px) {
+  .header-temp { padding-left: .45rem; gap: .3rem; }
+  .ht-slider { width: 58px; }
+}
+.header-act {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+  border-radius: 6px; cursor: pointer;
+  /* quadrado: so o icone dentro, sem rotulo de texto. 32px atende o
+     minimo de alvo de toque quando somado ao gap de .4rem entre eles. */
+  width: 32px; height: 32px; padding: 0;
+  transition: color .15s, border-color .15s, background .15s;
+}
+/* o SVG herda a cor do botao via currentColor, entao muda junto no
+   :hover, no .ativo e no tema — nao ha cor duplicada no markup */
+.header-act .ico { display: block; }
+.header-act:hover:not(:disabled), .header-act:focus-visible {
+  color: var(--text-main); border-color: var(--accent);
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.header-act.ativo {
+  color: var(--bg-deep); background: var(--accent); border-color: var(--accent);
+}
+.header-act:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 400px) {
+  .header-act { width: 30px; height: 30px; }
+}
+
+@media (max-width: 620px) {
+  /* Padronização SIMA: nada no header-brand é mais escondido por
+     media query. .header-brand > div já tem min-width:0 (regra base)
+     e .header-sub trunca sozinho com reticências (overflow:hidden +
+     text-overflow:ellipsis + max-width:100%, também na base) — o
+     mesmo mecanismo do SIMA e dos demais simuladores do 1º Ano.
+     Só o padding do header encolhe aqui, pra sobrar espaço pro
+     controle de temperatura. */
+  .app-header { padding: 0 .6rem; }
+}
+
+/* =====================================================================
+   ACESSIBILIDADE — SITP (Tabela Periódica)
+   ---------------------------------------------------------------------
+   Conteúdo mesclado aqui de acessibilidadesitp.css (arquivo extra
+   removido — a acessibilidade geral já é controlada pela Central via
+   URL/postMessage, então não há motivo pra manter um CSS separado só
+   pra essas regras). Reúne tudo que diz respeito a daltonismo, leitura
+   simples, alto contraste, foco, reduced-motion, responsividade/alvos
+   de toque e superscript acessível.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. DALTONISMO — paletas de cores alternativas
+   A cor sozinha não basta para distinguir categorias (WCAG 1.4.1).
+   O modo daltônico (data-daltonico="protanopia|deuteranopia|tritanopia")
+   substitui as variáveis --cat-* por paletas otimizadas para cada tipo,
+   escolhidas para maximizar a separação perceptual no eixo de cor que
+   o tipo de daltonismo consegue distinguir.
+   As cores das categorias nos cards e na legenda usam estas variáveis,
+   então a troca se propaga automaticamente por toda a interface.
+   --------------------------------------------------------------------- */
+
+/* Protanopia (sem cones L/vermelho) e Deuteranopia (sem cones M/verde):
+   confusão vermelho↔verde. Paleta separa no eixo azul↔amarelo↔laranja. */
+[data-daltonico="protanopia"] {
+  --cat-alcalino:    #d55e00;  /* laranja-queimado */
+  --cat-alcalino-t:  #e69f00;  /* âmbar */
+  --cat-lantanideo:  #785ef0;  /* violeta */
+  --cat-actinideo:   #648fff;  /* azul-índigo */
+  --cat-transicao:   #f0e442;  /* amarelo */
+  --cat-representat: #56b4e9;  /* azul-céu */
+  --cat-naometal:    #009e9e;  /* teal */
+  --cat-halogeno:    #0072b2;  /* azul-forte */
+  --cat-gasNobre:    #cc79a7;  /* rosa-malva */
+  --cat-semimetal:   #b0b0b0;  /* cinza-claro */
+}
+[data-daltonico="deuteranopia"] {
+  --cat-alcalino:    #d55e00;
+  --cat-alcalino-t:  #e69f00;
+  --cat-lantanideo:  #785ef0;
+  --cat-actinideo:   #648fff;
+  --cat-transicao:   #f0e442;
+  --cat-representat: #56b4e9;
+  --cat-naometal:    #009e9e;
+  --cat-halogeno:    #0072b2;
+  --cat-gasNobre:    #cc79a7;
+  --cat-semimetal:   #b0b0b0;
+}
+/* Tritanopia (sem cones S/azul): confusão azul↔verde e amarelo↔rosa.
+   Paleta separa no eixo vermelho↔ciano. */
+[data-daltonico="tritanopia"] {
+  --cat-alcalino:    #d92b2b;  /* vermelho */
+  --cat-alcalino-t:  #ff6699;  /* rosa */
+  --cat-lantanideo:  #00b3b3;  /* ciano */
+  --cat-actinideo:   #007a7a;  /* ciano-escuro */
+  --cat-transicao:   #e60073;  /* magenta */
+  --cat-representat: #00d0d0;  /* ciano-claro */
+  --cat-naometal:    #d92b2b;  /* vermelho (reutiliza eixo) */
+  --cat-halogeno:    #8c1a1a;  /* vermelho-escuro */
+  --cat-gasNobre:    #006666;  /* teal-escuro */
+  --cat-semimetal:   #b0b0b0;  /* cinza */
+}
+
+
+/* Contorno na bolinha da legenda — ajuda em qualquer paleta */
+.legend-dot {
+  border: 1px solid var(--text-main);
+  position: relative;
+}
+
+/* ---------------------------------------------------------------------
+   2. SUPERSCRIPT acessível em configuração eletrônica
+   <sup> real com aria; o número visual fica, o leitor lê o aria-label
+   --------------------------------------------------------------------- */
+.ec-orbital sup, .ec-full sup { font-size: 0.7em; }
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------------
+   3. prefers-reduced-motion — também desativa transições do canvas/svg
+   --------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .raio-circulo, .raio-barra-fill, .raio-grade-esfera,
+  .bohr-camada-bar-fill, .nuvem-canvas { transition: none !important; }
+}
+
+/* ---------------------------------------------------------------------
+   4. RESPONSIVIDADE / MOBILE
+   Em telas estreitas a grade de 18 colunas fica ilegível. Reduzimos
+   gaps e fontes; abaixo de 640px ativamos rolagem horizontal controlada
+   com largura mínima, preservando a estrutura da tabela.
+   --------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  #periodic-table { gap: 2px; }
+  .footer-fonte-item { font-size: 9px; }
+}
+
+/* Barra de abas do bottom sheet (ver js/modal/secoes-mobile.js):
+   escondida por padrão (telas largas). A media query 760px abaixo
+   reativa. Regra precisa vir ANTES da media query — depois dela um
+   "display:none" incondicional venceria por ordem de cascata. */
+.modal-section-tabs { display: none; }
+.modal-drag-handle { display: none; }
+
+@media (max-width: 760px) {
+  body { height: auto; min-height: 100vh; min-height: 100dvh; overflow: auto; }
+  .page-wrapper { overflow: visible; }
+  .main-content { overflow-x: auto; overflow-y: visible; padding: 6px 6px 0; -webkit-overflow-scrolling: touch; }
+  #periodic-table {
+    min-width: 720px;       /* garante que os cards não fiquem ilegíveis */
+    grid-template-rows: 16px repeat(7, minmax(46px, 1fr)) 5px minmax(46px,1fr) minmax(46px,1fr);
+  }
+  .tabela-scroll-hint { display: block; }
+  div[vw] { z-index: 1000; }
+
+  /* ════════ FICHA DO ELEMENTO → BOTTOM SHEET ════════
+     Em telas largas ".modal" é uma janela central (ver regra base,
+     acima neste arquivo). Aqui ela vira um bottom sheet: sobe da base
+     da tela cobrindo a maior parte dela, em vez de aparecer flutuando
+     no meio. Fechar agora é por toque fora do modal (".modal-overlay"),
+     Esc, ou arrastando o cabeçalho pra baixo (ver initDragToDismiss()
+     em js/modal/abrir-fechar.js) — não depende de nenhum botão próprio.
+     Só a posição/animação do CSS mudam de "aparecer no centro" para
+     "subir de baixo"; o JS de abrir/fechar não muda por causa disso. */
+  .modal-overlay { align-items: flex-end; }
+  .modal {
+    width: 100%; max-width: none;
+    height: 85vh; height: 85dvh; max-height: 85vh; max-height: 85dvh;
+    border-radius: 16px 16px 0 0;
+    /* estado fechado: fora da tela, embaixo — igual à gaveta de
+       controles dos simuladores de 2º ano (mesma técnica, mesmo
+       motivo: transform anima em vez de display, então o navegador
+       não recalcula layout a cada quadro). */
+    transform: translateY(100%);
+  }
+  .modal-overlay.aberto .modal { transform: translateY(0); }
+  /* alça de arrastar — elemento real (não ::before, ver HTML), pra
+     poder receber o gesto de arrastar pra baixo. touch-action:none
+     desliga o scroll/zoom nativo do navegador NESTA área específica,
+     senão o gesto de arrastar competeria com o navegador tentando
+     rolar a página por baixo. O cabeçalho inteiro também é arrastável
+     (ver JS) — a alça é só o indicador visual de "isto desliza". */
+  .modal-drag-handle {
+    display: block;
+    width: 36px; height: 4px; border-radius: 2px;
+    background: var(--border); margin: .5rem auto 0;
+    touch-action: none;
+  }
+  .modal-header { touch-action: none; }
+  .modal-symbol { font-size: calc(3rem * var(--font-scale)); }
+
+  /* ════════ BARRA DE ABAS DE SEÇÃO ════════
+     Uma pílula por .info-card do modal (Estado físico, Distribuição
+     Eletrônica, Como é obtido, Curiosidades, propriedades e Raio
+     atômico), montada em montarAbasSecoesMobile(). Mesma linguagem
+     visual da barra de modos mobile dos simuladores de 2º ano
+     (.mode-tab), para o aluno reconhecer o mesmo padrão de navegação
+     em toda a coleção. */
+  .modal-section-tabs {
+    display: flex; gap: .4rem; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: .55rem .7rem; background: var(--bg-deep); border-bottom: 1px solid var(--border);
+    scrollbar-width: thin; flex-shrink: 0;
+  }
+  .modal-tab {
+    flex: none; display: flex; align-items: center; gap: .3rem;
+    padding: .4rem .75rem; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text-dim);
+    font-size: .78rem; white-space: nowrap; cursor: pointer; min-height: 36px;
+    max-width: 46vw; overflow: hidden; text-overflow: ellipsis;
+  }
+  .modal-tab .ico { flex-shrink: 0; }
+  .modal-tab span { overflow: hidden; text-overflow: ellipsis; }
+  .modal-tab[aria-selected="true"] {
+    border-color: var(--accent); color: var(--text-main);
+    background: color-mix(in srgb, var(--accent) 18%, var(--bg-card));
+  }
+  @media (pointer: coarse) { .modal-tab { min-height: 44px; } }
+
+  /* Só a seção da aba ativa fica visível — as demais continuam no
+     DOM (dados intactos, sem re-render ao trocar de aba), só
+     escondidas. renderCardsPropriedade() pode recriar os cards de
+     propriedade a qualquer momento; a classe abaixo é reaplicada do
+     zero a cada elemento aberto, então nunca fica "presa" num card
+     antigo. */
+  .modal-body .info-card { display: none; }
+  .modal-body .info-card.mobile-section-active { display: block; }
+}
+@media (max-width: 480px) {
+  .modal-top-row { flex-wrap: wrap; }
+  .footer-fontes { gap: 2px 8px; }
+  .guia-table th, .guia-table td { font-size: calc(0.78rem * var(--font-scale)); padding: 4px 6px; }
+}
+
+/* Dica de rolagem horizontal (só aparece em mobile, controlada por media query) */
+.tabela-scroll-hint {
+  display: none;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---------------------------------------------------------------------
+   5. FOCO reforçado — visível também em alto contraste / forced-colors
+   --------------------------------------------------------------------- */
+@media (forced-colors: active) {
+  :focus-visible { outline: 3px solid Highlight !important; outline-offset: 2px; }
+  .element::before { forced-color-adjust: none; }
+}
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Alvos de toque com tamanho mínimo recomendado (WCAG 2.5.5 / 2.5.8) */
+.legend-item, .raio-vbtn, .nuvem-select { min-height: 28px; }
+@media (pointer: coarse) {
+  .legend-item { min-height: 36px; }
+  .guia-close, .fullscreen-close { min-width: 44px; min-height: 44px; }
+}
+
+/* ---------------------------------------------------------------------
+   6. MODO LEITURA SIMPLES (acessibilidade cognitiva)
+   Quando data-simple="on": aumenta espaçamento/tamanho de texto, oculta
+   os blocos técnicos densos (.tecnico-avancado), e simplifica os cards
+   da tabela principal escondendo a massa atômica (detalhe secundário).
+   --------------------------------------------------------------------- */
+[data-reading="on"] .info-card p,
+[data-reading="on"] .modal-body { line-height: 1.9; letter-spacing: .01em; }
+[data-reading="on"] .tecnico-avancado { display: none !important; }
+
+/* Efeitos VISÍVEIS na tabela principal */
+[data-reading="on"] .el-mass { display: none; }          /* esconde massa atômica nos cards */
+[data-reading="on"] .el-symbol { font-size: clamp(calc(15px * var(--font-scale)),calc(1.7vw * var(--font-scale)),calc(32px * var(--font-scale))); }
+[data-reading="on"] .el-name { font-weight: 700; }
+[data-reading="on"] .info-card p { font-size: calc(1.08rem * var(--font-scale)); }
+[data-reading="on"] .modal-name { font-size: calc(1.6rem * var(--font-scale)); }
+
+/* Faixa de confirmação visível enquanto o modo está ativo */
+[data-reading="on"] .main-content::before {
+  content: "📖 Modo de leitura simples ativo — detalhes técnicos ocultados";
+  display: block;
+  background: var(--accent);
+  color: #000;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: clamp(11px, 1vw, 14px);
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------------
+   CAMADA DE DALTONISMO — mesma regra dos outros 23 arquivos.
+   z-index alto para cobrir tudo; pointer-events:none para nao roubar o
+   clique dos elementos da tabela. O a11y.js troca o backdrop-filter.
+   --------------------------------------------------------------------- */
+#colorblindOverlay{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ---------------------------------------------------------------------
+   SKIP-LINK — contraste corrigido
+   ---------------------------------------------------------------------
+   Medido no Chromium com o link em foco (ele vive em left:-9999px e so
+   aparece ao receber foco, por isso a medicao exige focus()).
+
+   O fundo do skip-link vem do acento do simulador, e o acento MUDA no
+   tema claro — normalmente escurecendo. Com o texto fixo, o par deixava
+   de contrastar em um dos dois temas. As regras abaixo declaram o texto
+   por tema, com o valor que a medicao mostrou ser o melhor.
+   --------------------------------------------------------------------- */
+body.light-mode .skip-link{ color:#fff; }   /* 7.50:1 */
+
+/* =====================================================================
+   REDUCAO DE MOVIMENTO — TOGGLE DO PAINEL DE ACESSIBILIDADE
+   ---------------------------------------------------------------------
+   Este arquivo ja respeitava @media (prefers-reduced-motion: reduce), que
+   le a preferencia do SISTEMA OPERACIONAL. Mas o a11y.js tambem oferece um
+   botao proprio, que liga a classe .reduce-motion no <body> — e nenhuma
+   regra aqui escutava essa classe. Resultado: quem desligasse animacao
+   pelo painel do site continuava vendo tudo animar.
+   Mesmo bloco que os 12 simuladores do 2o e 3o ano ja usam.
+   ===================================================================== */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after{ animation:none!important; transition-duration:.01ms!important; }
+
+
+/* ═══ BARRA DE ROLAGEM — estilo consistente (auto-inserido) ═══ */
+/* Troca a barra de rolagem padrão do sistema (cinza, quadrada) por uma
+   fina e na cor do tema — aplicado de forma GERAL (seletor *) pra
+   cobrir sidebars, bottom sheet, barras de aba e qualquer área com
+   rolagem que ainda não tinha estilo próprio. Onde já existe uma regra
+   mais específica em algum lugar do arquivo (ex.: .modal-body::-webkit-
+   scrollbar), ela continua valendo — seletor de classe é mais
+   específico que o universal, então nada muda para quem já tinha
+   estilo. As cores usam var(--border)/var(--accent): como essas
+   variáveis já mudam sozinhas por tema (claro/escuro/alto contraste),
+   a barra de rolagem acompanha automaticamente, sem regra extra. */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* ════════════════════════════════════════════════════════════════
+   COACHMARK — balão flutuante do tour guiado (ver js/coachmark.js e
+   js/a11y/tour.js). Mesma estética já usada no SILQ/SIQI, adaptada
+   aos tokens do SITP (--bg-card, --accent, --text-main/--text-dim).
+   ════════════════════════════════════════════════════════════════ */
+.coach-overlay{ position:fixed; inset:0; z-index:600; }
+.coach-spot{
+  position:fixed; z-index:601; border-radius:10px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.65);
+  border:2px solid var(--accent);
+  pointer-events:none;
+  transition:top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+}
+.coach-overlay:has(.coach-spot[hidden])::before{
+  content:''; position:fixed; inset:0; z-index:601; background:rgba(0,0,0,.65);
+}
+.coach-balao{
+  position:fixed; z-index:602; width:min(320px, 88vw);
+  background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
+  padding:18px 18px 14px; box-shadow:0 20px 48px rgba(0,0,0,.5);
+  transition:top .25s ease, left .25s ease;
+}
+.coach-balao--centro{ position:fixed; top:50% !important; left:50% !important; transform:translate(-50%,-50%); }
+.coach-pular{
+  position:absolute; top:10px; right:12px;
+  background:none; border:none; color:var(--text-dim); font-size:12px; cursor:pointer;
+  padding:4px 6px; border-radius:6px;
+}
+.coach-pular:hover{ color:var(--text-main); background:var(--bg-hover); }
+.coach-titulo{ font-weight:700; font-size:16px; color:var(--text-main); margin:4px 30px 8px 0; }
+.coach-texto{ font-size:13.5px; color:var(--text-dim); line-height:1.55; margin:0 0 16px; }
+.coach-rodape{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.coach-pontos{ display:flex; gap:5px; }
+.coach-ponto{ width:6px; height:6px; border-radius:50%; background:var(--border); }
+.coach-ponto--ativo{ background:var(--accent); width:16px; border-radius:3px; }
+.coach-botoes{ display:flex; gap:8px; }
+.coach-btn{ font-weight:600; font-size:13px; padding:8px 14px; border-radius:8px; cursor:pointer; transition:filter .2s, background .2s; }
+.coach-btn--voltar{ background:transparent; border:1px solid var(--border); color:var(--text-dim); }
+.coach-btn--voltar:hover{ background:var(--bg-hover); }
+.coach-btn--avancar{ background:var(--accent); border:1px solid var(--accent); color:#04141A; }
+.coach-btn--avancar:hover{ filter:brightness(1.08); }
+@media (max-width:480px){
+  .coach-balao{ padding:16px 16px 12px; }
+  .coach-rodape{ flex-direction:column; align-items:stretch; gap:12px; }
+  .coach-botoes{ justify-content:space-between; }
+}
+
+/* ALTO CONTRASTE — o link "Pular para…" usa o acento como fundo, e no
+   alto contraste o acento é amarelo (--hc-fg). O texto precisa ser a cor
+   de FUNDO do esquema (--hc-bg, preto). Especificidade (0,2,2) de
+   propósito: as regras por tema acima — body.light-mode .skip-link e
+   body:not(.light-mode) .skip-link, ambas (0,2,1) — também casam com o
+   alto contraste e, vindo depois, deixavam branco sobre amarelo (1,07:1). */
+body.high-contrast:not(.light-mode) a.skip-link { color: var(--hc-bg, #000); }
+
+/* Título do cabeçalho no ALTO CONTRASTE. O h1 usa var(--header-accent), e
+   os blocos de alto contraste redefinem --accent-main e companhia mas
+   esqueciam este token: no claro + alto contraste o título ficava com o
+   acento do tema claro (vinho, verde-escuro) sobre o fundo PRETO do
+   esquema — medido de 1,67:1 a 3,74:1. Especificidade (0,1,2) para vencer
+   body.light-mode (0,1,1), que também o redefine. */
+/* SITP: ao contrário dos outros simuladores, o alto contraste daqui NÃO
+   escurece o tema claro — no claro + alto contraste o cabeçalho continua
+   #f0f4f8 e o acento do link continua verde-azulado escuro. As duas regras
+   de alto contraste abaixo pressupõem fundo preto e acento amarelo, então
+   valem só para o alto contraste ESCURO. Medido: aplicadas ao claro, davam
+   título amarelo sobre fundo claro (1,0:1) e link preto sobre verde (3,0:1). */
+html body.high-contrast:not(.light-mode) { --header-accent: var(--hc-fg, #ff0); }

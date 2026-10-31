@@ -1,0 +1,2795 @@
+
+/* =====================================================================
+   ALTO CONTRASTE — CONTRAPARTE PARA O TEMA CLARO
+   ---------------------------------------------------------------------
+   BUG: as regras de alto contraste deste arquivo usam #ff0 (amarelo) para
+   texto/borda e #000 para o fundo do estado ativo. Isso funciona sobre
+   fundo escuro (19.56:1), mas o alto contraste tambem pode ser ligado
+   JUNTO com o tema claro — e ai o amarelo cai para 1.03:1 sobre o fundo
+   claro. Ficava literalmente invisivel. Medido no Chromium: a combinacao
+   claro+contraste tinha MAIS texto abaixo de 3:1 do que o tema claro
+   sozinho, ou seja, o modo de acessibilidade piorava a legibilidade.
+
+   SOLUCAO: as duas cores viram variaveis. No tema escuro seguem amarelo
+   e preto; no tema claro viram azul-escuro (#0000cc) e branco, que
+   cumprem o mesmo papel com 10.15:1 sobre o fundo claro. O azul saturado
+   e a escolha classica de alto contraste em fundo claro, equivalente ao
+   amarelo em fundo escuro.
+
+   As regras abaixo desta secao passam a usar var(--hc-fg) e var(--hc-bg)
+   em vez dos valores fixos.
+   ===================================================================== */
+body.high-contrast                { --hc-fg:#ff0;     --hc-bg:#000;     }
+body.high-contrast.light-mode     { --hc-fg:#0000cc;  --hc-bg:#fff;     }
+/* =====================================================================
+   ALTO CONTRASTE — SELETOR CORRIGIDO
+   ---------------------------------------------------------------------
+   BUG: as regras abaixo esperavam data-contrast="high", mas o a11y.js
+   escreve data-contrast="on" (e tambem liga .high-contrast no <body>).
+   Nenhuma delas ligava. O aluno ativava o alto contraste na Central e
+   este simulador continuava com a paleta normal — inclusive as regras
+   que redefinem a PALETA INTEIRA de alto contraste.
+
+   O valor "high" vem de um script antigo (accessibilitysiem.js), que
+   nao existe mais no projeto. Trocado para "on".
+   ===================================================================== */
+
+/* =====================================================================
+   ALTURA DE VIEWPORT: dvh com fallback vh
+   ---------------------------------------------------------------------
+   PROBLEMA: no Safari do iOS e no Chrome do Android, 100vh e a altura da
+   tela COM a barra de endereco escondida — a maior possivel. Quando a
+   barra esta visivel (o estado normal ao abrir a pagina), a casca do app
+   fica mais alta que a area visivel e o rodape do canvas cai abaixo da
+   dobra. Como .app-main tem overflow:hidden, nao ha rolagem para
+   alcancar o pedaco perdido: ele simplesmente desaparece. E como 100vh e
+   estatico, nao reage quando a barra aparece ou some.
+
+   SOLUCAO: dvh (dynamic viewport height) acompanha a barra do navegador.
+   Cada altura aparece DUAS vezes neste arquivo:
+
+       height: calc(100vh  - var(--header-h));   <- fallback
+       height: calc(100dvh - var(--header-h));   <- navegadores modernos
+
+   Navegador que nao entende dvh simplesmente ignora a segunda declaracao
+   e fica com a primeira. Navegador moderno usa a segunda, que vem
+   depois. Nenhum @supports e necessario: e a cascata normal do CSS.
+
+   Por que dvh e nao svh: estes simuladores tem overflow:hidden e nao
+   rolam, entao o dvh nao causa o tremor de reflow que provoca em paginas
+   rolaveis — e o canvas aproveita a tela inteira quando a barra some.
+   ===================================================================== */
+
+/* ═══════════════════════════════════════════════════════════════
+   stylesiqi.css — SIQI v2
+   Arquitetura: mesma do SIEM (tokens, painéis, a11y, responsivo)
+   Paleta: Azul-Indigo (#7A85F5, cor do card do SIQI) sobre fundo neutro
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Tokens ─────────────────────────────────────────────────── */
+:root {
+  /* fundos neutros — os mesmos dos outros simuladores */
+  --bg0:#080c14; --bg1:#0c1520; --bg2:#101c2b; --bg3:#172334;
+  --bdr:#1c2e44; --bdr2:#435299; --bdr-a:#7088FF;
+  /* acento indigo — apenas em texto, bordas e destaques, nunca como fundo */
+  --coral:#7088FF; --coral2:#94A6FF; --coral-dim:#5162B8;
+  --amber:#FFAA44; --green:#4ADE80; --cyan:#00C8FF; --violet:#A78BFA; --red:#FF5252;
+  /* texto neutro com leve warmth só nos tons médios */
+  --tx1:#e4e4e7; --tx2:#71717a; --tx3:#3f3f46;
+  --font:'Segoe UI',system-ui,sans-serif; --mono:'Consolas','JetBrains Mono',monospace;
+  --hh:54px;
+  --sl:clamp(240px,24vw,340px);
+  --sr:clamp(200px,20vw,280px);
+  --r:7px; --rs:4px;
+  --a11y-font-scale:1;
+  --overlay-bg:rgba(9,9,11,.92);
+  --header-accent:#7088FF;
+  /* tipografia responsiva base */
+  --fs-base:13px;
+  --fs-sm:.72rem;
+  --fs-xs:.65rem;
+  --fs-xxs:.6rem;
+  /* builder responsivo */
+  --rxb-mol-fs:1.05rem;
+  --rxb-mol-pad:.4rem .85rem;
+  --rxb-slot-w:110px;
+  --rxb-slot-h:95px;
+  --rxb-gap:1rem;
+  /* cores semânticas para funções */
+  --acido-col:#F87171;  --acido-bg:rgba(248,113,113,.1);
+  --base-col:#4ADE80;   --base-bg:rgba(74,222,128,.1);
+  --sal-col:#FACC15;    --sal-bg:rgba(250,204,21,.1);
+  --oxido-col:#FB923C;  --oxido-bg:rgba(251,146,60,.1);
+}
+
+/* ── Tema claro ──────────────────────────────────────────────── */
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg0:#f0f4f8; --bg1:#e4eaf2; --bg2:#d8e2ee; --bg3:#ccd6e6;
+  --bdr:#9badc4; --bdr2:#8C98C3; --bdr-a:#001B7A;
+  --coral:#001B7A; --coral2:#384D97; --coral-dim:#00145C;
+  --tx1:#18181b; --tx2:#52525b; --tx3:#a1a1aa;
+  --overlay-bg:rgba(250,250,250,.92);
+  /* Cores semânticas escurecidas para contraste em fundo claro —
+     as versões originais (tons vivos, tipo #FFAA44/#4ADE80) foram
+     calibradas pra fundo quase-preto e ficam ilegíveis como texto
+     sobre #fafafa. */
+  --amber:#B45309; --green:#15803D; --cyan:#0369A1; --violet:#6D28D9; --red:#B91C1C;
+  --header-accent:#001B7A;
+  --acido-col:#B91C1C;  --acido-bg:rgba(185,28,28,.1);
+  --base-col:#15803D;   --base-bg:rgba(21,128,61,.1);
+  --sal-col:#A16207;    --sal-bg:rgba(161,98,7,.1);
+  --oxido-col:#C2410C;  --oxido-bg:rgba(194,65,12,.1);
+}
+
+/* ── Alto contraste ──────────────────────────────────────────── */
+html[data-contrast="on"] {
+  --bg0:#000; --bg1:#000; --bg2:#0A0A0A; --bg3:#111;
+  /* Todo este bloco reusava #FF6B47 — o coral da paleta antiga do card —
+     como acento E como borda. Agora segue a cor de alto contraste do card
+     do SIQI (#9585FF, 7,08:1 sobre preto, contra 7,45:1 do coral: mesma
+     legibilidade, identidade coerente).
+     --bdr-a fica em âmbar de propósito: é a borda do elemento ATIVO e
+     precisa se separar da borda comum, não repeti-la. */
+  --bdr:#9585FF; --bdr2:#8C7BE6; --bdr-a:#FFAA44;
+  --coral:#9585FF; --tx1:#FFF; --tx2:#FFF; --tx3:#CCC;
+  --amber:#FFFF00; --green:#00FF66;
+  --cyan:#00FFFF; --violet:#D8B4FE; --red:#FF5252;
+  --header-accent:#9585FF;
+  --acido-col:#FF5252;  --acido-bg:rgba(255,82,82,.15);
+  --base-col:#00FF66;   --base-bg:rgba(0,255,102,.15);
+  --sal-col:#FFFF00;    --sal-bg:rgba(255,255,0,.15);
+  --oxido-col:#FFAA44;  --oxido-bg:rgba(255,170,68,.15);
+}
+html[data-contrast="on"] .panel,
+html[data-contrast="on"] .app-header { border-width:2px; }
+html[data-contrast="on"] .dr dd { color:#FFFF00 !important; }
+html[data-theme="light"] .sim-area,
+html[data-theme="light"] .sim-panel,
+html[data-theme="light"] .sim-chat,
+html[data-theme="light"] .ficha-scroll,
+html[data-theme="light"] .rxn-wrapper,
+html[data-theme="light"] #sim-canvas { background:#f0f4f8; }   /* o tom da área central do SIMA */
+html[data-theme="light"] .exp-header { background:#e4e4e7; }
+
+/* ── Daltonismo — overlay fixo com backdrop-filter (não filtro no
+   wrapper, para não quebrar modais/tooltips/painéis position:fixed) ── */
+#colorblindOverlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ── Leitura simples ─────────────────────────────────────────── */
+html[data-reading="on"] .panel-body { gap:.8rem; padding:1rem; }
+html[data-reading="on"] .dr       { padding:.5rem 0; flex-wrap:wrap; }
+html[data-reading="on"] .dr dt    { font-size:.85em; }
+html[data-reading="on"] body      { line-height:1.8; }
+
+/* ── Redução de movimento ────────────────────────────────────── */
+html[data-motion="true"] *, html[data-motion="true"] *::before, html[data-motion="true"] *::after {
+  transition-duration:.01ms !important; animation-duration:.01ms !important;
+}
+@media (prefers-reduced-motion:reduce) {
+  *, *::before, *::after { transition-duration:.01ms !important; animation-duration:.01ms !important; }
+}
+
+/* ── Reset ───────────────────────────────────────────────────── */
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+
+/* =====================================================================
+   ÍCONES SVG (substituem os emojis) — ver <defs> de <symbol> no topo
+   do indexsiqi.html. stroke/fill:currentColor herda a cor do texto ao
+   redor; width/height:1em acompanha o tamanho de fonte do elemento-pai.
+   ===================================================================== */
+.icon{
+  width:1em; height:1em; display:inline-block;
+  vertical-align:-.125em; flex-shrink:0;
+}
+.panel-icon .icon,
+.mode-note-icon .icon{ width:1.05em; height:1.05em; vertical-align:-.15em; }
+
+html { color-scheme: dark; }
+html, body { height:100%; overflow:hidden; background:var(--bg0); color:var(--tx1);
+  font-family:var(--font); font-size:13px; line-height:1.5; }
+body { display:flex; flex-direction:column; }
+/* O antigo #app-wrapper era uma <div> entre o <body> e o layout, sem
+   papel semantico: uma caixa a mais para o leitor de tela percorrer.
+   Layout e escala de fonte foram para o proprio <body>. A classe
+   .a11y-content continua existindo para o modal #expand-overlay, que
+   e filho direto do <body> e fica fora desta cascata. */
+.a11y-content { font-size:calc(1em * var(--a11y-font-scale)); }
+body { flex:1; overflow:hidden; font-size:calc(13px * var(--a11y-font-scale)); }
+
+/* Viewport dinamica — iOS Safari / Chrome Android (WCAG 1.4.10 Reflow).
+   Com height:100%, o Safari mede a viewport SEM a barra de endereco;
+   com a barra visivel o rodape da coluna cai fora da tela e o
+   overflow:hidden impede rolar ate ele. 100dvh acompanha a viewport
+   real, e o @supports mantem o 100% como fallback. */
+@supports (height: 100dvh){
+  html,body { height:100dvh; }
+}
+*:focus-visible { outline:2px solid var(--coral); outline-offset:2px; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+/* Os 4 skip links vivem dentro de um <nav class="skip-nav">: o leitor de
+   tela anuncia "navegacao, Atalhos de navegacao" uma vez, em vez de ler
+   4 links soltos antes do <header> (WCAG 1.3.1 + 2.4.1). O container e
+   position:absolute com altura zero — os proprios links continuam
+   absolutos e mantem exatamente a mesma geometria de antes. */
+.skip-nav { position: absolute; top: 0; left: 0; width: 100%; z-index: 9999; }
+.skip-link { position:absolute; left:-9999px; top:0; background:var(--coral);
+  color:#fff; padding:.5rem 1rem; font-weight:700; z-index:999;
+  border-radius:0 0 var(--rs) 0; }
+.skip-link:focus { left:0; }
+
+/* ── Header ──────────────────────────────────────────────────── */
+.app-header { height:var(--hh); background:var(--bg1); border-bottom:1px solid var(--bdr);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 1.1rem; flex-shrink:0; }
+.header-brand { display:flex; align-items:center; gap:.6rem; min-width:0; }
+.header-brand > div { min-width:0; }
+.header-back { display:flex; align-items:center; gap:.3rem;
+  background:transparent; border:1px solid var(--bdr); color:var(--tx2);
+  border-radius:var(--rs); padding:.3rem .55rem; margin-right:.5rem;
+  font-size:.78rem; font-weight:600; letter-spacing:.02em; text-decoration:none; white-space:nowrap;
+  flex-shrink:0; transition:color .15s, border-color .15s; }
+.header-back:hover, .header-back:focus-visible { color:var(--tx1); border-color:var(--coral); }
+.header-logo { font-size:1.4rem; line-height:1; color:var(--header-accent);
+  display:flex; animation:pulse-logo 3s ease-in-out infinite; }
+.header-logo svg { width:1.4rem; height:1.4rem; }
+@keyframes pulse-logo {
+  0%,100% { filter:drop-shadow(0 0 5px var(--header-accent)); }
+  50%      { filter:drop-shadow(0 0 14px var(--coral2)); }
+}
+.header-brand h1 { font-size:1rem; font-weight:700; letter-spacing:.06em;
+  color:var(--header-accent); animation:pulse-txt 3s ease-in-out infinite; }
+@keyframes pulse-txt {
+  0%,100% { text-shadow:0 0 5px var(--header-accent); }
+  50%      { text-shadow:0 0 14px var(--coral2); }
+}
+.header-sub { font-size:.62rem; color:var(--tx2); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.header-right { display:flex; align-items:center; gap:.4rem; flex-shrink:0; }
+
+/* Pill de estado (mesmo padrão do SIEM, cores adaptadas para funções) */
+.state-pill { font-size:.64rem; font-weight:700; letter-spacing:.06em;
+  padding:.12rem .55rem; border-radius:20px; border:1px solid var(--bdr);
+  color:var(--tx3); transition:all .3s; white-space:nowrap; }
+.state-pill.acido   { background:var(--acido-bg); color:var(--acido-col); border-color:var(--acido-col); }
+.state-pill.base    { background:var(--base-bg);  color:var(--base-col);  border-color:var(--base-col); }
+.state-pill.sal     { background:var(--sal-bg);   color:var(--sal-col);   border-color:var(--sal-col); }
+.state-pill.oxido   { background:var(--oxido-bg); color:var(--oxido-col); border-color:var(--oxido-col); }
+
+.mobile-menu-btn { display:none; align-items:center; justify-content:center;
+  background:var(--bg2); border:1px solid var(--bdr);
+  color:var(--tx2); border-radius:var(--rs); padding:4.8px 8.8px;
+  font-size:14.4px; cursor:pointer; }
+.mobile-menu-btn:hover, .mobile-menu-btn:focus-visible {
+  color:var(--tx1); border-color:var(--coral); outline:2px solid var(--coral); outline-offset:2px; }
+
+/* ── Layout ──────────────────────────────────────────────────── */
+.app-body { display:flex; flex:1; overflow:hidden; min-height:0; }
+.sidebar {
+  /* position:relative aqui, e nao no JS.
+     A alca de redimensionar (.sidebar-resizer) e absoluta e precisa de um
+     ancestral posicionado. O JS resolvia isso com
+        if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+     executado uma vez no DOMContentLoaded. Consequencia: quem abrisse a
+     pagina numa janela larga ganhava style="position:relative" INLINE, e
+     estilo inline vence media query — ao estreitar a janela, o
+     position:fixed do modo gaveta (@media max-width:900px) era ignorado,
+     as sidebars continuavam ocupando espaco no flex e a area central
+     colapsava. Medido: 784px -> 98px.
+     Declarando relative aqui, a condicao do JS nunca e verdadeira, nada
+     inline e escrito, e a media query volta a mandar. */
+  position: relative;
+ background:var(--bg1); overflow-y:auto; padding:.5rem;
+  flex-shrink:0; display:flex; flex-direction:column; gap:.4rem;
+  scrollbar-width:thin; scrollbar-color:var(--bdr) transparent; }
+.sidebar--left { width:var(--sl); border-right:1px solid var(--bdr); }
+.sidebar--right { width:var(--sr); border-left:1px solid var(--bdr); }
+.sidebar::-webkit-scrollbar { width:3px; }
+.sidebar::-webkit-scrollbar-thumb { background:var(--bdr); }
+
+/* Backdrop mobile */
+.mobile-backdrop {
+  position:fixed; inset:0; z-index:90;
+  background:rgba(0,0,0,.58); backdrop-filter:blur(2px);
+  -webkit-backdrop-filter:blur(2px);
+}
+.mobile-backdrop[hidden] { display:none; }
+
+/* ── Painéis recolhíveis (mesma mecânica do SIEM) ────────────── */
+.panel { background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--r);
+  overflow:hidden; display:flex; flex-direction:column; transition:border-color .2s, box-shadow .2s; }
+/* CAUSA RAIZ DE BUG CORRIGIDA (Plano de Ação SIQI Modular, 2026):
+   .panel define display:flex explicitamente. Como o atributo nativo
+   [hidden] do navegador é implementado via uma regra UA equivalente a
+   [hidden]{display:none} — MESMA especificidade (0,0,1,0) de .panel —
+   e CSS de AUTOR sempre vence CSS de USER-AGENT em empate de
+   especificidade, `.panel{display:flex}` sobrepunha o hidden nativo:
+   um <section class="panel" hidden> continuava sendo renderizado como
+   flex, nunca escondido de verdade. É exatamente por isso que outros
+   elementos deste MESMO arquivo (.mobile-backdrop, .sim-panel,
+   .exp-header, .rxn-wrapper, .lab-toast, .expand-overlay — ver acima)
+   já tinham esse override explícito; faltava só em .panel, usado pelos
+   3 painéis de conteúdo dos módulos (Biblioteca/Filtro de Compostos/
+   Reações Disponíveis) que precisam entrar e sair de cena ao trocar
+   de módulo. Sem esta linha, os 3 apareciam sempre juntos. */
+.panel[hidden] { display:none; }
+[data-open="true"].panel { border-color:rgba(112,136,255,.4); box-shadow:0 0 0 1px rgba(112,136,255,.12); }
+.panel-header { width:100%; display:flex; align-items:center; gap:.5rem; padding:.56rem .7rem;
+  background:transparent; border:none; border-bottom:1px solid var(--bdr);
+  color:var(--tx1); font-size:.8rem; font-weight:700; letter-spacing:.2px;
+  cursor:pointer; transition:background .15s, color .15s; user-select:none; flex-shrink:0; }
+.panel-header:hover { background:rgba(112,136,255,.08); color:var(--coral); }
+[data-open="false"] .panel-header { border-bottom-color:transparent; }
+[data-open="true"]  .panel-header, [data-open="true"] .panel-header-row {
+  background:linear-gradient(135deg,rgba(112,136,255,.14),rgba(112,136,255,.05)); color:var(--coral); }
+.panel-header:focus-visible { outline:2px solid var(--coral); outline-offset:-2px; }
+.panel-icon  { font-size:.95rem; flex-shrink:0; line-height:1; }
+.panel-label { flex:1; min-width:0; }
+.panel-badge { font-size:.6rem; font-weight:700; background:rgba(112,136,255,.2);
+  color:var(--coral); border-radius:10px; padding:1px 6px; min-width:18px;
+  text-align:center; flex-shrink:0; }
+[data-open="true"] .panel-badge { background:rgba(112,136,255,.35); }
+.chevron { font-size:.68rem; color:var(--tx2); transition:transform .22s cubic-bezier(.4,0,.2,1); flex-shrink:0; }
+[data-open="false"] .chevron { transform:rotate(-90deg); }
+[data-open="true"]  .chevron { color:var(--coral); }
+.panel-header-row { display:flex; align-items:stretch; border-bottom:1px solid var(--bdr);
+  transition:background .15s; flex-shrink:0; }
+.panel-header-row:hover { background:rgba(112,136,255,.08); }
+[data-open="false"] .panel-header-row { border-bottom-color:transparent; }
+.panel-header-row .panel-header { flex:1; min-width:0; border-bottom:none; background:transparent; }
+.panel-header-row:hover .panel-header { background:transparent; color:var(--coral); }
+.panel-header-row .expand-btn { flex-shrink:0; margin:auto .5rem; }
+.panel-body { padding:0 .7rem .65rem; display:flex; flex-direction:column; gap:.48rem;
+  max-height:min(600px,70vh); max-height:min(600px,70dvh); overflow-y:auto;
+  transition:max-height .26s ease, padding .22s ease, opacity .18s; opacity:1;
+  scrollbar-width:thin; scrollbar-color:var(--bdr) transparent; }
+.panel-body.scroll-ready { overflow-y:auto; } /* mantido para compatibilidade */
+.panel-body::-webkit-scrollbar { width:3px; }
+.panel-body::-webkit-scrollbar-thumb { background:var(--bdr); border-radius:2px; }
+[data-open="false"] .panel-body { max-height:0; padding-top:0; padding-bottom:0; opacity:0; overflow:hidden; }
+.chart-bd { padding:.4rem .5rem; }
+
+/* ── Busca ───────────────────────────────────────────────────── */
+.search-wrap { position:relative; }
+.search-input { width:100%; padding:.38rem 1.8rem .38rem .55rem; background:var(--bg0);
+  border:1px solid var(--bdr); border-radius:var(--rs); color:var(--tx1);
+  font-family:var(--font); font-size:.78rem; outline:none;
+  transition:border-color .2s; -webkit-appearance:none; appearance:none; }
+.search-input::-webkit-search-cancel-button { display:none; }
+.search-input::placeholder { color:var(--tx3); }
+.search-input:focus { border-color:var(--coral); }
+.search-icon { position:absolute; right:.5rem; top:50%; transform:translateY(-50%);
+  color:var(--tx3); pointer-events:none; }
+
+/* ── Abas de categoria (mol-cat-tabs — mesma mecânica SIEM) ──── */
+.mol-cat-tabs { display:flex; flex-wrap:wrap; gap:3px; margin:.4rem 0 .3rem; }
+.mol-cat-btn { padding:3px 8px; border-radius:5px; border:1px solid var(--bdr);
+  background:var(--bg3); color:var(--tx1); font-size:.63rem; font-weight:600;
+  cursor:pointer; transition:all .15s; min-height:24px; font-family:var(--font); }
+.mol-cat-btn:hover { background:var(--bg1); color:var(--tx1); border-color:var(--coral); }
+.mol-cat-btn.active-cat { background:linear-gradient(135deg,var(--coral2),var(--coral));
+  color:#fff; border-color:transparent; }
+.mol-cat-btn:focus-visible { outline:2px solid var(--coral); outline-offset:2px; }
+
+/* ── Lista de compostos (sub-list — mesma mecânica SIEM) ─────── */
+.sub-list { list-style:none; display:flex; flex-direction:column; gap:.18rem;
+  max-height:240px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--bdr) transparent; }
+.sub-list::-webkit-scrollbar { width:3px; }
+.sub-list::-webkit-scrollbar-thumb { background:var(--bdr); }
+.sub-item { display:flex; align-items:center; gap:.45rem; padding:.28rem .48rem;
+  border:1px solid var(--bdr); border-radius:var(--rs); cursor:pointer;
+  transition:background .12s, border-color .12s; user-select:none; }
+.sub-item:hover { background:var(--bg3); border-color:var(--bdr2); }
+.sub-item:focus { outline:2px solid var(--bdr-a); outline-offset:-2px; }
+.sub-item.active { background:rgba(112,136,255,.07); border-color:var(--bdr-a); }
+.sub-item.active .si-name { color:var(--tx1); }
+.si-dot   { width:7px; height:7px; border-radius:50%; flex-shrink:0; box-shadow:0 0 4px currentColor; }
+.si-formula { font-family:var(--mono); font-size:.76rem; color:var(--coral); font-weight:600; min-width:56px; }
+.si-name    { font-size:.72rem; color:var(--tx1); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sub-group-hdr { font-size:.6rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--tx2); padding:.4rem .4rem .12rem; list-style:none; pointer-events:none;
+  border-top:1px solid var(--bdr); margin-top:.1rem; }
+.sub-group-hdr:first-child { border-top:none; margin-top:0; }
+
+/* ── Data grid (mesma mecânica SIEM) ─────────────────────────── */
+.data-grid { display:flex; flex-direction:column; }
+.dr { display:flex; justify-content:space-between; align-items:baseline;
+  padding:.28rem 0; border-bottom:1px solid var(--bdr); gap:.5rem; }
+.dr:last-child { border-bottom:none; }
+.dr dt { font-size:.78rem; color:var(--tx1); flex-shrink:0; }
+.dr dd { font-family:var(--mono); font-size:.82rem; color:var(--amber); font-weight:600; text-align:right; }
+.dr dd.na { color:var(--tx2); font-style:italic; font-weight:400; font-size:.8rem; }
+.data-grid.live .dr dd { color:var(--coral2); }
+.data-subhead { font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--tx1); margin:.7rem 0 .2rem; padding-top:.6rem; border-top:1px solid var(--bdr); }
+.data-subhead:first-child { margin-top:0; padding-top:0; border-top:none; }
+
+/* ── Lewis SVG ───────────────────────────────────────────────── */
+.lewis-canvas { display:block; width:100%; height:160px; }
+.lewis-legenda { font-size:.62rem; color:var(--tx2); text-align:center; margin-top:.3rem; }
+
+/* ── Botões de controle (action-btn — mesma mecânica SIEM) ────── */
+/* prog-steps CSS removido — painel de progresso removido */
+
+/* ══════════════════════════════════════════════════════════════════
+   ÁREA CENTRAL — minimalista puro
+══════════════════════════════════════════════════════════════════ */
+.sim-area {
+  flex:1; position:relative; overflow:hidden;
+  background:#080c14; display:flex; flex-direction:column; min-width:0;   /* o tom da área central do SIMA */
+}
+
+/* Toggle Lab/Ficha */
+.view-toggle {
+  position:absolute; top:8px; right:8px; z-index:20;
+  display:flex; gap:2px;
+  background:rgba(9,9,11,.9); backdrop-filter:blur(8px);
+  border:1px solid var(--bdr); border-radius:20px; padding:3px;
+}
+/* .view-toggle[hidden] precisa vencer a regra acima (mesma
+   especificidade — quem decide é a ordem, e teria perdido por vir
+   antes). Restrito a aparecer só com o módulo Nomenclatura ativo —
+   ver js/modulos/alternar.js. */
+.view-toggle[hidden] { display:none; }
+html[data-theme="light"] .view-toggle { background:rgba(255,255,255,.85); }
+.view-toggle-btn {
+  background:transparent; border:none; color:var(--tx2);
+  font-size:.62rem; font-weight:700;
+  padding:.18rem .58rem; border-radius:20px;
+  cursor:pointer; transition:background .15s, color .15s;
+}
+.view-toggle-btn:hover { color:var(--tx1); }
+.view-toggle-btn.active { background:rgba(112,136,255,.18); color:var(--coral); }
+
+/* Painel genérico */
+.sim-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; background:#080c14; }
+.sim-panel[hidden] { display:none; }
+
+/* Dica central "escolha um módulo" — réplica do .canvas-hint do SIMA,
+   mostrada só enquanto NENHUM módulo está ativo (#panel-none, estado
+   inicial real desde a ETAPA "nenhum módulo ativo por padrão", igual
+   ao this.model=null do SIMA). Cor tx1 (não --text-muted do SIMA):
+   --tx2/--tx3 medem <4,5:1 sobre o fundo quase-preto #09090b desta
+   área — mesma correção já aplicada em outros pontos deste arquivo. */
+.sim-hint{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:.7rem; text-align:center; padding:2rem 1.2rem;
+}
+.sim-hint span{ font-size:2.6rem; opacity:.7; }
+.sim-hint p{
+  max-width:360px; font-size:.85rem; font-style:italic; line-height:1.6; color:var(--tx1);
+}
+.sim-hint strong{ font-style:normal; color:var(--coral); }
+
+/* Cabeçalho do experimento */
+.exp-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.3rem .75rem; border-bottom:1px solid var(--bdr);
+  background:#111113; flex-shrink:0; min-height:36px; gap:.6rem;
+}
+.exp-header[hidden] { display:none; }
+.exp-header-left  {
+  display:flex; flex-direction:column; gap:.08rem;
+  min-width:0; flex:1; overflow:hidden;
+}
+.exp-header-right { display:flex; align-items:center; gap:.25rem; flex-shrink:0; }
+.exp-num {
+  font-size:.68rem; font-weight:700; color:var(--coral);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.exp-fam {
+  font-size:.6rem; color:var(--tx2);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+
+/* rxn-wrapper — ocupa todo o espaço restante */
+.rxn-wrapper {
+  flex:1; overflow-y:auto; background:#080c14;
+  scrollbar-width:thin; scrollbar-color:var(--bdr) transparent;
+}
+.rxn-wrapper[hidden] { display:none; }
+
+/* Toast — feedback visual flutuante */
+.lab-toast {
+  position:absolute; bottom:12px; left:50%; transform:translateX(-50%);
+  z-index:30; max-width:min(520px, 90%); width:max-content;
+  padding:.4rem .85rem; border-radius:7px;
+  font-size:.7rem; line-height:1.5; pointer-events:none;
+  animation:toast-in .2s ease;
+  text-align:center;
+}
+.lab-toast[hidden] { display:none; }
+@keyframes toast-in {
+  from { opacity:0; transform:translateX(-50%) translateY(8px); }
+  to   { opacity:1; transform:translateX(-50%) translateY(0); }
+}
+.lab-toast-ok   { background:rgba(74,222,128,.14); border:1px solid rgba(74,222,128,.35); color:var(--green); }
+.lab-toast-err  { background:rgba(255,82,82,.12);  border:1px solid rgba(255,82,82,.35);  color:#ff8a8a; }
+.lab-toast-hint { background:rgba(255,170,68,.1);  border:1px solid rgba(255,170,68,.3);  color:var(--amber); }
+.lab-toast-info { background:rgba(9,9,11,.88);     border:1px solid var(--bdr);           color:var(--tx1); }
+html[data-theme="light"] .lab-toast-info { background:rgba(255,255,255,.9); }
+
+/* ══════════════════════════════════════════════════════════════════
+   PAINEL FICHA — área central ao selecionar composto
+══════════════════════════════════════════════════════════════════ */
+.ficha-scroll {
+  overflow-y:auto; flex:1; padding:1.2rem 1.4rem;
+  display:flex; flex-direction:column; gap:1rem;
+  background:#080c14;
+  scrollbar-width:thin; scrollbar-color:var(--bdr) transparent;
+}
+.ficha-scroll::-webkit-scrollbar { width:3px; }
+.ficha-scroll::-webkit-scrollbar-thumb { background:var(--bdr); }
+
+/* Hero: fórmula + info lado a lado */
+.ficha-hero {
+  display:grid; grid-template-columns:auto 1fr; gap:1.2rem;
+  align-items:start;
+  background:var(--bg2); border:1px solid var(--bdr);
+  border-radius:var(--r); padding:1.1rem 1.2rem;
+}
+.ficha-hero-left  { display:flex; flex-direction:column; gap:.4rem; }
+.ficha-hero-right { display:flex; flex-direction:column; gap:.6rem; }
+
+.ficha-formula {
+  font-family:var(--mono); font-size:clamp(1.8rem,5vw,3rem);
+  font-weight:700; color:var(--coral); line-height:1;
+  text-shadow:0 0 20px rgba(112,136,255,.35);
+}
+.ficha-name {
+  font-size:.85rem; color:var(--tx1); line-height:1.4;
+}
+.ficha-badges { display:flex; flex-wrap:wrap; gap:.3rem; }
+.badge { display:inline-flex; align-items:center; font-size:.6rem; font-weight:700;
+  padding:.15rem .45rem; border-radius:20px; border:1px solid; }
+.badge.acido { color:var(--acido-col); border-color:var(--acido-col); background:var(--acido-bg); }
+.badge.base  { color:var(--base-col);  border-color:var(--base-col);  background:var(--base-bg); }
+.badge.sal   { color:var(--sal-col);   border-color:var(--sal-col);   background:var(--sal-bg); }
+.badge.oxido { color:var(--oxido-col); border-color:var(--oxido-col); background:var(--oxido-bg); }
+
+/* Banner de função dentro do hero */
+.funcao-banner {
+  display:flex; align-items:center; gap:.6rem; padding:.45rem .7rem;
+  background:var(--bg3); border:1px solid var(--bdr); border-radius:var(--rs);
+  border-left:3px solid var(--coral);
+}
+.funcao-tag  { font-size:.75rem; font-weight:700; color:var(--coral); white-space:nowrap; }
+.funcao-desc { font-size:.7rem; color:var(--tx1); }
+
+/* Equação de ionização no hero */
+.ficha-section-label {
+  font-size:.6rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--tx1); margin-bottom:.2rem;
+}
+.ionizacao-box { background:var(--bg3); border:1px solid var(--bdr); border-radius:var(--rs); padding:.5rem .7rem; }
+.equacao-txt {
+  font-family:var(--mono); font-size:.85rem; color:var(--coral2);
+  word-break:break-all; line-height:1.5;
+}
+
+/* Grid de propriedades físicas */
+.ficha-props-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr));
+  gap:.55rem;
+}
+.ficha-prop-card {
+  background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--rs);
+  padding:.55rem .7rem; display:flex; flex-direction:column; gap:.2rem;
+  transition:border-color .15s;
+}
+.ficha-prop-card:hover { border-color:var(--bdr2); }
+.ficha-prop-wide { grid-column:1 / -1; }
+.ficha-prop-label {
+  font-size:.6rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--tx1);
+}
+.ficha-prop-val {
+  font-size:.8rem; color:var(--tx1); line-height:1.45;
+}
+.ficha-prop-val.mono { font-family:var(--mono); color:var(--amber); font-size:.78rem; }
+
+/* ── Visualizador 3D (motor do SILQ) — container que hospeda o canvas
+   que js/render/view3d-silq.js cria sozinho via getElementById().
+   O CSS original do SILQ (#viewer3d{position:absolute;inset:12px})
+   pressupõe um overlay de página inteira; aqui precisa de um wrapper
+   próprio com tamanho definido e position:relative pra ancorar.
+   Só existe UMA instância na página — vive na Ficha central
+   (.viewer3d-wrap--ficha, mais espaço = melhor percepção de
+   profundidade/rotação); a sidebar e a "pista visual" do desafio
+   bloqueado continuam com o SVG 2D (js/render/lewis.js). ── */
+.viewer3d-wrap{
+  position:relative; width:100%; height:210px;
+  border-radius:10px; overflow:hidden;
+  background:#060a12; border:1px solid var(--bdr2);
+}
+.viewer3d-wrap--ficha{
+  height:320px; max-width:520px; margin:0 auto;
+}
+#viewer3d{
+  position:absolute; inset:6px;
+  border-radius:8px; overflow:hidden;
+}
+.silq-selo{
+  font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  color:var(--cyan); background:rgba(0,200,255,.12); border:1px solid rgba(0,200,255,.35);
+  border-radius:8px; padding:1px 6px; margin-left:.4rem; vertical-align:middle;
+}
+
+/* Lewis central na ficha */
+.ficha-lewis-wrap {
+  background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--r);
+  padding:.8rem;
+}
+.ficha-lewis-svg {
+  display:block; width:100%; max-width:360px; height:180px; margin:0 auto;
+}
+.ficha-lewis-leg {
+  font-size:.63rem; color:var(--tx2); text-align:center; margin-top:.4rem;
+}
+
+/* ── SILQ 2D preview — usado na "pista visual" do desafio bloqueado
+   (Nomenclatura). Cópia fiel do visual real dos átomos do SILQ
+   (.atom/.electron-orbit/.electron-dot em stylesilq.css): círculo
+   colorido com anel de elétrons de valência orbitando. Única
+   diferença deliberada: a rotação usa @keyframes CSS puro em vez do
+   GSAP que o SILQ original usa pra girar o anel — mesmo efeito
+   visual, sem precisar carregar uma biblioteca externa só pra isso
+   (o motor 3D da Ficha central já segue esse mesmo princípio de
+   "zero dependências externas"). ── */
+.silq2d-canvas{
+  position:relative; width:100%; max-width:360px; height:200px; margin:0 auto;
+}
+.silq2d-bonds{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+.silq2d-bond-covalent{ stroke:#4fc3f7; stroke-width:3; }
+.silq2d-bond-ionic{ stroke:#ffb74d; stroke-width:3; }
+.silq2d-bond-metallic{ stroke:rgba(255,255,255,.18); stroke-width:14; stroke-linecap:round; }
+
+.silq2d-atom{
+  position:absolute; left:50%; top:50%; width:44px; height:44px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  transform:translate(-50%,-50%);
+  font-weight:800; font-size:.78rem; font-family:var(--mono);
+  border:2px solid rgba(255,255,255,.5);
+  box-shadow:0 4px 12px rgba(0,0,0,.5);
+  z-index:10;
+}
+.silq2d-orbit{
+  position:absolute; left:50%; top:50%; width:0; height:0; z-index:9; pointer-events:none;
+  animation-name:silq2d-spin; animation-timing-function:linear; animation-iteration-count:infinite;
+}
+.silq2d-electron{
+  position:absolute; width:5px; height:5px; top:-2.5px; left:-2.5px; border-radius:50%;
+  background:#80f0ff; box-shadow:0 0 5px #80f0ff;
+}
+@keyframes silq2d-spin{ to{ transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce){
+  .silq2d-orbit{ animation:none; }
+}
+
+/* Reação e curiosidade */
+.ficha-reacao-wrap, .ficha-curiosidade-wrap {
+  background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--r);
+  padding:.8rem 1rem;
+}
+.reacao-txt {
+  font-family:var(--mono); font-size:.78rem; color:var(--tx1);
+  line-height:1.7; white-space:pre-wrap; margin-top:.25rem;
+}
+.curiosidade-txt {
+  font-size:.78rem; color:var(--tx1); line-height:1.75; margin-top:.25rem;
+}
+
+/* Botão voltar ao Lab */
+.ficha-footer { display:flex; justify-content:center; padding:.5rem 0 .3rem; }
+.ficha-btn-lab {
+  background:transparent; border:1px solid var(--bdr); color:var(--tx1);
+  border-radius:7px; padding:.4rem 1.1rem; font-size:.72rem; cursor:pointer;
+  transition:all .15s;
+}
+.ficha-btn-lab:hover { border-color:var(--coral); color:var(--coral); }
+
+/* Responsivo ficha */
+@media (max-width:640px){
+  .ficha-scroll { padding:.8rem .9rem; gap:.7rem; }
+  .ficha-hero { grid-template-columns:1fr; }
+  .ficha-formula { font-size:clamp(1.4rem,8vw,2rem); }
+  .ficha-props-grid { grid-template-columns:repeat(2,1fr); }
+  .ficha-prop-wide { grid-column:1/-1; }
+}
+@media (max-width:480px){
+  .ficha-scroll { padding:.6rem .7rem; }
+  .ficha-props-grid { grid-template-columns:1fr 1fr; }
+  .ficha-prop-val { font-size:.74rem; }
+  .equacao-txt { font-size:.78rem; }
+}
+
+
+
+/* ══════════════════════════════════════════════════════════════════
+   MODAL DE EXPANSÃO — leitura ampliada (padrão SIEM)
+══════════════════════════════════════════════════════════════════ */
+.expand-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.78); z-index:200;
+  display:flex; align-items:center; justify-content:center; padding:1.5rem;
+}
+.expand-overlay[hidden] { display:none; }
+
+.expand-modal {
+  background:var(--bg1); border:1px solid var(--bdr2); border-radius:var(--r);
+  max-width:720px; width:100%; max-height:85vh; max-height:85dvh;
+  display:flex; flex-direction:column;
+  box-shadow:0 24px 64px rgba(0,0,0,.65);
+  min-width:0;
+}
+.expand-modal-hd {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.85rem 1.1rem; border-bottom:1px solid var(--bdr);
+  gap:.75rem; flex-shrink:0;
+}
+.expand-modal-hd h2 {
+  font-size:1.1rem; color:var(--coral); font-weight:700;
+  min-width:0; overflow-wrap:break-word;
+}
+.expand-close {
+  background:transparent; border:1px solid var(--bdr); color:var(--tx1);
+  border-radius:var(--rs); width:34px; height:34px; min-width:34px;
+  font-size:1rem; cursor:pointer; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .13s;
+}
+.expand-close:hover { background:var(--bg3); border-color:var(--coral); color:var(--coral); }
+.expand-modal-bd {
+  padding:1.3rem 1.5rem; overflow-y:auto; font-size:1em; line-height:1.8;
+  overflow-wrap:break-word; word-break:break-word;
+  scrollbar-width:thin; scrollbar-color:var(--bdr) transparent;
+}
+.expand-modal-bd .dr { padding:.65rem 0; font-size:1em; }
+.expand-modal-bd .dr dt { font-size:.9rem; color:var(--tx1); font-weight:600; }
+.expand-modal-bd .dr dd { font-size:.95rem; }
+body.modal-open { overflow:hidden; }
+
+/* Botão expand nos painéis */
+.expand-btn {
+  background:transparent; border:1px solid var(--bdr); color:var(--tx2);
+  border-radius:var(--rs); width:20px; height:20px;
+  font-size:.65rem; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; line-height:1; transition:all .13s;
+}
+.expand-btn:hover { background:var(--bg3); color:var(--coral); border-color:var(--coral); }
+
+/* media queries responsivos consolidados abaixo */
+
+/* ══════════════════════════════════════════════════════════════════
+   RXN BUILDER v2 — layout centralizado e distribuído
+══════════════════════════════════════════════════════════════════ */
+
+/* ── Wrapper: ocupa todo o espaço do sim-panel ─── */
+.rxn-wrapper {
+  flex:1; background:#080c14; overflow-y:auto;
+  display:flex; flex-direction:column;
+  scrollbar-width:thin; scrollbar-color:var(--bdr) transparent;
+}
+.rxn-wrapper[hidden] { display:none; }
+
+/* ── Root: distribui verticalmente com gaps ─── */
+.rxb-root {
+  flex:1; display:flex; flex-direction:column;
+  padding:1.4rem 1.5rem 1rem;
+  gap:0; /* gaps controlados por margin nos filhos */
+}
+.rxb-root.rxb-acertou { background:rgba(74,222,128,.03); }
+
+@keyframes rxb-shake-anim {
+  0%,100%{ transform:translateX(0); }
+  25%    { transform:translateX(-6px); }
+  75%    { transform:translateX(6px); }
+}
+.rxb-shake { animation:rxb-shake-anim .4s ease; }
+
+/* ── Zona da equação — centralizada, grande ─── */
+.rxb-eq-row {
+  display:flex; align-items:center; justify-content:center;
+  flex-wrap:wrap; gap:1rem;
+  padding:.5rem 0 1.4rem;
+  border-bottom:1px solid var(--bdr);
+}
+.rxb-op {
+  font-size:1.5rem; color:var(--tx2); flex-shrink:0; line-height:1; font-weight:200;
+}
+.rxb-seta {
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  flex-shrink:0; padding:0 .4rem;
+}
+.rxb-seta-arrow { font-size:2rem; color:var(--coral); line-height:1; }
+.rxb-seta-cond  {
+  font-size:.68rem; color:var(--amber); font-family:var(--mono);
+  font-weight:700; white-space:nowrap;
+}
+
+/* ── Reagente com spinner acima ─── */
+.rxb-reagente { display:flex; flex-direction:column; align-items:center; gap:.3rem; }
+
+/* ── Spinner −/n/+ ─── */
+.rxb-coef-wrap { display:flex; align-items:center; gap:3px; }
+.rxb-coef-btn {
+  width:22px; height:22px; display:flex; align-items:center; justify-content:center;
+  background:var(--bg3); border:1px solid var(--bdr); color:var(--tx1);
+  border-radius:4px; font-size:.85rem; cursor:pointer; line-height:1;
+  transition:all .1s; padding:0; flex-shrink:0; user-select:none;
+}
+.rxb-coef-btn:hover { background:var(--bdr2); color:var(--tx1); border-color:var(--coral); }
+.rxb-coef-val {
+  font-family:var(--mono); font-size:.9rem; font-weight:700;
+  color:var(--amber); min-width:18px; text-align:center; user-select:none;
+}
+
+/* ── Bolhas de molécula ─── */
+.rxb-mol { display:flex; flex-direction:column; align-items:center; gap:.28rem; }
+.rxb-mol-formula {
+  font-family:var(--mono); font-size:1.18rem; font-weight:700;
+  padding:.48rem 1rem; border-radius:9px; border:2px solid;
+  white-space:nowrap; line-height:1.2;
+  transition:transform .15s, box-shadow .15s;
+  display:flex; align-items:baseline; gap:.18rem;
+}
+.rxb-mol-formula:hover { transform:scale(1.04); box-shadow:0 0 8px rgba(255,255,255,.12); }
+/* Estado físico (s), (l), (g), (aq) — dentro da bolha */
+.rxb-mol-estado {
+  font-size:.65em; font-weight:400; opacity:.9;
+  letter-spacing:0; flex-shrink:0;
+}
+.rxb-mol-nome {
+  font-size:.78rem; color:var(--tx1); max-width:130px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center;
+}
+
+/* Bolhas do builder — totalmente neutras, sem cor de função */
+.rxb-mol-reagente .rxb-mol-formula,
+.rxb-tray-mol .rxb-mol-formula,
+.rxb-slot-filled .rxb-mol-formula {
+  color:var(--tx1);
+  border-color:var(--bdr2);
+  background:var(--bg3);
+}
+
+/* ── Slots de produto ─── */
+.rxb-slots-wrap {
+  display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+}
+.rxb-slot {
+  min-width:120px; min-height:100px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  border-radius:12px; border:2px dashed var(--bdr2);
+  transition:border-color .18s, background .18s, transform .15s;
+  position:relative; cursor:pointer; gap:.15rem; padding:.35rem .55rem;
+}
+.rxb-slot:hover { transform:scale(1.02); }
+.rxb-slot-empty { background:var(--bg2); }
+.rxb-slot-empty:hover, .rxb-drag-over {
+  border-color:var(--coral); background:rgba(112,136,255,.07);
+}
+.rxb-slot-ph {
+  display:flex; flex-direction:column; align-items:center; gap:.2rem;
+  pointer-events:none;
+}
+.rxb-slot-ph-icon {
+  font-size:2rem; color:var(--bdr2); line-height:1; transition:color .15s;
+}
+.rxb-slot-ph-txt {
+  font-size:.65rem; color:var(--tx3); transition:color .15s;
+}
+.rxb-slot-empty:hover .rxb-slot-ph-icon,
+.rxb-drag-over .rxb-slot-ph-icon { color:var(--coral); }
+.rxb-slot-empty:hover .rxb-slot-ph-txt,
+.rxb-drag-over .rxb-slot-ph-txt  { color:var(--tx2); }
+
+.rxb-slot-filled {
+  border-style:solid; gap:.1rem; padding:.22rem .4rem;
+  border-color:var(--bdr2); background:var(--bg3);
+}
+/* slot-filled neutro — definido na regra base abaixo */
+
+.rxb-coef-slot { margin-bottom:.05rem; }
+.rxb-slot-mol { display:flex; flex-direction:column; align-items:center; gap:.1rem; pointer-events:none; }
+.rxb-slot-remove {
+  position:absolute; top:3px; right:3px;
+  width:16px; height:16px; border-radius:50%;
+  background:rgba(255,82,82,.18); border:none; color:var(--red);
+  font-size:.7rem; cursor:pointer; display:flex; align-items:center;
+  justify-content:center; line-height:1; transition:background .1s; padding:0;
+}
+.rxb-slot-remove:hover { background:rgba(255,82,82,.5); }
+
+@keyframes rxb-correct-pulse {
+  0%   { box-shadow:0 0 0 0 rgba(74,222,128,.7); }
+  70%  { box-shadow:0 0 0 10px rgba(74,222,128,0); }
+  100% { box-shadow:none; }
+}
+.rxb-slot-correct {
+  border-color:var(--green) !important;
+  animation:rxb-correct-pulse .6s ease;
+}
+.rxb-slot-wrong {
+  border-color:var(--red) !important;
+  background:rgba(255,82,82,.1) !important;
+}
+
+/* ── Tray de candidatos ─── */
+.rxb-tray-label {
+  font-size:.68rem; color:var(--tx1);
+  padding:.9rem 0 .3rem; letter-spacing:.01em;
+}
+.rxb-tray {
+  display:flex; flex-wrap:wrap; gap:.7rem; padding:.2rem 0 .9rem;
+  border-bottom:1px solid var(--bdr);
+}
+.rxb-tray-mol {
+  display:flex; flex-direction:column; align-items:center; gap:.15rem;
+  cursor:grab; user-select:none; border-radius:8px;
+  padding:.06rem .2rem; transition:transform .13s, opacity .13s;
+}
+.rxb-tray-mol:hover { transform:translateY(-3px); }
+.rxb-tray-mol.rxb-selected .rxb-mol-formula {
+  outline:2px solid #fff; outline-offset:3px;
+  box-shadow:0 0 12px rgba(255,255,255,.25);
+}
+.rxb-tray-mol.rxb-dragging { opacity:.35; cursor:grabbing; }
+
+/* ── Painel estequiométrico central — só equação texto, sem cores ─── */
+.rxb-stoich {
+  background:var(--bg2); border:1px solid var(--bdr); border-radius:6px;
+  padding:.45rem .65rem; margin-top:.7rem;
+  min-height:32px; display:flex; flex-direction:column; gap:.2rem;
+}
+.rxb-stoich-hint  { font-size:.65rem; color:var(--tx2); }
+.rxb-stoich-eq    { font-family:var(--mono); font-size:.8rem; color:var(--tx1); line-height:1.5; }
+.rxb-stoich-mol   { color:var(--tx1); }
+.rxb-stoich-arrow { color:var(--tx1); margin:0 .2rem; }
+
+/* ── Botões de ação do Lab — sidebar direita ─── */
+.lab-actions-panel {
+  display:flex; gap:.5rem; padding:.5rem;
+  flex-shrink:0;
+}
+/* Mesma causa raiz já corrigida em .panel[hidden] (ver bloco "Painéis
+   recolhíveis" no topo deste arquivo): display:flex sem este override
+   faz o atributo nativo hidden não ter efeito algum. */
+.lab-actions-panel[hidden] { display:none; }
+.lab-action-verify {
+  flex:1; background:var(--coral); border:none; color:#fff;
+  border-radius:8px; padding:.6rem .8rem;
+  font-size:.82rem; font-weight:700; cursor:pointer; font-family:var(--font);
+  transition:background .13s, transform .1s; letter-spacing:.02em;
+  white-space:nowrap;
+}
+.lab-action-verify:hover  { background:var(--coral2); }
+.lab-action-verify:active { transform:scale(.97); }
+.lab-action-reset {
+  background:var(--bg3); border:1px solid var(--bdr2); color:var(--tx1);
+  border-radius:8px; padding:.6rem .75rem;
+  font-size:.82rem; font-weight:600; cursor:pointer; font-family:var(--font);
+  transition:background .13s, border-color .13s, transform .1s;
+  white-space:nowrap;
+}
+.lab-action-reset:hover  { background:var(--bdr2); border-color:var(--coral); }
+.lab-action-reset:active { transform:scale(.97); }
+
+/* ── Footer com botão verificar ─── */
+.rxb-footer {
+  display:flex; justify-content:flex-end;
+  padding-top:.7rem; margin-top:auto;
+}
+.rxb-btn-check {
+  background:var(--coral); border:none; color:#fff;
+  border-radius:8px; padding:.48rem 1.3rem;
+  font-size:.8rem; font-weight:700; cursor:pointer;
+  transition:background .13s, transform .1s; letter-spacing:.02em;
+}
+.rxb-btn-check:hover  { background:var(--coral2); }
+.rxb-btn-check:active { transform:scale(.97); }
+.rxb-btn-check:disabled { background:var(--green); cursor:default; }
+
+/* ── Tela de acerto ─── */
+.rxb-acerto-screen {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:1.8rem; padding:2.5rem 2rem;
+  animation:rxb-acerto-in .5s cubic-bezier(.34,1.4,.64,1) both;
+}
+@keyframes rxb-acerto-in {
+  from { opacity:0; transform:scale(.88) translateY(14px); }
+  to   { opacity:1; transform:scale(1)   translateY(0); }
+}
+.rxb-acerto-icon {
+  font-size:3.5rem; line-height:1;
+  filter:drop-shadow(0 0 20px rgba(74,222,128,.75));
+}
+.rxb-acerto-eq-wrap {
+  display:flex; flex-direction:column; align-items:center; gap:.7rem;
+  background:var(--bg2); border:1px solid rgba(74,222,128,.35);
+  border-radius:14px; padding:1.4rem 2.2rem;
+  box-shadow:0 0 40px -10px rgba(74,222,128,.2);
+  max-width:600px; width:100%;
+}
+.rxb-acerto-label {
+  font-size:.65rem; text-transform:uppercase; letter-spacing:.12em;
+  color:var(--green); font-weight:700;
+}
+.rxb-acerto-eq {
+  font-family:var(--mono); font-size:clamp(1rem,2.8vw,1.55rem);
+  font-weight:700; color:var(--tx1); text-align:center;
+  letter-spacing:.03em; line-height:1.45;
+}
+.rxb-eq-reagente { color:var(--tx1); }
+.rxb-eq-seta     { color:var(--coral); margin:0 .5rem; }
+.rxb-eq-produto  { color:var(--green); }
+.rxb-acerto-mecanismo {
+  font-size:.78rem; color:var(--tx1); text-align:center;
+  font-family:var(--mono); letter-spacing:.01em; line-height:1.65;
+  max-width:500px;
+}
+.rxb-acerto-actions { display:flex; gap:.7rem; align-items:center; }
+.rxb-acerto-btn-next {
+  background:var(--green); border:none; color:#09090b;
+  border-radius:9px; padding:.5rem 1.4rem;
+  font-size:.82rem; font-weight:700; cursor:pointer;
+  transition:all .13s; letter-spacing:.02em;
+}
+.rxb-acerto-btn-next:hover { filter:brightness(1.12); transform:translateY(-1px); }
+
+
+@keyframes rxb-particle {
+  0%   { transform:translateY(0) scale(1); opacity:1; }
+  100% { transform:translateY(-70px) scale(0); opacity:0; }
+}
+.rxb-particle {
+  position:absolute; width:7px; height:7px; border-radius:50%;
+  animation:rxb-particle .9s ease forwards;
+  pointer-events:none;
+}
+
+
+/* Reduce motion */
+html[data-motion="true"] .rxb-shake,
+html[data-motion="true"] .rxb-slot-correct,
+html[data-motion="true"] .rxb-tray-mol:hover,
+html[data-motion="true"] .rxb-acerto-screen
+  { animation:none !important; transform:none !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   CHIP DE CONTEXTO — indica o composto em consulta na sidebar
+══════════════════════════════════════════════════════════════════ */
+.consulta-chip {
+  display:flex; align-items:center; gap:.4rem; flex-wrap:wrap;
+  padding:.3rem .5rem; margin-bottom:.3rem;
+  background:var(--bg3); border:1px solid var(--bdr);
+  border-radius:var(--rs);
+}
+.consulta-chip-label {
+  font-size:.55rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--tx2); flex-shrink:0;
+}
+.consulta-chip-formula {
+  font-family:var(--mono); font-size:.78rem; font-weight:700;
+  color:var(--coral); flex-shrink:0;
+}
+.consulta-chip-nome {
+  font-size:.62rem; color:var(--tx1);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  min-width:0; flex:1;
+}
+
+/* ── Separador visual entre consulta e experimento ─── */
+.sidebar--left { border-right:2px solid var(--bdr); }
+
+/* sub-item: highlight mais claro, sem confundir com estado do experimento */
+.sub-item.active {
+  background:rgba(112,136,255,.06);
+  border-color:var(--bdr-a);
+}
+.sub-item.active .si-formula { color:var(--coral); }
+.sub-item.active .si-name    { color:var(--tx1); }
+/* Dot ativo pulsa levemente */
+.sub-item.active .si-dot {
+  animation:dot-pulse 2s ease-in-out infinite;
+}
+@keyframes dot-pulse {
+  0%,100% { opacity:1; }
+  50%      { opacity:.5; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   RESPONSIVIDADE — 5 breakpoints
+   1440+ : desktop wide     (padrão acima)
+   1100  : desktop compact
+    900  : tablet landscape / desktop pequeno
+    640  : tablet portrait / mobile landscape
+    480  : mobile portrait
+    360  : mobile pequeno / fold
+══════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════
+   BALANÇO ATÔMICO — painel analítico de análise em tempo real
+══════════════════════════════════════════════════════════════════ */
+
+/* Equação + barra de progresso global */
+.bal-equacao {
+  font-size:.72rem; color:var(--tx1);
+  padding:.3rem 0 .5rem; border-bottom:1px solid var(--bdr);
+  margin-bottom:.45rem; display:flex; flex-direction:column; gap:.3rem;
+}
+.bal-eq-line {
+  font-family:var(--mono); line-height:1.5; word-break:break-all;
+  color:var(--tx1);
+}
+.bal-progress-wrap {
+  height:4px; background:var(--bg3); border-radius:2px; overflow:hidden;
+}
+.bal-progress-bar {
+  height:100%; border-radius:2px;
+  transition:width .3s ease, background .3s ease;
+}
+.bal-status-row {
+  display:flex; align-items:center; justify-content:space-between;
+}
+.bal-status-ok  { font-size:.68rem; font-weight:700; color:var(--green); }
+.bal-status-err { font-size:.68rem; font-weight:700; color:var(--red); }
+.bal-status-idle{ font-size:.65rem; color:var(--tx2); }
+.bal-pct        { font-size:.62rem; font-weight:700; color:var(--tx2); font-family:var(--mono); }
+
+/* Hint quando sem produtos */
+.bal-hint { font-size:.65rem; color:var(--tx2); line-height:1.5; }
+
+/* Grid de elementos */
+.bal-grid {
+  display:flex; flex-direction:column; gap:.35rem;
+}
+
+/* Linha de elemento */
+.bal-row {
+  display:flex; flex-direction:column; gap:.2rem;
+  padding:.35rem .45rem;
+  border-radius:6px; border:1px solid var(--bdr);
+  background:var(--bg3);
+  transition:border-color .2s, background .2s;
+}
+.bal-row-ok    { border-color:rgba(74,222,128,.35); background:rgba(74,222,128,.04); }
+.bal-row-over  { border-color:rgba(251,146,60,.4);  background:rgba(251,146,60,.04); }
+.bal-row-under { border-color:rgba(255,82,82,.4);   background:rgba(255,82,82,.04); }
+
+/* Header da linha: símbolo + contadores + badge */
+.bal-row-hd {
+  display:flex; align-items:center; gap:.4rem;
+}
+.bal-el {
+  font-family:var(--mono); font-size:.76rem; font-weight:700;
+  color:var(--tx1); min-width:20px;
+}
+.bal-counts {
+  display:flex; align-items:center; gap:.25rem; flex:1;
+}
+.bal-count {
+  font-family:var(--mono); font-size:.72rem; font-weight:700;
+  min-width:18px; text-align:center;
+  padding:.05rem .3rem; border-radius:4px;
+  background:var(--bg2);
+}
+.bal-count-esq    { color:var(--tx1); }
+.bal-count-ok     { color:var(--green); background:rgba(74,222,128,.12); }
+.bal-count-over   { color:var(--amber); background:rgba(251,146,60,.12); }
+.bal-count-under  { color:var(--red);   background:rgba(255,82,82,.12); }
+.bal-count-sep    { font-size:.6rem; color:var(--tx2); }
+
+/* Badge de status */
+.bal-badge {
+  font-size:.6rem; font-weight:700;
+  padding:.08rem .35rem; border-radius:10px;
+  flex-shrink:0; white-space:nowrap;
+}
+.bal-badge-ok    { background:rgba(74,222,128,.18); color:var(--green); }
+.bal-badge-over  { background:rgba(251,146,60,.18); color:var(--amber); }
+.bal-badge-under { background:rgba(255,82,82,.18);  color:var(--red); }
+
+/* Barras comparativas duplas */
+.bal-bars {
+  display:flex; flex-direction:column; gap:.14rem;
+}
+.bal-bar-track {
+  height:6px; background:var(--bg2); border-radius:3px; overflow:hidden;
+}
+.bal-bar-fill {
+  height:100%; border-radius:3px;
+  transition:width .3s ease;
+  min-width:2px;
+}
+.bal-bar-esq   { background:var(--tx2); }
+.bal-bar-ok    { background:var(--green); }
+.bal-bar-over  { background:var(--amber); }
+.bal-bar-under { background:var(--red); }
+
+/* Rótulos das barras */
+.bal-row-labels {
+  display:flex; justify-content:space-between;
+}
+.bal-lbl {
+  font-size:.54rem; color:var(--tx2); letter-spacing:.02em;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TELA DE BOAS-VINDAS — laboratório vazio
+══════════════════════════════════════════════════════════════════ */
+.rxl-welcome {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:1.1rem; padding:2.5rem 2rem;
+  text-align:center;
+  animation:rxb-acerto-in .3s ease both;
+}
+.rxl-welcome-icon  { font-size:3rem; line-height:1; opacity:.6; }
+.rxl-welcome-titulo {
+  font-size:1.1rem; font-weight:700; color:var(--tx1);
+  letter-spacing:.02em;
+}
+.rxl-welcome-sub {
+  font-size:.8rem; color:var(--tx1); max-width:380px; line-height:1.6;
+}
+
+
+/* Responsivo */
+@media (max-width:640px){
+  .rxl-welcome { padding:1.8rem 1.2rem; gap:.85rem; }
+  .rxl-welcome-titulo { font-size:.95rem; }
+  .rxl-welcome-sub { font-size:.74rem; }
+}
+@media (max-width:480px){
+  .rxl-welcome { padding:1.3rem .9rem; }
+}
+
+/* ── 1440+: desktop wide — sidebars maiores ──────────────────── */
+@media (min-width:1440px){
+  :root{ --sl:clamp(280px,22vw,400px); --sr:clamp(240px,20vw,320px); }
+  .rxb-root { padding:1.8rem 2rem 1.2rem; }
+  :root{
+    --rxb-mol-fs:1.15rem;
+    --rxb-mol-pad:.48rem 1rem;
+    --rxb-slot-w:130px; --rxb-slot-h:108px;
+  }
+  .rxb-mol-formula { font-size:var(--rxb-mol-fs); padding:var(--rxb-mol-pad); }
+  .rxb-slot { min-width:var(--rxb-slot-w); min-height:var(--rxb-slot-h); }
+}
+
+/* ── 1100: desktop compact — sidebars apertam ────────────────── */
+@media (max-width:960px){
+  :root{ --sl:clamp(220px,22vw,290px); --sr:clamp(190px,19vw,250px); }
+  .rxb-root { padding:1rem 1rem .8rem; }
+  :root{
+    --rxb-mol-fs:.95rem;
+    --rxb-slot-w:100px; --rxb-slot-h:86px;
+  }
+  .rxb-mol-formula { font-size:var(--rxb-mol-fs); }
+  .rxb-slot { min-width:var(--rxb-slot-w); min-height:var(--rxb-slot-h); }
+}
+
+/* ── 900: tablet landscape / small desktop ───────────────────── */
+.mode-tabs-mobile { display: none; }
+@media (max-width:900px){
+  /* Sidebars viram off-canvas deslizante */
+  .mobile-menu-btn { display:flex !important; }
+  .sidebar {
+    position:fixed; top:var(--hh); bottom:0; z-index:100;
+    transform:translateX(-110%);
+    transition:transform .25s ease;
+    box-shadow:4px 0 24px rgba(0,0,0,.55);
+    width:min(88vw, 320px); max-width:320px;
+  }
+  /* sidebar esquerda (módulos) fica ESCONDIDA no mobile — a barra de
+     modos rolável (.mode-tabs-mobile) assume essa função. */
+  .sidebar--left { display: none; }
+  /* sidebar direita (propriedades/laboratório) vira um BOTTOM SHEET. */
+  .sidebar--right {
+    left:0; right:0; top:auto; bottom:0;
+    width:auto; max-width:none; min-width:0;
+    height:auto; max-height:75vh;
+    border-radius: 16px 16px 0 0;
+    box-shadow:0 -4px 24px rgba(0,0,0,.55);
+    transform:translateY(105%);
+    overflow-y:auto; padding-top:.35rem;
+  }
+  .sidebar--right.mobile-open { transform:translateY(0); }
+  .sidebar--right::before {
+    content:''; display:block; width:36px; height:4px; border-radius:2px;
+    background:var(--bdr); margin:.5rem auto .25rem;
+  }
+  .state-pill { display:none; }
+
+  .mode-tabs-mobile {
+    display: flex; gap: .4rem; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: .5rem .6rem; background: var(--bg1); border-bottom: 1px solid var(--bdr);
+    scrollbar-width: thin;
+  }
+  .mode-tab {
+    flex: none; display: flex; align-items: center; gap: .3rem;
+    padding: .4rem .7rem; border-radius: 999px; border: 1px solid var(--bdr);
+    background: transparent; color: var(--tx2);
+    font-size: .78rem; white-space: nowrap; cursor: pointer; min-height: 36px;
+  }
+  .mode-tab .icon { width: 1em; height: 1em; }
+  .mode-tab[aria-selected="true"] {
+    border-color: var(--coral); color: var(--tx1);
+    background: color-mix(in srgb, var(--coral) 18%, transparent);
+  }
+
+  /* Builder: elementos menores */
+  .rxb-root { padding:.85rem .9rem .7rem; }
+  .rxb-eq-row { gap:.65rem; }
+  .rxb-mol-formula { font-size:.9rem; padding:.32rem .7rem; border-width:1.5px; }
+  .rxb-slot { min-width:90px; min-height:80px; border-radius:9px; }
+  .rxb-seta-arrow { font-size:1.5rem; }
+  .rxb-tray { gap:.4rem; }
+  .rxb-stoich-eq { font-size:.78rem; }
+  .rxb-acerto-eq { font-size:clamp(.9rem,2.5vw,1.3rem); }
+  .rxb-acerto-eq-wrap { padding:1rem 1.4rem; }
+}
+
+.mode-info-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.72); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+  opacity: 0; visibility: hidden; transition: opacity .2s, visibility .2s;
+}
+.mode-info-overlay.aberto { opacity: 1; visibility: visible; }
+.mode-info-modal {
+  background: var(--bg2); border: 1px solid var(--bdr); border-radius: var(--r);
+  width: min(420px, 94vw); max-height: 80vh; max-height: 80dvh; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 56px rgba(0,0,0,.6);
+  transform: scale(.94) translateY(10px);
+  transition: transform .22s cubic-bezier(.34,1.56,.64,1);
+}
+.mode-info-overlay.aberto .mode-info-modal { transform: scale(1) translateY(0); }
+.mode-info-header {
+  display: flex; align-items: center; gap: .6rem; padding: .9rem 1rem;
+  background: var(--bg1); border-bottom: 1px solid var(--bdr); flex-shrink: 0;
+}
+.mode-info-icon { font-size: 1.3rem; color: var(--coral); flex-shrink: 0; display: flex; }
+.mode-info-icon .icon { width: 1.2em; height: 1.2em; }
+.mode-info-title { flex: 1; margin: 0; font-size: 1.02rem; color: var(--tx1); }
+.mode-info-close {
+  background: transparent; border: 1px solid var(--bdr); border-radius: 8px; color: var(--tx2);
+  min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+.mode-info-close:hover, .mode-info-close:focus-visible {
+  background: var(--bg3); color: var(--tx1); border-color: var(--coral);
+  outline: 2px solid var(--coral); outline-offset: 2px;
+}
+.mode-info-body { padding: 1rem; overflow-y: auto; font-size: .88rem; color: var(--tx2); }
+.mode-info-body .mode-define { color: var(--tx1); margin: 0 0 .6rem; line-height: 1.5; }
+@media (pointer: coarse) { .mode-info-close { min-width: 44px; min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .mode-info-modal { transition: none; } }
+
+/* ── 640: tablet portrait / mobile landscape ─────────────────── */
+@media (max-width:640px){
+  /* Builder: equação em coluna no mobile */
+  .rxb-eq-row {
+    flex-direction:column; align-items:center;
+    gap:.55rem; padding:.4rem 0 1rem;
+  }
+  .rxb-slots-wrap {
+    display:flex; flex-wrap:wrap; justify-content:center; gap:.55rem;
+  }
+  .rxb-seta { flex-direction:row; padding:.1rem .3rem; }
+  .rxb-seta-arrow { font-size:1.3rem; }
+  .rxb-seta-cond  { font-size:.6rem; margin-left:.3rem; }
+  .rxb-mol-formula { font-size:.88rem; padding:.3rem .65rem; }
+  .rxb-slot { min-width:85px; min-height:75px; border-radius:8px; }
+  .rxb-slot-ph-icon { font-size:1.5rem; }
+  .rxb-tray { gap:.35rem; }
+  .rxb-tray-label { font-size:.58rem; }
+  .rxb-stoich { padding:.38rem .5rem; }
+  .rxb-stoich-eq { font-size:.74rem; }
+  .rxb-btn-check { padding:.42rem 1rem; font-size:.74rem; }
+  .lab-action-verify, .lab-action-reset { padding:.5rem .65rem; font-size:.76rem; }
+  .rxb-acerto-screen { padding:1.5rem 1rem; gap:1.2rem; }
+  .rxb-acerto-icon { font-size:2.6rem; }
+  .rxb-acerto-eq { font-size:.95rem; }
+  .rxb-acerto-eq-wrap { padding:.85rem 1.1rem; border-radius:10px; }
+  .rxb-acerto-mecanismo { font-size:.7rem; }
+
+  /* Painel info / ficha */
+  .ficha-hero { flex-direction:column; align-items:flex-start; }
+  .ficha-formula { font-size:1.6rem; }
+
+  /* Modal tela cheia */
+  .expand-overlay { padding:0; }
+  .expand-modal {
+    max-width:100vw; width:100vw; max-height:100vh; max-height:100dvh; height:100vh; height:100dvh;
+    border-radius:0; border:none;
+  }
+  .expand-modal-hd { padding:.75rem 1rem; }
+  .expand-modal-bd { padding:.9rem; }
+
+  /* Data grid no painel: uma coluna */
+  .dr { flex-direction:column; gap:.1rem; align-items:flex-start; }
+  .dr dd { text-align:left; }
+
+  /* Toast mais largo */
+  .lab-toast { max-width:92vw; font-size:.68rem; padding:.35rem .7rem; }
+
+  /* Painel estequiométrico: grade menor */
+}
+
+/* ── 480: mobile portrait ─────────────────────────────────────── */
+@media (max-width:480px){
+  /* Builder ainda menor */
+  .rxb-root { padding:.65rem .7rem .5rem; }
+  .rxb-mol-formula { font-size:.82rem; padding:.26rem .55rem; border-radius:7px; }
+  .rxb-slot { min-width:78px; min-height:68px; border-radius:7px; }
+  .rxb-slot-ph-icon { font-size:1.3rem; }
+  .rxb-slot-ph-txt  { font-size:.56rem; }
+  .rxb-mol-nome { font-size:.66rem; max-width:90px; color:var(--tx1); }
+  .rxb-tray-mol { padding:.04rem .12rem; }
+  .rxb-coef-btn { width:18px; height:18px; font-size:.72rem; }
+  .rxb-coef-val { font-size:.78rem; }
+  .rxb-stoich-eq { font-size:.7rem; }
+  .rxb-btn-check { padding:.38rem .85rem; font-size:.7rem; }
+  .lab-action-verify, .lab-action-reset { padding:.45rem .6rem; font-size:.72rem; }
+
+  /* Exp header mais compacto */
+  .exp-num { font-size:.58rem; padding:.06rem .35rem; }
+  .exp-fam { font-size:.55rem; }
+
+  /* Acerto menor */
+  .rxb-acerto-screen { padding:1.2rem .8rem; gap:1rem; }
+  .rxb-acerto-icon { font-size:2.2rem; }
+  .rxb-acerto-eq { font-size:.85rem; }
+  .rxb-acerto-eq-wrap { padding:.7rem .9rem; }
+  .rxb-acerto-label { font-size:.58rem; }
+  .rxb-acerto-btn-next { padding:.42rem 1rem; font-size:.72rem; border-radius:7px; }
+
+  /* Data grid ainda em coluna */
+  .data-subhead { font-size:.58rem; }
+  .dr dt { font-size:.62rem; }
+  .dr dd { font-size:.66rem; }
+
+  /* Painéis: off-canvas mais largo */
+  .sidebar { width:min(95vw, 300px); }
+}
+
+/* ── 360: mobile pequeno / fold ───────────────────────────────── */
+@media (max-width:360px){
+  .rxb-root { padding:.5rem .55rem .4rem; }
+  .rxb-mol-formula { font-size:.76rem; padding:.22rem .48rem; }
+  .rxb-slot { min-width:70px; min-height:62px; }
+  .rxb-tray { gap:.28rem; }
+  .rxb-acerto-eq { font-size:.78rem; }
+  .rxb-btn-check { width:100%; justify-content:center; }
+  .rxb-footer { justify-content:stretch; }
+  .sidebar { width:98vw; }
+}
+
+/* ── touch: melhora área de toque em dispositivos touch ────────── */
+@media (hover:none) and (pointer:coarse){
+  .rxb-coef-btn { width:28px; height:28px; font-size:.9rem; }
+  .rxb-slot-remove { width:20px; height:20px; font-size:.8rem; top:2px; right:2px; }
+  .rxb-tray-mol { padding:.12rem .25rem; }
+  .sub-item { padding:.42rem .55rem; }
+  .mol-cat-btn { min-height:32px; padding:5px 10px; }
+  .panel-header { min-height:44px; }
+  .rxb-btn-check { min-height:44px; }
+  .lab-action-verify, .lab-action-reset { min-height:44px; }
+  /* Remove hover effects que não funcionam em touch */
+  .rxb-tray-mol:hover { transform:none; }
+  .rxb-mol-formula:hover { transform:none; box-shadow:none; }
+}
+
+/* ── landscape mobile: layout horizontal compacto ──────────────── */
+@media (max-height:500px) and (orientation:landscape){
+  :root{ --hh:36px; }
+  .rxb-acerto-screen { flex-direction:row; flex-wrap:wrap; padding:.8rem; gap:.8rem; }
+  .rxb-acerto-icon { font-size:1.8rem; }
+  .rxb-acerto-eq-wrap { padding:.6rem .9rem; }
+  .rxb-acerto-eq { font-size:.85rem; }
+  .rxb-root { padding:.5rem .8rem .4rem; }
+  .rxb-eq-row { flex-direction:row; padding:.3rem 0 .7rem; }
+  .rxb-seta { flex-direction:column; }
+}
+
+/* ── print: limpo para impressão ──────────────────────────────── */
+@media print {
+  .sidebar, .exp-header, .rxb-footer,
+  .mobile-menu-btn, .view-toggle, .lab-toast,
+  .rxb-tray, .rxb-tray-label, .rxb-coef-wrap { display:none !important; }
+  .sim-area { overflow:visible; }
+  .rxb-eq-row { justify-content:flex-start; }
+  .rxb-slot-remove { display:none; }
+  body { background:#fff; color:#000; }
+  .rxb-mol-formula { border:1px solid #999; }
+  .rxb-acerto-screen { animation:none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   REAÇÕES LIVRES — seletor centrado no composto
+══════════════════════════════════════════════════════════════════ */
+
+/* Container principal */
+.rxl-seletor {
+  display:flex; flex-direction:column; gap:.75rem;
+  padding:1.1rem 1.3rem; flex:1;
+  animation:rxb-acerto-in .25s ease both;
+}
+
+/* Header: bolha do composto + info */
+.rxl-seletor-hd {
+  display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+  padding-bottom:.85rem; border-bottom:1px solid var(--bdr);
+}
+
+/* Bolha grande do composto selecionado */
+.rxl-composto-wrap { flex-shrink:0; }
+.rxl-composto-bubble {
+  display:flex; flex-direction:column; align-items:center; gap:.25rem;
+  cursor:default;
+}
+.rxl-composto-bubble .rxb-mol-formula {
+  font-size:1.3rem; padding:.5rem 1.1rem; border-radius:10px;
+  border:2px solid var(--bdr2); background:var(--bg3); color:var(--tx1);
+  box-shadow:0 0 14px rgba(255,255,255,.08);
+}
+.rxl-composto-bubble .rxb-mol-nome { font-size:.82rem; color:var(--tx1); }
+
+.rxl-hd-info {
+  display:flex; flex-direction:column; gap:.2rem; flex:1; min-width:0;
+}
+.rxl-seletor-nome {
+  font-size:.9rem; font-weight:600; color:var(--tx1);
+}
+.rxl-seletor-label {
+  font-size:.63rem; color:var(--tx2); letter-spacing:.02em;
+}
+
+/* Cards de reação */
+.rxl-lista { display:flex; flex-direction:column; gap:.4rem; }
+
+.rxl-card {
+  width:100%; display:flex; align-items:center; gap:.8rem;
+  padding:.7rem .95rem;
+  background:var(--bg2); border:1px solid var(--bdr); border-radius:9px;
+  cursor:pointer; text-align:left; font-family:var(--font);
+  transition:border-color .15s, background .15s, transform .12s;
+}
+.rxl-card:hover {
+  border-color:var(--coral); background:rgba(112,136,255,.07);
+  transform:translateX(3px);
+}
+.rxl-card:active { transform:translateX(1px) scale(.99); }
+
+.rxl-card-icon { font-size:1.3rem; flex-shrink:0; line-height:1; }
+
+.rxl-card-info {
+  display:flex; flex-direction:column; gap:.28rem; flex:1; min-width:0;
+}
+
+/* Equação visual dentro do card */
+.rxl-card-eq {
+  display:flex; align-items:center; gap:.3rem; flex-wrap:wrap;
+  font-family:var(--mono); font-size:.8rem;
+}
+.rxl-card-mol {
+  padding:.15rem .45rem; border-radius:5px;
+  border:1px solid var(--bdr2); background:var(--bg3);
+  color:var(--tx1); font-weight:700; white-space:nowrap; font-size:.78rem;
+}
+/* rxl-card-mol — neutro, sem cor de função */
+
+.rxl-card-plus  { color:var(--tx2); font-size:.85rem; }
+.rxl-card-arrow-eq {
+  color:var(--coral); font-size:.95rem; display:flex;
+  flex-direction:column; align-items:center; gap:1px; margin:0 .1rem;
+}
+.rxl-card-cond {
+  font-size:.52rem; color:var(--amber); font-weight:700;
+  white-space:nowrap; line-height:1;
+}
+.rxl-card-prod {
+  font-family:var(--mono); font-size:.82rem; font-weight:700;
+  color:var(--bdr2); border:1.5px dashed var(--bdr2);
+  padding:.12rem .5rem; border-radius:5px;
+  letter-spacing:.05em;
+}
+.rxl-card-familia {
+  font-size:.6rem; color:var(--tx2);
+  text-transform:uppercase; letter-spacing:.07em;
+}
+.rxl-card-arrow {
+  font-size:1.2rem; color:var(--tx2); flex-shrink:0;
+  transition:color .15s, transform .15s;
+}
+.rxl-card:hover .rxl-card-arrow { color:var(--coral); transform:translateX(2px); }
+
+/* Rodapé */
+.rxl-seletor-footer {
+  margin-top:auto; padding-top:.75rem; border-top:1px solid var(--bdr);
+}
+.rxl-btn-back {
+  background:transparent; border:1px solid var(--bdr); color:var(--tx1);
+  border-radius:7px; padding:.38rem .9rem; font-size:.7rem;
+  cursor:pointer; font-family:var(--font); transition:all .13s;
+}
+.rxl-btn-back:hover { border-color:var(--coral); color:var(--coral); }
+
+/* Responsivo */
+@media (max-width:640px){
+  .rxl-seletor { padding:.85rem .95rem; gap:.55rem; }
+  .rxl-seletor-hd { gap:.7rem; }
+  .rxl-composto-bubble .rxb-mol-formula { font-size:1.05rem; padding:.4rem .85rem; }
+  .rxl-card { padding:.6rem .75rem; gap:.6rem; }
+  .rxl-card-eq { font-size:.72rem; }
+  .rxl-card-mol { font-size:.7rem; padding:.1rem .35rem; }
+}
+@media (max-width:480px){
+  .rxl-seletor { padding:.65rem .75rem; }
+  .rxl-card-eq { flex-wrap:wrap; }
+  .rxl-composto-bubble .rxb-mol-formula { font-size:.95rem; }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   DESAFIO DE NOMENCLATURA — ficha de desbloqueio
+══════════════════════════════════════════════════════════════════ */
+
+/* Item bloqueado na biblioteca */
+.sub-item.bloqueado {
+  opacity: .6;
+  cursor: pointer;
+  /* Sem transição de opacidade para evitar piscar ao selecionar */
+  transition: background .12s, border-color .12s;
+}
+.sub-item.bloqueado .si-formula {
+  color: var(--tx2);
+}
+.sub-item.bloqueado .si-name-lock {
+  color: var(--tx2);
+  font-style: italic;
+  letter-spacing: .08em;
+}
+.si-dot-lock {
+  font-size: .7rem;
+  line-height: 1;
+  /* Fixar o emoji sem animação ou transição */
+  display: inline-block;
+  transition: none;
+  animation: none;
+}
+.sub-item.bloqueado:hover {
+  background: rgba(255,255,255,.04);
+  opacity: .85;
+}
+/* Quando bloqueado E ativo: manter opacidade estável, sem flash */
+.sub-item.bloqueado.active {
+  opacity: .85;
+  transition: none;
+}
+.sub-item.bloqueado.active .si-dot-lock {
+  opacity: 1;
+  transition: none;
+  animation: none;
+}
+
+/* Hero do desafio */
+.nom-desafio-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .7rem;
+  padding: 1.8rem 1rem 1rem;
+  text-align: center;
+}
+.nom-formula-big {
+  font-family: var(--mono);
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: var(--tx1);
+  letter-spacing: .02em;
+  line-height: 1.1;
+}
+.nom-funcao-pill {
+  font-size: .72rem;
+  font-weight: 700;
+  padding: .22rem .8rem;
+  border-radius: 20px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.nom-instrucao {
+  font-size: .82rem;
+  color: var(--tx1);
+  max-width: 380px;
+  line-height: 1.5;
+  margin-top: .5rem;
+}
+
+/* Input de resposta */
+.nom-input-wrap {
+  padding: 0 1.2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.nom-input-row {
+  display: flex;
+  gap: .5rem;
+}
+.nom-input {
+  flex: 1;
+  background: var(--bg3);
+  border: 2px solid var(--bdr2);
+  border-radius: 8px;
+  color: var(--tx1);
+  font-family: var(--font);
+  font-size: .9rem;
+  padding: .55rem .85rem;
+  outline: none;
+  transition: border-color .15s;
+}
+.nom-input:focus {
+  border-color: var(--coral);
+}
+.nom-input:disabled {
+  opacity: .6;
+}
+.nom-btn {
+  background: var(--coral);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-family: var(--font);
+  font-size: .82rem;
+  font-weight: 700;
+  padding: .55rem 1.1rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .13s, transform .1s;
+}
+.nom-btn:hover  { background: var(--coral2); }
+.nom-btn:active { transform: scale(.97); }
+.nom-btn:disabled { background: var(--green); cursor: default; }
+
+/* Feedback */
+.nom-feedback {
+  font-size: .8rem;
+  font-weight: 600;
+  min-height: 1.4rem;
+  padding: .1rem 0;
+  transition: all .2s;
+}
+.nom-feedback-ok  { color: var(--green); }
+.nom-feedback-err { color: var(--red); }
+
+/* Botão de dica */
+.nom-dica-wrap {
+  padding: 0 1.2rem .8rem;
+}
+.nom-dica-btn {
+  background: transparent;
+  border: 1px solid var(--bdr2);
+  border-radius: 6px;
+  color: var(--tx1);
+  font-family: var(--font);
+  font-size: .75rem;
+  padding: .3rem .7rem;
+  cursor: pointer;
+  transition: all .13s;
+}
+.nom-dica-btn:hover { border-color: var(--amber); color: var(--amber); }
+.nom-dica-txt {
+  margin-top: .5rem;
+  font-size: .78rem;
+  color: var(--amber);
+  background: rgba(251,191,36,.08);
+  border: 1px solid rgba(251,191,36,.2);
+  border-radius: 6px;
+  padding: .45rem .65rem;
+  line-height: 1.5;
+}
+
+/* Pistas */
+.nom-pistas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  padding: .4rem 1.2rem .8rem;
+}
+.nom-pista-card {
+  background: var(--bg3);
+  border: 1px solid var(--bdr);
+  border-radius: 7px;
+  padding: .4rem .7rem;
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+  min-width: 120px;
+}
+.nom-pista-label {
+  font-size: .6rem;
+  color: var(--tx2);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.nom-pista-val {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--tx1);
+}
+
+/* Lewis dentro do desafio */
+.nom-lewis-wrap {
+  padding: .4rem 1rem 1.2rem;
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   SIDEBARS REDIMENSIONÁVEIS
+   Alça (criada via JS) na borda interna de cada sidebar; arrastar
+   ajusta a variável CSS de largura. Desativada quando a sidebar
+   vira gaveta mobile (breakpoint abaixo) — nesse modo a largura é
+   controlada pelo CSS da gaveta, não pelo usuário.
+════════════════════════════════════════════════════════════════ */
+.sidebar-resizer{
+  position:absolute; top:0; bottom:0; width:7px;
+  cursor:col-resize; z-index:40; background:transparent;
+  transition:background .15s; touch-action:none;
+}
+.sidebar-resizer--left{ right:-3px; }
+.sidebar-resizer--right{ left:-3px; }
+.sidebar-resizer:hover,
+.sidebar-resizer.dragging{ background:rgba(112,136,255,.45); }
+@media(max-width:900px){ .sidebar-resizer{ display:none; } }
+
+
+/* ================================================================
+   PADRONIZAÇÃO SIMA — CABEÇALHO EM TELAS PEQUENAS
+   ================================================================
+   Histórico: havia um bug de inversão de prioridade nas media queries
+   (o SUBTÍTULO decorativo era preservado, encolhido, enquanto o RÓTULO
+   DE NAVEGAÇÃO "1º Ano" — a única forma de voltar dentro da página —
+   era apagado com display:none) e depois um bloco de correção. Nenhum
+   dos dois existe no SIMA: lá, `.header-brand > div { min-width: 0 }`
+   (regra base, sem media query) já deixa o bloco título+subtítulo
+   encolher, e `.header-sub` trunca sozinho com reticências
+   (overflow:hidden + text-overflow:ellipsis + max-width:100%, também
+   na base). O botão de voltar tem flex-shrink:0 e por isso nunca
+   encolhe — não precisa de proteção extra em nenhuma largura. A altura
+   do cabeçalho (--hh) também parou de variar por largura — no SIMA
+   ela é sempre a mesma, em qualquer tela.
+   ================================================================ */
+
+/* 5. Alvo de toque de 44x44px em dedo (WCAG 2.5.5).
+      O truque: a área clicável cresce com um ::after invisível e
+      posicionado de forma absoluta, então o botão continua
+      visualmente do mesmo tamanho e o cabeçalho não muda de altura. */
+@media (pointer: coarse) {
+  .header-back { position: relative; }
+  .header-back::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%; min-width: 44px;
+    height: 44px;
+  }
+}
+
+
+/* =====================================================================
+   PADRÃO SILQ — DESCRIÇÃO BREVE E FATOS DO MÓDULO
+   ---------------------------------------------------------------------
+   Mesmas primitivas do menu de módulos do SILQ e dos módulos do
+   2º/3º ano, para que a aparência dos painéis seja igual em todo o
+   ecossistema. Só as VARIÁVEIS deste simulador são usadas, então a
+   identidade de cor (coral) continua intacta.
+
+     .mode-define          descrição breve, no topo do painel
+     .fact-grid/.fact-cell fatos-chave em pares rótulo/valor
+     .mode-note            dica (variante --warning para ressalva)
+   ===================================================================== */
+
+.mode-define{
+  margin:0 0 .5rem; padding-left:.5rem;
+  border-left:2px solid var(--coral);
+  font-size:.7rem; line-height:1.5; color:var(--tx2);
+}
+.mode-define strong{ color:var(--tx1); }
+
+.fact-grid{ display:grid; grid-template-columns:1fr 1fr; gap:.3rem; margin:.5rem 0; }
+.fact-cell{
+  display:flex; flex-direction:column; gap:.1rem;
+  padding:.32rem .42rem; border-radius:var(--rs);
+  background:var(--bg2); border:1px solid var(--bdr);
+}
+.fact-label{
+  font-size:.5rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--tx3);
+}
+.fact-value{ font-size:.68rem; font-weight:600; color:var(--tx1); line-height:1.25; }
+
+.mode-note{
+  display:flex; gap:.35rem; align-items:flex-start;
+  margin:.5rem 0 0; padding:.38rem .45rem; border-radius:var(--rs);
+  border:1px solid var(--bdr); background:var(--bg2);
+  font-size:.66rem; line-height:1.45; color:var(--tx2);
+}
+.mode-note strong{ color:var(--tx1); }
+.mode-note-icon{ flex-shrink:0; font-size:.75rem; line-height:1.3; }
+.mode-note--warning{ border-color:var(--amber); background:rgba(255,170,68,.08); }
+
+@media (max-width:520px){ .fact-grid{ grid-template-columns:1fr; } }
+
+body.high-contrast .fact-cell,
+body.high-contrast .mode-note{ border:2px solid var(--hc-fg) !important; background:var(--hc-bg) !important; }
+body.high-contrast .fact-label{ color:var(--hc-fg) !important; }
+body.high-contrast .mode-define{ border-left-color:var(--hc-fg) !important; }
+
+/* CORRECAO: estas regras foram escritas com "body.simple-read",
+   nome copiado do SILQ antigo. O a11y.js liga "body.simple-read"
+   (sem o "ing"). Estavam inertes. */
+body.simple-read .mode-define,
+body.simple-read .mode-note{ line-height:1.75; font-size:.74rem; }
+
+/* ---------------------------------------------------------------------
+   SKIP-LINK — contraste corrigido
+   ---------------------------------------------------------------------
+   Medido no Chromium com o link em foco (ele vive em left:-9999px e so
+   aparece ao receber foco, por isso a medicao exige focus()).
+
+   O fundo do skip-link vem do acento do simulador, e o acento MUDA no
+   tema claro — normalmente escurecendo. Com o texto fixo, o par deixava
+   de contrastar em um dos dois temas. As regras abaixo declaram o texto
+   por tema, com o valor que a medicao mostrou ser o melhor.
+   --------------------------------------------------------------------- */
+body:not(.light-mode) .skip-link{ color:#000; }   /* 7.45:1 */
+
+/* =====================================================================
+   AREA CENTRAL REALCADA QUANDO HA COMPOSTO SELECIONADO
+   ---------------------------------------------------------------------
+   Equivalente do anel do canvas do SICQ, adaptado ao SIQI: aqui nao ha
+   "modulo ativo", ha COMPOSTO selecionado. Enquanto nenhum composto foi
+   escolhido (STATE.compostoAtual = null), o centro fica puro — igual ao
+   canvas do SICQ sem modo ativo.
+
+   Como funciona sem JS nenhum: a lista da esquerda ja marca o item
+   escolhido com .sub-item.active (scriptsiqi.js faz isso). O :has() le
+   essa classe a partir do <body> e desce ate o #sim-area, que e irmao da
+   coluna — nao daria para atravessar de lado, so subindo ate o ancestral
+   comum. Se o composto e desmarcado, a classe sai da lista e o anel
+   desaparece sozinho: nenhum estado extra para sincronizar.
+
+   inset: o anel e desenhado DENTRO da area, entao nao empurra layout e
+   nao e cortado pelo overflow:hidden do #sim-area.
+   ===================================================================== */
+body:has(#sub-list .sub-item.active) #sim-area{
+  box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--coral) 45%, transparent);
+  transition:box-shadow .2s;
+}
+html[data-theme="light"] body:has(#sub-list .sub-item.active) #sim-area{
+  box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--coral) 55%, transparent);
+}
+/* !important aqui nao e preguica: quando alto contraste E tema claro
+   estao ligados ao mesmo tempo, a regra do tema claro tem UM seletor de
+   tipo a mais (html/:root) e por isso ganha da regra de alto contraste
+   mesmo vindo antes no arquivo. Medido: claro (2,3,2) x AC (2,3,1). E o
+   mesmo idioma que este projeto ja usa nos outros overrides de alto
+   contraste (ver .overlay-label no SICQ). */
+body.high-contrast:has(#sub-list .sub-item.active) #sim-area{
+  box-shadow:inset 0 0 0 3px var(--hc-fg) !important;
+}
+
+/* =====================================================================
+   REDUCAO DE MOVIMENTO — TOGGLE DO PAINEL DE ACESSIBILIDADE
+   ---------------------------------------------------------------------
+   Este arquivo ja respeitava @media (prefers-reduced-motion: reduce), que
+   le a preferencia do SISTEMA OPERACIONAL. Mas o a11y.js tambem oferece um
+   botao proprio, que liga a classe .reduce-motion no <body> — e nenhuma
+   regra aqui escutava essa classe. Resultado: quem desligasse animacao
+   pelo painel do site continuava vendo tudo animar.
+   Mesmo bloco que os 12 simuladores do 2o e 3o ano ja usam.
+   ===================================================================== */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after{ animation:none!important; transition-duration:.01ms!important; }
+
+/* Badge de estado sem conteudo: tom apagado e sem cor de fase, para nao
+   parecer que ha um estado ativo. O rotulo .sr-only dentro dele continua
+   sendo lido pelo leitor de tela. */
+.state-pill--vazio{
+  color:var(--tx2); border-color:var(--bdr); background:none;
+  font-style:italic; opacity:.85;
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   MÓDULOS (Nomenclatura | Classificação | Redox)
+   Plano de Ação SIQI Modular (2026)
+   -------------------------------------------------------------------
+   Reaproveita as variáveis e o "idioma visual" já definidos no topo
+   deste arquivo (--bg0..3, --tx1..3, --bdr, --bdr2, --bdr-a, --coral,
+   --coral2, --amber, --green, --r, --rs, --font, --mono) — nenhuma
+   variável nova foi criada. Os overrides de acessibilidade seguem o
+   MESMO contrato já em uso neste arquivo: html[data-contrast="on"]
+   e html[data-theme="light"] (atributos no <html>, não classes no
+   <body> — ver receptor de acessibilidade no topo de scriptsiqi.js).
+   ═════════════════════════════════════════════════════════════════ */
+
+/* ── Seletor de módulo — RÉPLICA do card de modelo do SIMA ───────
+   Mesmas classes e mesma mecânica de .panel--mode/.mode-activate-btn/
+   .fact-grid/.canvas-interactions/.chip-row/.mode-note do SIMA
+   (ver indexsima.html + stylesima.css). Só a REFERÊNCIA de variáveis
+   muda: aqui usamos as variáveis REAIS do SIQI (--bg0..3, --tx1..3,
+   --bdr, --r, --rs, --font, --mono) em vez das do SIMA (--bg-panel,
+   --text-primary etc — arquivos diferentes, paletas diferentes).
+
+   Cor de acento por módulo (--mod/--mod-rgb), igual ao SIMA ter uma
+   cor por modelo atômico:
+     nomenclatura  → --coral  (identidade principal do SIQI)
+     classificacao → --amber
+     redox         → --violet
+   Todas as combinações abaixo foram auditadas uma a uma (fórmula de
+   luminância relativa do WCAG 2.1) contra os fundos reais --bg0/1/2
+   deste arquivo — nenhuma opacidade foi copiada do SIMA sem checar:
+   badge/chip usam alpha .12 (4,59–7,26:1); botão ativo usa alpha .10
+   (4,73–7,59:1); texto sólido --mod sobre --bg1/--bg2 fica sempre
+   ≥5,4:1. Rótulos em maiúsculas (fact-label etc.) usam --mod em vez
+   de --tx2/--tx3 (que falham AA nestes fundos, ~1,6–3,8:1 — mesmo
+   problema já corrigido antes no restante deste arquivo). ─────── */
+.panel--mode{ --mod:var(--coral); --mod-rgb:112,136,255; }
+.panel--mode[data-mode-card="nomenclatura"]  { --mod:var(--coral);  --mod-rgb:112,136,255; }
+.panel--mode[data-mode-card="construtor"]    { --mod:var(--amber);  --mod-rgb:255,170,68;  }
+.panel--mode[data-mode-card="redox"]         { --mod:var(--violet); --mod-rgb:167,139,250; }
+
+.panel--mode{ transition:border-color .2s, box-shadow .2s; }
+.panel--mode[data-open="true"]{
+  border-color:rgba(var(--mod-rgb),.4);
+  box-shadow:0 0 0 1px rgba(var(--mod-rgb),.12);
+}
+/* Sobrepõe o header genérico [data-open="true"] .panel-header (que usa
+   --coral fixo) com a cor --mod do módulo, mesma técnica do SIMA. */
+.panel--mode[data-open="true"] .panel-header{
+  background:linear-gradient(135deg, rgba(var(--mod-rgb),.14), rgba(var(--mod-rgb),.05));
+  color:var(--mod);
+}
+.panel--mode .panel-header:hover{ background:rgba(var(--mod-rgb),.08); color:var(--mod); }
+.panel--mode .panel-header:focus-visible{ outline:2px solid var(--mod); outline-offset:-2px; }
+.panel--mode[data-open="true"] .chevron{ color:var(--mod); }
+
+/* ── Accordion do mode-card alinhado ao COMPORTAMENTO real do SIMA
+   (comparação feita direto em stylesima.css — não é suposição):
+
+   1) Direção do chevron INVERTIDA em relação ao resto do SIQI: no
+      SIMA o chevron começa apontando para baixo (0deg, recolhido) e
+      GIRA 180° ao abrir (fica de cabeça para baixo). O SIQI genérico
+      faz o oposto (-90deg recolhido → 0deg aberto). Mantém-se o
+      padrão genérico do SIQI para os DEMAIS painéis (Biblioteca,
+      Balanço Atômico etc.) — este override vale só para .panel--mode,
+      escopado de propósito.
+
+   2) max-height do corpo expandido: o SIQI genérico usa
+      min(600px,70vh) porque a Biblioteca precisa rolar (até 100
+      compostos). O conteúdo de um mode-card é sempre curto e fixo
+      (descrição + grid de fatos + caixa + chips + nota) — igual ao
+      SIMA, que usa 2000px (praticamente "sem limite", nunca corta o
+      conteúdo em telas menores). Aplicado só a .panel--mode para não
+      alterar o comportamento de rolagem da Biblioteca. ────────── */
+.panel--mode[data-open="true"] .panel-body{ max-height:2000px; }
+.panel--mode[data-open="false"] .chevron{ transform:none; }
+.panel--mode[data-open="true"]  .chevron{ transform:rotate(180deg); }
+
+/* ── Foco no módulo ativo — os outros cards ficam ocultos ─────────
+   Réplica EXATA da regra do SIMA (stylesima.css, ~linha 1023),
+   comentário original: "ao ATIVAR um módulo, os demais desaparecem
+   da coluna da esquerda. Sem nenhum ativo, todos voltam a aparecer."
+   Implementado só em CSS, com :has() — nenhuma linha de JS nova além
+   do que já existia: o seletor lê o mesmo aria-pressed que
+   trocarModulo()/desativarModulo() já mantêm.
+     1) a sidebar-left contém algum botão "Selecionar módulo" pressionado?
+     2) então esconde todo .panel--mode que NÃO contenha um.
+   Ao desativar (clicar de novo no módulo já ativo), aria-pressed volta
+   a "false", a condição 1 deixa de valer, e a regra para de se
+   aplicar — todos os cards reaparecem sozinhos, sem estado extra pra
+   sincronizar. display:none (não opacity/visibility) tira os cards
+   ocultos do foco por teclado e da leitura de tela — correto, já que
+   não estão disponíveis naquele momento. */
+#sidebar-left:has(.mode-activate-btn[aria-pressed="true"])
+  .panel--mode:not(:has(.mode-activate-btn[aria-pressed="true"])) {
+  display: none;
+}
+
+/* Realce do card ATIVO (independente de estar expandido ou não) —
+   mesma ideia do SIMA (stylesima.css ~linha 1095): usa a cor --mod do
+   PRÓPRIO módulo, não uma cor genérica, para o realce acompanhar a
+   identidade visual de cada card. */
+.panel--mode:has(.mode-activate-btn[aria-pressed="true"]){
+  border-color:rgba(var(--mod-rgb),.55);
+  background:rgba(var(--mod-rgb),.06);
+  box-shadow:0 0 0 1px rgba(var(--mod-rgb),.2);
+}
+
+/* Badge numérico do cabeçalho (equivalente ao "ano" do SIMA aqui vira
+   contagem: 100 compostos / 4 eixos / 2 reações). */
+.panel--mode .panel-badge{ background:rgba(var(--mod-rgb),.12); color:var(--mod); }
+
+/* Selo "ATIVO" — some por padrão, só aparece quando o botão de
+   ativação deste card está com aria-pressed="true". 100% CSS. */
+.mode-active-tag{
+  display:none; font-size:.55rem; font-weight:700; letter-spacing:.04em;
+  text-transform:uppercase; padding:1px 5px; border-radius:10px;
+  background:rgba(var(--mod-rgb),.12); color:var(--mod); flex-shrink:0;
+}
+.panel--mode:has(.mode-activate-btn[aria-pressed="true"]) .mode-active-tag{ display:inline-block; }
+
+/* Botão "Selecionar módulo" (= .mode-activate-btn do SIMA) */
+.mode-activate-btn{
+  display:flex; align-items:center; gap:.5rem; width:100%;
+  padding:.5rem .65rem; margin:8px 0 10px;
+  border-radius:var(--rs); border:1.5px solid var(--bdr);
+  background:var(--bg1); color:var(--tx1); font-family:var(--font);
+  font-size:.75rem; font-weight:700; cursor:pointer; text-align:left;
+  transition:all .18s;
+}
+.mode-activate-btn:hover{ border-color:var(--mod); background:rgba(var(--mod-rgb),.08); color:var(--mod); }
+.mode-activate-btn[aria-pressed="true"]{
+  background:rgba(var(--mod-rgb),.10); border-color:var(--mod); color:var(--mod);
+  box-shadow:0 0 0 3px rgba(var(--mod-rgb),.18);
+}
+.mode-activate-btn[aria-pressed="true"]::after{
+  content:' · ativo'; font-size:.65rem; font-weight:600; opacity:.85; margin-left:auto;
+}
+.mode-activate-btn:focus-visible{ outline:2px solid var(--mod); outline-offset:2px; }
+.mode-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; background:var(--mod); box-shadow:0 0 6px var(--mod); }
+.model-name{ font-weight:700; }
+
+/* Fatos-chave (= .fact-grid do SIMA) */
+.fact-grid{ display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:.6rem; }
+.fact-cell{ background:var(--bg1); border:1px solid var(--bdr); border-radius:7px; padding:.35rem .45rem; }
+.fact-label{
+  display:block; font-size:.58rem; font-weight:700; color:var(--mod);
+  text-transform:uppercase; letter-spacing:.4px; margin-bottom:2px;
+}
+.fact-value{ display:block; font-size:.7rem; font-weight:700; color:var(--tx1); }
+
+/* "Ao ativar este módulo" (= .canvas-interactions do SIMA) */
+.canvas-interactions{ margin:.6rem 0 .35rem; border:1px solid var(--bdr); border-radius:8px; overflow:hidden; }
+.canvas-interactions-title{
+  margin:0; font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+  color:var(--mod); padding:.3rem .55rem; background:var(--bg1); border-bottom:1px solid var(--bdr);
+}
+.canvas-interactions p:not(.canvas-interactions-title){
+  margin:0; padding:.4rem .55rem; font-size:.68rem; line-height:1.5; color:var(--tx1);
+}
+.canvas-interactions strong{ color:var(--mod); }
+.canvas-interactions em{ color:var(--tx1); font-style:normal; font-weight:600; }
+
+/* "Bons exemplos" + chips (= .recommended/.chip do SIMA) */
+.recommended{ margin-top:.45rem; }
+.recommended-title{ margin:0 0 4px; font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--mod); }
+.chip-row{ display:flex; flex-wrap:wrap; gap:5px; }
+.chip{
+  font-size:.68rem; font-weight:700; padding:3px 9px; border-radius:12px;
+  background:rgba(var(--mod-rgb),.12); color:var(--mod);
+  border:1px solid rgba(var(--mod-rgb),.3); cursor:pointer; font-family:var(--mono);
+}
+.chip:hover{ background:rgba(var(--mod-rgb),.22); }
+.chip:focus-visible{ outline:2px solid var(--mod); outline-offset:1px; }
+/* Construtor ainda não tem ação pros chips (fragmentos de nome, não
+   fórmula) — continuam <span>, sem afordance de clique. */
+span.chip{ cursor:default; }
+span.chip:hover{ background:rgba(var(--mod-rgb),.12); }
+
+/* Nota final (= .mode-note do SIMA) */
+.mode-note{
+  display:flex; align-items:flex-start; gap:6px; font-size:.65rem; color:var(--tx1); line-height:1.5;
+  background:rgba(var(--mod-rgb),.06); border:1px solid rgba(var(--mod-rgb),.2);
+  border-radius:6px; padding:.4rem .55rem; margin:.5rem 0 0;
+}
+.mode-note strong{ color:var(--mod); }
+.mode-note-icon{ flex-shrink:0; }
+
+/* .mode-define já existe globalmente neste arquivo (usada também pela
+   Biblioteca e outros painéis) com color:var(--tx2) — que mede 3,3–3,8:1
+   contra os fundos --bg1/--bg2 (falha AA 4,5:1; auditoria de contraste
+   deste mesmo Plano de Ação). Como aqui vira o texto PRINCIPAL de cada
+   card, a correção é ESCOPADA só a .panel--mode — não mexe no uso da
+   classe em nenhum outro painel do SIQI (fora do escopo desta tarefa). */
+.panel--mode .mode-define{
+  color:var(--tx1); border-left-color:var(--mod);
+  background:var(--bg1); border-radius:0 6px 6px 0; padding:6px 8px; margin:0 0 10px;
+}
+
+@media(max-width:520px){ .fact-grid{ grid-template-columns:1fr; } }
+
+/* Alto contraste — mesmo contrato html[data-contrast="on"] já usado
+   neste arquivo, cobrindo o padrão do SIMA de reforçar bordas. */
+html[data-contrast="on"] .panel--mode{ border-width:2px; }
+html[data-contrast="on"] .fact-cell,
+html[data-contrast="on"] .canvas-interactions,
+html[data-contrast="on"] .mode-note,
+html[data-contrast="on"] .chip{ border-width:2px; }
+html[data-contrast="on"] .mode-activate-btn[aria-pressed="true"],
+html[data-contrast="on"] .mode-active-tag{ background:#000; color:#FFFF00; border-color:#FFFF00; }
+
+/* Leitura simples — mesmo contrato html[data-reading="on"] já usado */
+html[data-reading="on"] .mode-define,
+html[data-reading="on"] .canvas-interactions p,
+html[data-reading="on"] .mode-note{ line-height:1.75; font-size:.72rem; }
+html[data-reading="on"] .fact-value{ font-size:.74rem; }
+
+/* ── Módulo 2 — seletor de eixo (mesma mecânica de .mol-cat-tabs) ── */
+.classification-class-selector{ display:flex; flex-wrap:wrap; gap:3px; margin:.3rem 0; }
+.class-btn{
+  padding:3px 8px; border-radius:5px; border:1px solid var(--bdr);
+  background:var(--bg3); color:var(--tx1); font-size:.63rem; font-weight:600;
+  cursor:pointer; transition:all .15s; min-height:24px; font-family:var(--font);
+}
+.class-btn:hover{ background:var(--bg1); border-color:var(--coral); }
+.class-btn--active{
+  background:var(--coral-dim); color:#fff; border-color:transparent;
+}
+.class-btn:focus-visible{ outline:2px solid var(--coral); outline-offset:2px; }
+
+/* ── Módulo 2 — subcategorias ────────────────────────────────────── */
+.classification-subclass-selector{ margin:.4rem 0; }
+.subclass-label{
+  font-size:.62rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--tx1); margin:.3rem 0 .25rem;
+}
+.subclass-row{ display:flex; flex-direction:column; gap:.28rem; }
+.subclass-btn{
+  display:flex; flex-direction:column; gap:.1rem; width:100%; text-align:left;
+  padding:.4rem .5rem; background:var(--bg3); border:1px solid var(--bdr);
+  border-left:3px solid var(--coral); border-radius:var(--rs);
+  color:var(--tx1); cursor:pointer; font-family:var(--font);
+  transition:background .12s, border-color .12s, transform .12s;
+}
+.subclass-btn:hover{ background:var(--bg1); border-left-color:var(--amber); transform:translateX(2px); }
+.subclass-btn:focus-visible{ outline:2px solid var(--coral); outline-offset:-2px; }
+.subclass-btn[aria-selected="true"]{
+  background:rgba(112,136,255,.1); border-left-color:var(--amber); font-weight:700;
+}
+.subclass-btn strong{ font-size:.74rem; }
+.subclass-desc{ font-size:.66rem; color:var(--tx1); }
+.subclass-count{ font-size:.6rem; color:var(--tx1); }
+
+/* ── Módulo 2 — compostos classificados ──────────────────────────── */
+.classified-compounds{ margin-top:.4rem; }
+.compounds-header{ margin-bottom:.5rem; padding-bottom:.4rem; border-bottom:1px solid var(--bdr); }
+.compounds-header h3{ font-size:.82rem; color:var(--tx1); margin:0 0 .15rem; }
+.compounds-header p{ font-size:.7rem; color:var(--tx1); margin:.15rem 0; }
+.compound-count{ font-weight:700; color:var(--coral); }
+.no-results{ padding:.6rem; text-align:center; color:var(--tx1); font-style:italic; font-size:.72rem; }
+
+.compound-card-list{ list-style:none; display:flex; flex-direction:column; gap:.32rem; }
+.compound-card{
+  padding:.45rem .55rem; background:var(--bg3); border:1px solid var(--bdr);
+  border-left:4px solid var(--coral); border-radius:var(--rs); cursor:pointer;
+  transition:background .12s, border-color .12s, transform .12s;
+}
+.compound-card:hover{ background:var(--bg1); border-left-color:var(--amber); transform:translateX(2px); }
+.compound-card:focus-visible{ outline:2px solid var(--coral); outline-offset:-2px; }
+.compound-card[aria-selected="true"]{ background:rgba(112,136,255,.1); border-left-color:var(--amber); }
+.compound-card-head{ display:flex; justify-content:space-between; align-items:baseline; gap:.4rem; }
+.compound-name{ font-size:.76rem; color:var(--tx1); }
+.compound-formula{ font-family:var(--mono); font-size:.74rem; color:var(--coral); font-weight:600; white-space:nowrap; }
+.compound-desc{ font-size:.68rem; color:var(--tx1); margin:.25rem 0; line-height:1.4; }
+.compound-tags{ display:flex; flex-wrap:wrap; gap:.25rem; margin-top:.2rem; }
+
+/* Badge genérico reaproveitado (mesma classe .badge de .ficha-badges,
+   aqui usada solta dentro dos cards do Módulo 2). */
+.compound-tags .badge{
+  display:inline-flex; align-items:center; font-size:.58rem; font-weight:700;
+  padding:1px 6px; border-radius:8px; border:1px solid var(--bdr2);
+  color:var(--tx2); background:var(--bg1); text-transform:lowercase;
+}
+.compound-tags .badge.acido{ color:var(--acido-col); border-color:var(--acido-col); background:var(--acido-bg); }
+.compound-tags .badge.base { color:var(--base-col);  border-color:var(--base-col);  background:var(--base-bg); }
+.compound-tags .badge.sal  { color:var(--sal-col);   border-color:var(--sal-col);   background:var(--sal-bg); }
+.compound-tags .badge.oxido{ color:var(--oxido-col); border-color:var(--oxido-col); background:var(--oxido-bg); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   CONSTRUTOR DE NOMENCLATURA — Módulo 2 (química de coordenação)
+   ---------------------------------------------------------------------
+   Blocos "estilo LEGO": cada tipo de bloco (mult/ligante/metal/nox/
+   conectivo/ion/radical/sufixo/fixo) tem uma cor própria, sempre como
+   TEXTO sobre fundo levemente tingido (alpha .15) — mesma técnica já
+   usada nos mode-cards, com contraste auditado uma a uma: coral
+   4,75:1 / violet 5,37:1 / red 4,90:1 / green 7,80:1 / cyan 7,08:1 /
+   amber 7,40:1 — todas ≥4,5:1. "conectivo"/"fixo" usam --tx1 sobre
+   fundo neutro (são "cola gramatical", não conteúdo com identidade
+   própria). ═══════════════════════════════════════════════════════ */
+
+/* ── Biblioteca do Construtor — reaproveita .sub-item/.search-input/
+   .mol-cat-tabs já existentes (mesmo padrão visual do Módulo 1),
+   só o conteúdo interno do item muda: fórmula + selo de tipo (nunca
+   o nome). */
+.construtor-lib-item{ justify-content:space-between; cursor:pointer; }
+.construtor-lib-item[aria-selected="true"]{
+  background:rgba(112,136,255,.07); border-color:var(--bdr-a);
+}
+.construtor-lib-formula{ font-family:var(--mono); font-size:.76rem; color:var(--coral); font-weight:600; }
+.construtor-lib-badge{
+  font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
+  padding:1px 7px; border-radius:9px; background:var(--bg1); color:var(--tx1);
+  border:1px solid var(--bdr);
+}
+.construtor-lib-badge--ok{ background:rgba(74,222,128,.15); color:var(--green); border-color:rgba(74,222,128,.4); }
+
+/* ── Informações do Composto — ficha "cega" (sem nome), só a fórmula
+   e uma tabela de composição química bruta. */
+.construtor-info-formula{ margin:0 0 .5rem; text-align:center; }
+.construtor-info-formula code{
+  font-family:var(--mono); font-size:1rem; color:var(--tx1);
+  background:var(--bg1); padding:.3rem .6rem; border-radius:var(--rs);
+}
+.construtor-info-table{ width:100%; border-collapse:collapse; font-size:.68rem; margin-bottom:.5rem; }
+.construtor-info-table th{
+  text-align:left; font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
+  color:var(--amber); padding:.25rem .4rem; border-bottom:1px solid var(--bdr);
+}
+.construtor-info-table td{ padding:.3rem .4rem; color:var(--tx1); border-bottom:1px solid var(--bg1); }
+.construtor-info-table tr:last-child td{ border-bottom:none; }
+.construtor-info-nota{ font-size:.68rem; color:var(--tx1); line-height:1.5; font-style:italic; }
+
+/* Validador de sintaxe — 4 estados */
+.construtor-validador{
+  border-radius:var(--rs); padding:.5rem .6rem; border:1.5px solid var(--bdr);
+  background:var(--bg1); transition:all .2s;
+}
+.construtor-validador-texto{ margin:0; font-size:.7rem; font-weight:600; color:var(--tx1); line-height:1.5; }
+.construtor-validador-vazio{ margin:0; font-size:.7rem; color:var(--tx1); font-style:italic; }
+.construtor-validador--vazio{ border-color:var(--bdr); }
+.construtor-validador--incompleto{ border-color:var(--amber); background:rgba(255,170,68,.08); }
+.construtor-validador--incorreto{ border-color:var(--red); background:rgba(255,82,82,.08); }
+.construtor-validador--incorreto .construtor-validador-texto{ color:var(--red); }
+.construtor-validador--correto{ border-color:var(--green); background:rgba(74,222,128,.1); }
+.construtor-validador--correto .construtor-validador-texto{ color:var(--green); }
+
+/* ── Bancada de montagem (área central) ──────────────────────────── */
+.construtor-central{ display:flex; flex-direction:column; gap:1rem; flex:1; }
+.construtor-central-empty{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:.6rem; text-align:center; color:var(--tx1); padding:2rem 1rem;
+}
+.construtor-central-empty span{ font-size:2.4rem; opacity:.7; }
+.construtor-central-empty p{ max-width:340px; font-size:.8rem; line-height:1.6; }
+
+.construtor-hero{
+  display:flex; flex-direction:column; gap:.35rem;
+  background:var(--bg2); border:1px solid var(--bdr);
+  border-radius:var(--r); padding:1.1rem 1.2rem;
+  border-left:3px solid var(--amber);
+}
+.construtor-hero-label{
+  font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--amber);
+}
+.construtor-hero-title{ margin:0; font-size:1.2rem; font-weight:700; color:var(--tx1); }
+.construtor-hero-formula{
+  align-self:flex-start; font-family:var(--mono); font-size:1rem; color:var(--tx1);
+  background:var(--bg0); padding:.3rem .6rem; border-radius:var(--rs); margin-top:.2rem;
+}
+
+/* Slots posicionais — mesma mecânica do Laboratório de Reações Livres
+   (rxbSlot/colocarNoSlot em scriptsiqi.js), adaptada para blocos de
+   nomenclatura: cada slot é tipado (mostra a CATEGORIA esperada —
+   "ligante", "metal", "NOx" — não a resposta) e aceita tanto
+   drag-and-drop nativo quanto clique-para-colocar (acessível a quem
+   não usa mouse/touch com suporte a arraste). Rótulo do placeholder
+   usa --tx1 (não --tx2/--tx3 como o .rxb-slot-ph-txt original do
+   Laboratório, que mede <4,5:1 nos fundos deste arquivo — mesma
+   correção já aplicada em todo o resto desta tarefa). */
+.construtor-slots-wrap{
+  display:flex; flex-wrap:wrap; gap:.6rem; align-items:stretch;
+}
+.construtor-slot{
+  min-width:96px; min-height:60px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  border-radius:10px; border:2px dashed var(--bdr2);
+  transition:border-color .18s, background .18s, transform .15s;
+  position:relative; cursor:pointer; gap:.15rem; padding:.4rem .6rem;
+}
+.construtor-slot:hover{ transform:scale(1.03); }
+.construtor-slot--vazio{ background:var(--bg2); }
+.construtor-slot--vazio:hover, .construtor-drag-over{
+  border-color:var(--coral); background:rgba(112,136,255,.08);
+}
+.construtor-slot-ph-icon{ font-size:1.4rem; color:var(--bdr2); line-height:1; transition:color .15s; }
+.construtor-slot-ph-txt{
+  font-size:.6rem; color:var(--tx1); font-weight:700; text-transform:uppercase; letter-spacing:.03em;
+}
+.construtor-slot--vazio:hover .construtor-slot-ph-icon,
+.construtor-drag-over .construtor-slot-ph-icon{ color:var(--coral); }
+
+.construtor-slot--preenchido{ border-style:solid; padding:.35rem .5rem; }
+.construtor-slot-texto{ font-family:var(--mono); font-size:.82rem; font-weight:700; pointer-events:none; }
+.construtor-slot-remover{
+  position:absolute; top:3px; right:3px;
+  width:16px; height:16px; border-radius:50%;
+  background:rgba(255,82,82,.18); border:none; color:var(--red);
+  font-size:.7rem; cursor:pointer; display:flex; align-items:center;
+  justify-content:center; line-height:1; transition:background .1s; padding:0;
+}
+.construtor-slot-remover:hover{ background:rgba(255,82,82,.5); }
+
+/* Feedback IMEDIATO por slot (diferente do Laboratório, que só marca
+   certo/errado no clique de "Verificar") — o aluno já vê na hora se o
+   bloco combina com a posição. Só a BORDA muda de cor (não o fundo):
+   um teste combinando a borda --correto/--errado com o fundo tingido
+   de cada --construtor-bloco--tipo mostrou o texto do tipo "metal"
+   (coral) caindo para 4,26:1 sobre o fundo verde-tingido de acerto —
+   abaixo do mínimo AA. Borda sozinha já é um sinal forte e inequívoco,
+   sem essa colisão de cor. */
+.construtor-slot--correto{ border-color:var(--green) !important; }
+.construtor-slot--errado{ border-color:var(--red) !important; }
+
+/* Fórmula preliminar — efeito "máquina de escrever" revelando conforme
+   os slots vão sendo preenchidos CORRETAMENTE (mod2RenderFormulaPreliminar()). */
+.construtor-formula-preview{
+  background:var(--bg0); border:1px solid var(--bdr); border-radius:var(--r);
+  padding:.7rem .9rem; text-align:center;
+}
+.construtor-formula-preview-label{
+  font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+  color:var(--amber); margin:0 0 .3rem;
+}
+.construtor-formula-preview-valor{
+  font-family:var(--mono); font-size:1.3rem; letter-spacing:.03em;
+}
+.construtor-formula-preview-valor .revelado{ color:var(--tx1); }
+.construtor-formula-preview-valor .oculto{ color:var(--bdr2); }
+
+.construtor-paleta-label{ font-size:.68rem; color:var(--tx1); margin:0; }
+.construtor-paleta{ display:flex; flex-wrap:wrap; gap:.45rem; }
+
+/* ── Blocos "estilo LEGO" — cor por categoria gramatical ─────────── */
+.construtor-bloco{
+  font-family:var(--mono); font-size:.82rem; font-weight:700;
+  padding:.5rem .8rem; border-radius:10px; cursor:grab;
+  border:2px solid transparent; transition:transform .12s, box-shadow .12s, opacity .12s;
+  position:relative; user-select:none;
+}
+.construtor-bloco:hover{ transform:translateY(-2px); }
+.construtor-bloco:focus-visible{ outline:2px solid var(--tx1); outline-offset:2px; }
+.construtor-bloco--arrastando{ opacity:.35; cursor:grabbing; }
+.construtor-bloco--selecionado{
+  outline:2px solid #fff; outline-offset:2px;
+  box-shadow:0 0 12px rgba(255,255,255,.25);
+}
+
+.construtor-bloco--mult{      background:rgba(255,170,68,.15); color:var(--amber); border-color:rgba(255,170,68,.4); }
+.construtor-bloco--ligante{   background:rgba(0,200,255,.15);  color:var(--cyan);  border-color:rgba(0,200,255,.4); }
+.construtor-bloco--metal{     background:rgba(112,136,255,.15); color:var(--coral); border-color:rgba(112,136,255,.4); }
+.construtor-bloco--nox{       background:rgba(167,139,250,.15); color:var(--violet); border-color:rgba(167,139,250,.4); }
+.construtor-bloco--ion{       background:rgba(74,222,128,.15); color:var(--green); border-color:rgba(74,222,128,.4); }
+.construtor-bloco--radical{   background:rgba(112,136,255,.15); color:var(--coral); border-color:rgba(112,136,255,.4); }
+.construtor-bloco--sufixo{    background:rgba(167,139,250,.15); color:var(--violet); border-color:rgba(167,139,250,.4); }
+.construtor-bloco--conectivo,
+.construtor-bloco--fixo{      background:var(--bg1); color:var(--tx1); border-color:var(--bdr); font-style:italic; }
+
+.construtor-acoes{ display:flex; justify-content:flex-end; }
+.construtor-btn-limpar{
+  font-size:.68rem; color:var(--tx1); background:var(--bg1); border:1px solid var(--bdr);
+  border-radius:var(--rs); padding:.35rem .7rem; cursor:pointer; transition:all .15s;
+}
+.construtor-btn-limpar:hover{ border-color:var(--red); color:var(--red); }
+.construtor-btn-limpar:focus-visible{ outline:2px solid var(--coral); outline-offset:2px; }
+
+@media(max-width:520px){ .construtor-paleta{ gap:.3rem; } }
+
+
+/* ── Leitura simples (data-reading="on") — mesmo contrato já usado
+   por .panel-body/.dr neste arquivo, estendido aos módulos novos ── */
+html[data-reading="on"] .compound-card,
+html[data-reading="on"] .subclass-btn{ padding:.65rem .7rem; }
+html[data-reading="on"] .compound-desc{ line-height:1.7; }
+
+/* ── Alto contraste (html[data-contrast="on"]) — mesmo contrato já
+   usado neste arquivo (não body.high-contrast, que é código morto
+   aqui: o receptor de a11y deste app usa atributos no <html>) ── */
+html[data-contrast="on"] .class-btn,
+html[data-contrast="on"] .subclass-btn,
+html[data-contrast="on"] .compound-card{ border-width:2px; }
+html[data-contrast="on"] .class-btn--active{ background:#000; color:#FFFF00; border-color:#FFFF00; }
+
+
+
+/* ═══ BARRA DE ROLAGEM — estilo consistente (auto-inserido) ═══ */
+/* Troca a barra de rolagem padrão do sistema (cinza, quadrada) por uma
+   fina e na cor do tema — aplicado de forma GERAL (seletor *) pra
+   cobrir sidebars, bottom sheet, barras de aba e qualquer área com
+   rolagem que ainda não tinha estilo próprio. Onde já existe uma regra
+   mais específica em algum lugar do arquivo (ex.: .modal-body::-webkit-
+   scrollbar), ela continua valendo — seletor de classe é mais
+   específico que o universal, então nada muda para quem já tinha
+   estilo. As cores usam var(--bdr)/var(--coral): como essas
+   variáveis já mudam sozinhas por tema (claro/escuro/alto contraste),
+   a barra de rolagem acompanha automaticamente, sem regra extra. */
+* { scrollbar-width: thin; scrollbar-color: var(--bdr) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--bdr); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--coral); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* ════════════════════════════════════════════════════════════════
+   COACHMARK — balão flutuante do tour guiado (ver js/coachmark.js e
+   js/a11y/tour.js). Mesma estética já usada no SILQ, só adaptada aos
+   tokens do SIQI (--bg2, --bdr, --bdr-a, --tx1/--tx2).
+   ════════════════════════════════════════════════════════════════ */
+.coach-overlay{ position:fixed; inset:0; z-index:500; }
+.coach-spot{
+  position:fixed; z-index:501; border-radius:10px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.65);
+  border:2px solid var(--bdr-a);
+  pointer-events:none;
+  transition:top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+}
+.coach-overlay:has(.coach-spot[hidden])::before{
+  content:''; position:fixed; inset:0; z-index:501; background:rgba(0,0,0,.65);
+}
+.coach-balao{
+  position:fixed; z-index:502; width:min(320px, 88vw);
+  background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--r,10px);
+  padding:18px 18px 14px; box-shadow:0 20px 48px rgba(0,0,0,.5);
+  transition:top .25s ease, left .25s ease;
+}
+.coach-balao--centro{ position:fixed; top:50% !important; left:50% !important; transform:translate(-50%,-50%); }
+.coach-pular{
+  position:absolute; top:10px; right:12px;
+  background:none; border:none; color:var(--tx2); font-size:12px; cursor:pointer;
+  padding:4px 6px; border-radius:6px;
+}
+.coach-pular:hover{ color:var(--tx1); background:var(--bg3); }
+.coach-titulo{ font-weight:700; font-size:16px; color:var(--tx1); margin:4px 30px 8px 0; }
+.coach-texto{ font-size:13.5px; color:var(--tx2); line-height:1.55; margin:0 0 16px; }
+.coach-rodape{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.coach-pontos{ display:flex; gap:5px; }
+.coach-ponto{ width:6px; height:6px; border-radius:50%; background:var(--bdr); }
+.coach-ponto--ativo{ background:var(--bdr-a); width:16px; border-radius:3px; }
+.coach-botoes{ display:flex; gap:8px; }
+.coach-btn{ font-weight:600; font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer; transition:filter .2s, background .2s; }
+.coach-btn--voltar{ background:transparent; border:1px solid var(--bdr); color:var(--tx2); }
+.coach-btn--voltar:hover{ background:var(--bg3); }
+.coach-btn--avancar{ background:var(--bdr-a); border:1px solid var(--bdr-a); color:#fff; }
+.coach-btn--avancar:hover{ filter:brightness(1.1); }
+@media (max-width:480px){
+  .coach-balao{ padding:16px 16px 12px; }
+  .coach-rodape{ flex-direction:column; align-items:stretch; gap:12px; }
+  .coach-botoes{ justify-content:space-between; }
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   TRILHO RECOLHÍVEL DAS SIDEBARS  ·  somente desktop (> 900px)
+   ────────────────────────────────────────────────────────────────
+   Bloco acrescentado por ferramenta; nenhuma regra acima foi tocada.
+   Tudo aqui vive dentro de @media (min-width: 901px). Abaixo
+   disso vale o layout mobile que já existia — bottom sheet para os
+   controles, barra de modos rolável no lugar da sidebar esquerda —
+   e nada daqui chega a ser aplicado.
+
+   Três estados por sidebar:
+     (1) fixada    → como sempre foi, no fluxo
+     (2) recolhida → sai do fluxo; um trilho de 56px fica no lugar
+     (3) flutuante → volta por cima do canvas, SEM empurrá-lo
+
+   O estado (3) é position:absolute de propósito: elemento absoluto
+   não participa do flex, então o canvas não muda de largura ao abrir
+   um painel — e nada é remedido nem reconstruído no meio de uma
+   simulação em andamento.
+
+   Cores, raios e sombras saem de variáveis já definidas no topo
+   deste arquivo, então tema claro e leitura simplificada valem sem
+   regra extra. As exceções de alto contraste vêm no fim, no mesmo
+   padrão do resto da folha.
+   ════════════════════════════════════════════════════════════════ */
+@media (min-width: 901px) {
+
+  /* Âncora do flutuante: a classe é posta pelo JS no pai REAL de cada
+     sidebar. Não dá para fixar em .app-main — em parte dos simuladores
+     do 1º ano o #main-content é o próprio canvas e as sidebars são
+     irmãs dele, e num deles não existe container nomeado nenhum. */
+  .rail-host { position: relative; }
+
+  /* ── o trilho ─────────────────────────────────────────────── */
+  .rail {
+    display: flex; flex-direction: column; align-items: center;
+    gap: .3rem; width: 56px; flex-shrink: 0; padding: .5rem 0;
+    background: var(--rail-bg, var(--bg-panel, #0c1520));
+    overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar { width: 0; }
+  .rail[hidden] { display: none; }
+  .rail--left  { border-right: 1px solid var(--rail-borda, var(--border, #1c2e44)); }
+  .rail--right { border-left:  1px solid var(--rail-borda, var(--border, #1c2e44)); }
+  .rail-sep {
+    width: 24px; height: 1px; flex-shrink: 0;
+    background: var(--rail-borda, var(--border, #1c2e44)); margin: .15rem 0 .25rem;
+  }
+
+  /* ── botões ───────────────────────────────────────────────── */
+  .rail-btn {
+    position: relative; width: 40px; height: 40px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid transparent; border-radius: var(--radius, 10px);
+    background: transparent; color: var(--rail-fg-suave, var(--text-secondary, #9ab));
+    cursor: pointer; padding: 0;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .rail-btn[hidden] { display: none; }
+  .rail-btn:hover { background: var(--rail-hover, var(--bg-hover, #16263a)); color: var(--rail-fg, var(--text-primary, #eaf2fb)); }
+  .rail-btn:focus-visible { outline: 2px solid var(--rail-acento, var(--accent-main, #7AE9FF)); outline-offset: 2px; }
+  .rail-btn[aria-expanded="true"] {
+    color: var(--rail-acento, var(--accent-main, #7AE9FF));
+    border-color: var(--rail-acento, var(--border-active, var(--accent-main, #7AE9FF)));
+    background: var(--rail-hover, var(--bg-panel2, #101c2b));
+  }
+  .rail-ico { display: flex; font-size: 1.05rem; }
+  /* reserva para painéis sem desenho de ícone (ver preencherIcone) */
+  .rail-ico--letra {
+    font: 600 .82rem/1 system-ui, sans-serif; letter-spacing: .02em;
+    align-items: center; justify-content: center;
+    width: 1.15em; height: 1.15em;
+  }
+  .rail-ico svg, .rail-ico .icon { width: 1.15em; height: 1.15em; }
+  .rail-btn--expand { color: var(--rail-fg-suave, var(--text-muted, #7a9ab8)); }
+
+  /* ── etiqueta: ícone sozinho não se explica ───────────────── */
+  .rail-tip {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    white-space: nowrap; pointer-events: none;
+    background: var(--rail-bg, var(--bg-panel2, #101c2b)); color: var(--rail-fg, var(--text-primary, #eaf2fb));
+    border: 1px solid var(--rail-borda, var(--border, #1c2e44));
+    border-radius: var(--radius-sm, 6px);
+    padding: .25rem .5rem; font-size: .72rem; line-height: 1.2;
+    box-shadow: 0 4px 14px rgba(0,0,0,.45);
+    opacity: 0; visibility: hidden; transition: opacity .12s ease; z-index: 70;
+  }
+  .rail--left  .rail-tip { left: calc(100% + 6px); }
+  .rail--right .rail-tip { right: calc(100% + 6px); }
+  .rail-btn:hover .rail-tip, .rail-btn:focus-visible .rail-tip {
+    opacity: 1; visibility: visible;
+  }
+
+  /* ── botão de recolher, dentro da sidebar ─────────────────── */
+  .rail-toggle {
+    flex-shrink: 0; width: 26px; height: 26px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--rail-borda, var(--border, #1c2e44)); border-radius: var(--radius-sm, 6px);
+    background: var(--rail-bg, var(--bg-panel2, #101c2b)); color: var(--rail-fg-suave, var(--text-secondary, #9ab));
+    cursor: pointer; transition: background .15s ease, color .15s ease;
+  }
+  .rail-toggle:hover { background: var(--rail-hover, var(--bg-hover, #16263a)); color: var(--rail-fg, var(--text-primary, #eaf2fb)); }
+  .rail-toggle:focus-visible { outline: 2px solid var(--rail-acento, var(--accent-main, #7AE9FF)); outline-offset: 2px; }
+  .sidebar--left  .rail-toggle { align-self: flex-end; }
+  .sidebar--right .rail-toggle { align-self: flex-start; }
+  .sidebar.is-collapsed .rail-toggle { display: none; }
+
+  /* ── recolhida: fora do fluxo, canvas cresce ──────────────────
+     O !important NÃO é enfeite. O sidebar-resizer.js grava
+     `style="position:relative"` INLINE em cada sidebar, para ancorar a
+     alça de arrastar (só quando o CSS base deixa a sidebar static — é o
+     caso de todo o 2º e 3º ano). Inline vence qualquer regra de folha,
+     então sem o !important a sidebar "recolhida" continuava relative,
+     ocupando os 300px dela no fluxo: o trilho aparecia, mas o canvas
+     não crescia. Medido em navegador: 15 dos 23 simuladores. O SIMA
+     escapou no piloto só porque é o único que não carrega o resizer.
+     Vale apenas no estado recolhido; fixada, a sidebar volta a
+     obedecer o inline e a alça continua funcionando. */
+  .sidebar.is-collapsed {
+    position: absolute !important; top: 0; bottom: 0; z-index: 60;
+    width: var(--swl, 300px);
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    visibility: hidden; opacity: 0;
+    transition: opacity .18s ease, transform .18s ease, visibility .18s;
+  }
+  .sidebar--left.is-collapsed {
+    left: 56px; transform: translateX(-10px);
+    border-radius: 0 var(--radius, 10px) var(--radius, 10px) 0;
+  }
+  .sidebar--right.is-collapsed {
+    right: 56px; width: var(--swr, 330px); transform: translateX(10px);
+    border-radius: var(--radius, 10px) 0 0 var(--radius, 10px);
+  }
+  .sidebar.is-collapsed.is-floating {
+    visibility: visible; opacity: 1; transform: translateX(0);
+    border-color: var(--border-active, var(--accent-main, #7AE9FF));
+  }
+
+  /* ── flutuante mostra UM card só ──────────────────────────────
+     POR QUE ESTAS REGRAS DEPENDEM DE .has-solo E NÃO DE .is-floating:
+     ao fechar, o JS tira .is-floating e o opacity leva 180ms até zero.
+     Se o formato compacto dependesse dessa classe, display:none e
+     bottom:auto parariam de valer no PRIMEIRO quadro — todos os cards
+     reapareciam e a sidebar voltava a esticar de topo a base, à vista,
+     desbotando. Era a sidebar inteira piscando ao fechar. Com
+     .has-solo, o compacto sobrevive ao fade; o JS tira a classe só
+     depois que a transição acaba.
+     .rail-oculto é posto pelo JS nos irmãos do card, nível a nível
+     até a raiz da sidebar — funciona tanto com o card solto (1º ano)
+     quanto embrulhado em #model-list (2º/3º ano). */
+  .sidebar.is-collapsed.has-solo .rail-oculto { display: none; }
+  .sidebar.is-collapsed.has-solo {
+    bottom: auto; max-height: calc(100% - 1rem); padding: .5rem; gap: 0;
+  }
+
+  /* ── ícone do modo ATIVO ──────────────────────────────────── */
+  .rail-btn.is-active { color: var(--rail-acento, var(--accent-main, #7AE9FF)); }
+  .rail-btn.is-active::before {
+    content: ''; position: absolute; left: 2px; top: 50%;
+    width: 3px; height: 18px; border-radius: 2px;
+    transform: translateY(-50%); background: var(--rail-acento, var(--accent-main, #7AE9FF));
+  }
+  .rail--right .rail-btn.is-active::before { left: auto; right: 2px; }
+
+  body.reduce-motion .sidebar.is-collapsed,
+  body.reduce-motion .rail-btn,
+  body.reduce-motion .rail-toggle,
+  body.reduce-motion .rail-tip { transition: none !important; }
+
+  /* alto contraste: mesmas variáveis vestidas — a sidebar já está no
+     esquema de alto contraste quando o trilho lê as cores dela, e isso
+     vale também para sie e sitp, cujos esquemas são diferentes */
+  body.high-contrast .rail { background: var(--rail-bg, var(--hc-bg, #000)) !important; }
+  body.high-contrast .rail--left  { border-right: 2px solid var(--rail-acento, var(--hc-fg, #fff)) !important; }
+  body.high-contrast .rail--right { border-left:  2px solid var(--rail-acento, var(--hc-fg, #fff)) !important; }
+  body.high-contrast .rail-btn,
+  body.high-contrast .rail-toggle,
+  body.high-contrast .rail-tip {
+    background: var(--rail-bg, var(--hc-bg, #000)) !important; color: var(--rail-fg, var(--hc-fg, #fff)) !important;
+    border: 2px solid var(--rail-acento, var(--hc-fg, #fff)) !important;
+  }
+  body.high-contrast .rail-btn[aria-expanded="true"] {
+    background: var(--rail-acento, var(--hc-fg, #fff)) !important; color: var(--rail-bg, var(--hc-bg, #000)) !important;
+  }
+  body.high-contrast .rail-btn.is-active::before { background: var(--rail-acento, var(--hc-fg, #fff)); }
+  body.high-contrast .sidebar.is-collapsed.is-floating {
+    border: 2px solid var(--hc-fg, #fff) !important;
+  }
+}
+
+/* ALTO CONTRASTE — o link "Pular para…" usa o acento como fundo, e no
+   alto contraste o acento é amarelo (--hc-fg). O texto precisa ser a cor
+   de FUNDO do esquema (--hc-bg, preto). Especificidade (0,2,2) de
+   propósito: as regras por tema acima — body.light-mode .skip-link e
+   body:not(.light-mode) .skip-link, ambas (0,2,1) — também casam com o
+   alto contraste e, vindo depois, deixavam branco sobre amarelo (1,07:1). */
+body.high-contrast a.skip-link { color: var(--hc-bg, #000); }
+
+/* Título do cabeçalho no ALTO CONTRASTE. O h1 usa var(--header-accent), e
+   os blocos de alto contraste redefinem --accent-main e companhia mas
+   esqueciam este token: no claro + alto contraste o título ficava com o
+   acento do tema claro (vinho, verde-escuro) sobre o fundo PRETO do
+   esquema — medido de 1,67:1 a 3,74:1. Especificidade (0,1,2) para vencer
+   body.light-mode (0,1,1), que também o redefine. */
+html body.high-contrast { --header-accent: var(--hc-fg, #ff0); }
+
+/* ═══ A ÁREA LIVRE (ver js/ui/sidebar-rail.js · Oclusao) ═══════════════
+   Um card flutuante cobre uma faixa da área da simulação sem mudar o tamanho
+   da janela. As cenas do SIQI (a bancada do Construtor, a ficha do composto,
+   o desafio, o laboratório) são HTML em flex/grid, e a visão 3D se remede
+   sozinha a cada quadro: basta dar a cada painel um padding do lado do card
+   para tudo se rearranjar na parte que se vê. O padding vai no PAINEL (não
+   na rolagem dentro dele), para a barra de rolagem também ficar fora do card.
+   O seletor de vista sai de baixo do card e o aviso se recentra. Mesmo
+   deslizamento da cena (280 ms). Sem card, --oc-* valem 0. */
+@media (min-width: 901px) {
+  #sim-area > .sim-panel { padding-left: var(--oc-esq, 0px); padding-right: var(--oc-dir, 0px); transition: padding .28s ease; }
+  #sim-area .view-toggle { right: calc(8px + var(--oc-dir, 0px)); transition: right .28s ease; }
+  #sim-area .lab-toast { left: calc(var(--oc-esq, 0px) + (100% - var(--oc-esq, 0px) - var(--oc-dir, 0px)) / 2); max-width: min(520px, calc((100% - var(--oc-esq, 0px) - var(--oc-dir, 0px)) * .9)); transition: left .28s ease; }
+  body.reduce-motion #sim-area > .sim-panel, body.reduce-motion #sim-area .view-toggle, body.reduce-motion #sim-area .lab-toast { transition: none; }
+}

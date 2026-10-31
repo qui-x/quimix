@@ -1,0 +1,742 @@
+// ══════════════════════════════════════════════════════════════════
+// APP — casco genérico da família de simuladores do 2º ano.
+// Mesma usabilidade do SIMA/SITQ: acordeões, Alt+1–N,
+// Enter/Espaço no canvas, gaveta mobile, resultados ao vivo.
+// A mecânica específica vive na classe Mech (definida acima).
+// ══════════════════════════════════════════════════════════════════
+/** Preenche uma .opt-grid com botões a partir de itens dos dados. */
+SIPL.fillOptGrid = function fillOptGrid(gridId, items, selValue) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
+  grid.innerHTML = '';
+  items.forEach(it => {
+    const b = document.createElement('button');
+    b.className = 'opt-btn' + (String(it.value) === String(selValue) ? ' active' : '');
+    b.dataset.value = it.value;
+    b.setAttribute('role', 'option');
+    b.setAttribute('aria-selected', String(String(it.value) === String(selValue)));
+    if (it.dot) {
+      const d = document.createElement('span');
+      d.className = 'opt-dot';
+      d.style.setProperty('--dot', it.dot);
+      b.appendChild(d);
+    }
+    const n = document.createElement('span');
+    n.className = 'opt-nome';
+    n.textContent = it.nome;
+    b.appendChild(n);
+    if (it.extra) {
+      const x = document.createElement('span');
+      x.className = 'opt-c';
+      x.textContent = it.extra;
+      b.appendChild(x);
+    }
+    if (it.aria) b.setAttribute('aria-label', it.aria);
+    grid.appendChild(b);
+  });
+};
+SIPL.App = class App {
+  constructor(mech) {
+    this.mech = mech;
+    mech.app = this;
+    this.D = window.SIM_DATA;
+    this.time = 0;
+    this._curio = 0;
+    this._fpsN = 0;
+    this._fpsT = 0;
+    // Modos já vistos nesta sessão — controla se o resumo do modo, no
+    // bottom sheet mobile, abre sozinho (1ª ativação) ou já vem recolhido
+    // (ativações seguintes). Não persiste entre visitas de propósito.
+    this._modosVistos = new Set();
+    // Controla a "largada com antecipação" do gatilho de ativação — ver
+    // setMode()/_loop(). 0 = física liberada (nenhuma pausa pendente).
+    this._modeStartsAt = 0;
+    this._modeStartTimer = null;
+    this.canvas = document.getElementById('sim-canvas');
+    this.ctx = this.canvas.getContext('2d');
+    this._resize();
+    window.addEventListener('resize', () => this._resize());
+    // ResizeObserver: cobre qualquer mudança de tamanho da área de
+    // desenho (arrastar o redimensionador do sidebar, abrir/fechar a
+    // gaveta mobile, rotacionar o aparelho, zoom) — não só resize da
+    // janela do navegador, que é o único evento que window.resize cobre.
+    const wrap = this.canvas.closest('.canvas-wrap');
+    if (wrap && typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => this._resize()).observe(wrap);
+    }
+    // visualViewport: cobre zoom por pinça (touch) e alguns zooms de
+    // trackpad, que às vezes mudam só a escala visual sem disparar
+    // resize/ResizeObserver (o self-heal por quadro no _loop já cobre
+    // isso também, mas reagir ao evento evita 1 quadro de atraso).
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => this._resize());
+    }
+    this._buildModes();
+    this._buildModeTabsMobile();
+    this._bindSidebar();
+    this._bindModeIndicator();
+    this._bindModeInfoModal();
+    this._bindHeader();
+    this._bindCanvasKeys();
+    if (typeof mech.build === 'function') mech.build(this);
+
+    // ── Estado inicial: NENHUM modo ativo — nada é desenhado no canvas
+    //    até o usuário clicar em "Ativar" no painel do modo desejado
+    //    (mesmo contrato do SILQ: canvas em branco por padrão). ──
+    this.mode = null;
+    document.querySelectorAll('.panel[data-owner]').forEach(p => {
+      p.hidden = true;
+    });
+    const hint0 = document.getElementById('canvas-hint');
+    if (hint0) hint0.textContent = 'Escolha um modo ao lado e clique em "Ativar" para iniciar a simulação.';
+    this.refresh();
+    SIPL.announce(`${this.D.ACRO} carregado. Nenhum modo ativo. Escolha um modo à esquerda e ative-o para começar.`);
+    this._last = performance.now();
+    requestAnimationFrame(() => this._loop());
+  }
+
+  /* ── canvas responsivo com devicePixelRatio ── */
+  _resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const r = this.canvas.getBoundingClientRect();
+    this.W = Math.max(80, r.width);
+    this.H = Math.max(80, r.height);
+    this.canvas.width = this.W * dpr;
+    this.canvas.height = this.H * dpr;
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this._lastDPR = dpr;
+    // ── escala do canvas (ver bloco ESCALA DO CANVAS, no topo) ──
+    // patchCtxFont e idempotente (marca ctx._fontPatched), entao pode ser
+    // chamado a cada resize sem empilhar interceptadores.
+    SIPL.patchCtxFont(this.ctx);
+    SIPL.CANVAS_FS = SIPL.canvasFS(this.W);
+    this.lay = SIPL.layoutMode(this.W);
+  }
+
+  /* ── painéis individuais por modo, gerados de SIM_DATA.MODES ──
+     cada modo é um .panel padrão, igual a "Sobre o Modo"/"Resultados":
+     cabeçalho ícone+nome+sigla+seta (expande/recolhe sozinho, cuidado
+     por _bindPanelArea) + corpo com botão "Ativar", definição, fatos-
+     chave, interação do canvas e itens recomendados ── */
+  _buildModes() {
+    const list = document.getElementById('model-list');
+    this.D.MODES.forEach((m, i) => {
+      const headerId = 'hdr-mode-' + m.id,
+        bodyId = 'body-mode-' + m.id;
+      const section = document.createElement('section');
+      section.className = 'panel';
+      section.dataset.modeCard = m.id;
+      section.setAttribute('aria-labelledby', headerId);
+      const header = document.createElement('button');
+      header.type = 'button';
+      header.id = headerId;
+      header.className = 'panel-header';
+      header.setAttribute('aria-expanded', 'false');
+      header.setAttribute('aria-controls', bodyId);
+      header.innerHTML = `<span class="panel-icon" aria-hidden="true">${m.icon || '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="stroke:none;fill:currentColor" width=".55em" height=".55em"><circle cx="12" cy="12" r="10" /></svg>'}</span>
+        <span class="panel-label">${m.nome}</span>
+        <span class="panel-badge">${m.sigla}</span>
+        <span class="mode-active-tag">Ativo</span>
+        <span class="chevron" aria-hidden="true">▾</span>`;
+      const body = document.createElement('div');
+      body.id = bodyId;
+      body.className = 'panel-body collapsed';
+      // PADRAO SILQ: o corpo do painel e uma regiao nomeada pelo cabecalho,
+      // para o leitor de tela saber onde o modulo comeca e termina.
+      body.setAttribute('role', 'region');
+      body.setAttribute('aria-labelledby', headerId);
+      const activateBtn = document.createElement('button');
+      activateBtn.type = 'button';
+      activateBtn.className = 'action-btn mode-activate-btn';
+      // Botao de ativacao e um toggle de estado -> aria-pressed (igual ao
+      // .bond-mode-btn do SILQ). Sincronizado em setMode().
+      activateBtn.setAttribute('aria-pressed', 'false');
+      activateBtn.innerHTML = `<span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Ativar ${m.nome}`;
+      // TOGGLE — mesmo contrato do SILQ: clicar no modo JA ativo desativa e
+      // devolve o simulador ao estado neutro (canvas em branco).
+      activateBtn.addEventListener('click', () => {
+        if (this.mode && this.mode.id === m.id) this.clearMode();else this.setMode(m.id);
+      });
+      // HINT DE HOVER — tooltip nativo, atualizado em setMode/clearMode.
+      activateBtn.title = 'Ativar ' + m.nome + ' no canvas';
+      body.appendChild(activateBtn);
+      if (m.def) {
+        const def = document.createElement('p');
+        def.className = 'mode-define';
+        def.textContent = m.def;
+        body.appendChild(def);
+      }
+      if (m.fatos && m.fatos.length) {
+        const grid = document.createElement('div');
+        grid.className = 'fact-grid';
+        m.fatos.forEach(ft => {
+          const cell = document.createElement('div');
+          cell.className = 'fact-cell';
+          cell.innerHTML = `<span class="fact-label">${ft.l}</span><span class="fact-value">${ft.v}</span>`;
+          grid.appendChild(cell);
+        });
+        body.appendChild(grid);
+      }
+      if (m.canvasInteracao) {
+        const box = document.createElement('div');
+        box.className = 'canvas-interactions';
+        box.innerHTML = `<p class="canvas-interactions-title">Interações do canvas</p><p>${m.canvasInteracao}</p>`;
+        body.appendChild(box);
+      }
+      if (m.recomendados && m.recomendados.length) {
+        const rec = document.createElement('div');
+        rec.className = 'recommended';
+        rec.innerHTML = `<p class="recommended-title">Recomendados</p>
+          <div class="chip-row">${m.recomendados.map(r => `<span class="chip">${r}</span>`).join('')}</div>`;
+        body.appendChild(rec);
+      }
+      const hint = document.createElement('p');
+      hint.className = 'hint-text';
+      hint.textContent = m.hint;
+      body.appendChild(hint);
+      section.appendChild(header);
+      section.appendChild(body);
+      list.appendChild(section);
+    });
+  }
+
+  /* ── barra de modos MOBILE — mesma ordem/dados de _buildModes() acima,
+     só que como abas roláveis em vez de acordeão (ver CSS, ativa só
+     abaixo de 1100px). Clicar chama setMode/clearMode, o MESMO contrato
+     de sempre — a barra não tem lógica própria de estado, só delega. ── */
+  _buildModeTabsMobile() {
+    const bar = document.getElementById('mode-tabs-mobile');
+    if (!bar) return;
+    this.D.MODES.forEach(m => {
+      const tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'mode-tab';
+      tab.dataset.modeTab = m.id;
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', 'false');
+      tab.innerHTML = `<span aria-hidden="true">${m.icon || '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="stroke:none;fill:currentColor" width=".55em" height=".55em"><circle cx="12" cy="12" r="10" /></svg>'}</span><span>${m.nome}</span>`;
+      tab.title = m.nome;
+      tab.addEventListener('click', () => {
+        if (this.mode && this.mode.id === m.id) this.clearMode();else this.setMode(m.id);
+      });
+      bar.appendChild(tab);
+    });
+  }
+
+  /* ── resumo do modo, para dentro do bottom sheet mobile (definição +
+     fatos-chave — a mesma informação que já existe no acordeão da
+     sidebar esquerda, só que reduzida e em outro lugar, pensada pra
+     leitura rápida no celular). Retorna string HTML pronta. ── */
+  _modeSummaryHTML(m) {
+    let html = '';
+    if (m.def) html += `<p class="mode-define">${m.def}</p>`;
+    if (m.fatos && m.fatos.length) {
+      html += '<div class="fact-grid">' + m.fatos.map(ft =>
+        `<div class="fact-cell"><span class="fact-label">${ft.l}</span><span class="fact-value">${ft.v}</span></div>`
+      ).join('') + '</div>';
+    }
+    return html;
+  }
+
+  /* ── sincroniza a barra de modos e o resumo do bottom sheet com o modo
+     ativo — chamada por setMode()/clearMode(), nunca sozinha. Segura
+     mesmo se os elementos não existirem (desktop puro, ou simulador sem
+     esse recurso ainda). ── */
+  _syncMobileModeUI(id) {
+    document.querySelectorAll('.mode-tab').forEach(tab => {
+      tab.setAttribute('aria-selected', tab.dataset.modeTab === id ? 'true' : 'false');
+    });
+    const activeTab = id && document.querySelector(`.mode-tab[data-mode-tab="${id}"]`);
+    if (activeTab && typeof activeTab.scrollIntoView === 'function') {
+      activeTab.scrollIntoView({ inline: 'center', block: 'nearest', behavior: SIPL.isReduced() ? 'auto' : 'smooth' });
+    }
+    const box = document.getElementById('mode-summary-mobile');
+    const toggle = document.getElementById('mode-summary-toggle');
+    const body = document.getElementById('mode-summary-body');
+    if (!box || !toggle || !body) return;
+    if (!id) { box.hidden = true; return; }
+    const m = this.D.MODES.find(x => x.id === id);
+    if (!m) { box.hidden = true; return; }
+    box.hidden = false;
+    body.innerHTML = this._modeSummaryHTML(m);
+    // 1ª ativação do modo nesta sessão -> abre o MODAL (por cima de
+    // tudo, força a leitura antes de simular). Nas ativações seguintes
+    // o resumo já fica disponível dentro do bottom sheet, recolhido,
+    // sem interromper de novo — o aluno abre manualmente pelo toggle
+    // "Sobre este modo" se quiser reler.
+    const primeiraVez = !this._modosVistos.has(id);
+    this._modosVistos.add(id);
+    toggle.setAttribute('aria-expanded', 'false');
+    body.classList.remove('open');
+    if (primeiraVez && window.innerWidth <= 1100) this._showModeInfoModal(m);
+    if (!toggle._wired) {
+      toggle._wired = true;
+      toggle.addEventListener('click', () => {
+        const open = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', String(!open));
+        body.classList.toggle('open', !open);
+      });
+    }
+  }
+
+  /* ── MODAL de informações do modo (1ª ativação, mobile) ──
+     Reaproveita _modeSummaryHTML(m) — o MESMO texto que aparece no
+     "Sobre este modo" do bottom sheet — só muda a apresentação:
+     aqui é um diálogo por cima de tudo, com foco automático no ✕
+     para quem navega por teclado. ── */
+  _showModeInfoModal(m) {
+    const overlay = document.getElementById('modeInfoOverlay');
+    if (!overlay) return;
+    const icon = document.getElementById('modeInfoIcon');
+    const title = document.getElementById('modeInfoTitle');
+    const body = document.getElementById('modeInfoBody');
+    const closeBtn = document.getElementById('modeInfoClose');
+    if (icon) icon.innerHTML = m.icon || '';
+    if (title) title.textContent = m.nome;
+    if (body) body.innerHTML = this._modeSummaryHTML(m);
+    overlay.classList.add('aberto');
+    overlay.setAttribute('aria-hidden', 'false');
+    if (closeBtn) setTimeout(() => closeBtn.focus(), 220);
+  }
+  _hideModeInfoModal() {
+    const overlay = document.getElementById('modeInfoOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('aberto');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+  /* Fechamento: botão ✕, toque no fundo escurecido (fora da caixa) ou
+     Esc — mesmo contrato do modal de elemento do SITP. Ligado uma
+     única vez, no construtor. ── */
+  _bindModeInfoModal() {
+    const overlay = document.getElementById('modeInfoOverlay');
+    const closeBtn = document.getElementById('modeInfoClose');
+    if (!overlay || !closeBtn) return;
+    closeBtn.addEventListener('click', () => this._hideModeInfoModal());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) this._hideModeInfoModal(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && overlay.classList.contains('aberto')) this._hideModeInfoModal();
+    });
+  }
+
+  /* ── DESATIVAR o modo — volta ao estado neutro, o mesmo em que o
+     simulador abre (this.mode = null). Todo o resto do codigo ja trata
+     esse caso: refresh(), o hint do canvas e os paineis por modo.
+     Mesmo contrato de toggle do SILQ (setMode / clearMode). ── */
+  clearMode() {
+    this.mode = null;
+    // Cancela qualquer "largada com antecipação" pendente do modo anterior
+    // — sem isso, um setTimeout de 2s de um modo já desativado poderia
+    // reescrever o hint do canvas por cima do texto neutro logo abaixo.
+    if (this._modeStartTimer) { clearTimeout(this._modeStartTimer); this._modeStartTimer = null; }
+    this._modeStartsAt = 0;
+    document.querySelectorAll('.panel[data-mode-card]').forEach(panel => {
+      panel.classList.remove('active');
+      const header = panel.querySelector('.panel-header');
+      if (header) header.removeAttribute('aria-current');
+      const actBtn = panel.querySelector('.mode-activate-btn');
+      if (actBtn) {
+        actBtn.setAttribute('aria-pressed', 'false');
+        const nomeMod = (this.D.MODES.find(x => x.id === panel.dataset.modeCard) || {}).nome || '';
+        actBtn.title = 'Ativar ' + nomeMod + ' no canvas';
+      }
+    });
+    document.querySelectorAll('.panel[data-owner]').forEach(p => {
+      p.hidden = true;
+    });
+    const hint = document.getElementById('canvas-hint');
+    if (hint) hint.textContent = 'Escolha um modo ao lado e clique em "Ativar" para iniciar a simulação.';
+    // esconde a pilula do canvas — volta ao estado puro
+    const ind0 = document.getElementById('mode-indicator');
+    if (ind0) ind0.classList.remove('mode-on');
+    if (this.mech && typeof this.mech.setMode === 'function') this.mech.setMode(null);
+    this.refresh();
+    this._syncMobileModeUI(null);
+    if (typeof SIPL.playTone === 'function') SIPL.playTone(420, .06, .05);
+    SIPL.announce('Modo desativado. Nenhum modo ativo — escolha um modo e ative-o para voltar a simular.');
+  }
+  setMode(id, silent) {
+    const m = this.D.MODES.find(x => x.id === id);
+    if (!m) return;
+    this.mode = m;
+    document.querySelectorAll('.panel[data-mode-card]').forEach(panel => {
+      const on = panel.dataset.modeCard === id;
+      panel.classList.toggle('active', on);
+      const header = panel.querySelector('.panel-header');
+      if (header) {
+        if (on) header.setAttribute('aria-current', 'true');else header.removeAttribute('aria-current');
+      }
+      // Espelha o estado no botao "Ativar" do modulo (padrao SILQ)
+      const actBtn = panel.querySelector('.mode-activate-btn');
+      if (actBtn) {
+        actBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        const nomeMod = (this.D.MODES.find(x => x.id === panel.dataset.modeCard) || {}).nome || '';
+        actBtn.title = on ? 'Desativar ' + nomeMod : 'Ativar ' + nomeMod + ' no canvas';
+      }
+      // Ao ativar, o painel se RECOLHE (em vez de expandir) — o gatilho de
+      // ativação abre espaço pro canvas, não pede pra continuar lendo a
+      // definição. Reabrir é um clique no cabeçalho, a qualquer momento,
+      // inclusive com a simulação já rodando.
+      if (on) {
+        if (header) header.setAttribute('aria-expanded', 'false');
+        const body = panel.querySelector('.panel-body');
+        if (body) body.classList.add('collapsed');
+      }
+    });
+    document.querySelectorAll('.panel[data-owner]').forEach(p => {
+      p.hidden = !(m.panels || []).includes(p.id);
+    });
+    const hint = document.getElementById('canvas-hint');
+    this.mech.setMode(id);
+    this.refresh();
+    this._syncMobileModeUI(id);
+    // No mobile, ativar um modo RECOLHE o bottom sheet de controles (se
+    // estiver aberto) em vez de abri-lo — o gatilho libera o canvas
+    // inteiro pra tela. Reabrir os controles pra ajustar parâmetros é um
+    // toque no botão 🎛 do cabeçalho, a qualquer momento, inclusive com a
+    // simulação já rodando.
+    if (window.innerWidth <= 1100 && typeof window._closeSidebar === 'function') {
+      window._closeSidebar();
+    }
+    // ── largada com 2s de antecipação ──
+    // O ESTADO já foi montado (mech.setMode acima), então o canvas mostra
+    // o quadro inicial "parado" imediatamente — só a FÍSICA (mech.update,
+    // chamado em _loop) fica pausada por 2s, dando tempo de os controles
+    // recolherem e o aluno olhar pro canvas antes de algo se mexer.
+    if (this._modeStartTimer) clearTimeout(this._modeStartTimer);
+    this._modeStartsAt = performance.now() + 2000;
+    if (hint) hint.textContent = 'Iniciando em instantes…';
+    this._modeStartTimer = setTimeout(() => {
+      const h = document.getElementById('canvas-hint');
+      if (h && this.mode && this.mode.id === id) h.textContent = m.hintCanvas || '';
+    }, 2000);
+    if (!silent) {
+      SIPL.playTone(760, .06, .05);
+      SIPL.announce(`Modo ${m.nome} selecionado. A animação começa em 2 segundos. ${(m.info || '').split('.')[0]}.`);
+    }
+  }
+
+  /* ── delegação de controles declarativos nas duas sidebars ──
+     esquerda: menus/listagens e informativos · direita: controles */
+  /* Botao ✕ da pilula do canvas — desativa o modo, mesmo papel do
+     #bond-mode-indicator-clear do SILQ. */
+  _bindModeIndicator() {
+    const btn = document.getElementById('overlay-clear');
+    if (btn) btn.addEventListener('click', () => this.clearMode());
+  }
+  _bindSidebar() {
+    ['sidebar-left', 'sidebar-right'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) this._bindPanelArea(el);
+    });
+  }
+  _bindPanelArea(sb) {
+    sb.addEventListener('click', e => {
+      // modo secreto do painel de Ordem de Reação: 5 cliques no ícone
+      // (📈) da barra de título do painel, em até 3s, alternam um
+      // "desafio da ordem escondida" — a mecânica sorteia a ordem
+      // verdadeira e o esconde; o aluno precisa descobrir testando as
+      // três linearizações, igual ao método gráfico real.
+      if (e.target.closest('#hdr-ord .panel-icon')) {
+        const now = performance.now();
+        if (!this._ordIconT || now - this._ordIconT > 3000) this._ordIconN = 0;
+        this._ordIconT = now;
+        this._ordIconN = (this._ordIconN || 0) + 1;
+        if (this._ordIconN >= 5) {
+          this._ordIconN = 0;
+          this.mech.ordSecreto = !this.mech.ordSecreto;
+          if (this.mech.ordSecreto) {
+            this.mech.ordOculta = Math.floor(Math.random() * 3);
+            this.mech.ordTrel = 0;
+            this.mech.ordRunning = false;
+            SIPL.announce('Desafio da ordem escondida ativado! A ordem verdadeira foi sorteada e escondida — descubra testando as três linearizações.');
+          } else {
+            SIPL.announce('Desafio da ordem escondida desativado.');
+          }
+          SIPL.playTone(this.mech.ordSecreto ? 900 : 500, .1, .06);
+          this.refresh();
+        }
+      }
+      const hdr = e.target.closest('.panel-header');
+      if (hdr) {
+        const exp = hdr.getAttribute('aria-expanded') === 'true';
+        hdr.setAttribute('aria-expanded', String(!exp));
+        const body = document.getElementById(hdr.getAttribute('aria-controls'));
+        if (body) body.classList.toggle('collapsed', exp);
+        SIPL.playTone(exp ? 500 : 750, .06, .04);
+        return;
+      }
+      const opt = e.target.closest('.opt-btn');
+      if (opt) {
+        const grid = opt.closest('[data-group]');
+        grid.querySelectorAll('.opt-btn').forEach(b => {
+          const on = b === opt;
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        this._param(grid.dataset.group, opt.dataset.value);
+        return;
+      }
+      const seg = e.target.closest('.seg-btn');
+      if (seg) {
+        seg.closest('.seg').querySelectorAll('.seg-btn').forEach(b => b.setAttribute('aria-pressed', String(b === seg)));
+        this._param(seg.closest('.seg').dataset.group, seg.dataset.value);
+        return;
+      }
+      const act = e.target.closest('[data-action]');
+      if (act) {
+        this.mech.action(act.dataset.action, act);
+        this.refresh();
+      }
+    });
+    sb.addEventListener('input', e => {
+      const t = e.target;
+      if (t.matches('input[type="range"][data-bind]')) {
+        const v = parseFloat(t.value);
+        const out = document.getElementById('out-' + t.id);
+        if (out) out.textContent = this.fmtOut(t, v);
+        this._param(t.dataset.bind, v);
+      }
+    });
+    sb.addEventListener('change', e => {
+      if (e.target.matches('select[data-bind]')) this._param(e.target.dataset.bind, e.target.value);
+    });
+  }
+  fmtOut(inp, v) {
+    // 'data-pow' é um atributo booleano sem valor — no dataset ele vira
+    // string vazia (""), que é FALSY em JS. Testar com "inp.dataset.pow ?"
+    // nunca entra no ramo verdadeiro; é preciso checar a PRESENÇA do
+    // atributo, não a veracidade do seu valor. (Correção replicada da versão
+    // já certa em eletroquímica, unificada na refatoração do núcleo.)
+    const ehLog = inp.hasAttribute('data-pow');
+    const casas = inp.dataset.fmt === 'f2' ? 2 : inp.dataset.fmt === 'f1' ? 1 : 0;
+    const val = ehLog ? Math.pow(10, v) : v;
+    // Notação científica em vez de um número fixo de casas decimais:
+    // um slider logarítmico varre várias ordens de grandeza (ex.: 10⁻⁸ a
+    // 10⁰ mol/L no Kps), e um número fixo de casas arredondava valores
+    // pequenos para "0" — escondendo a grandeza real da concentração.
+    const txt = ehLog ? SIPL.fmtCientifico(val, 1) : SIPL.fmt(val, casas);
+    return txt + (inp.dataset.unit ? ' ' + inp.dataset.unit : '');
+  }
+  _param(k, v) {
+    const r = this.mech.setParam(k, v) || {};
+    if (r.warn) SIPL.announce(r.warn, 'assertive');
+    if (r.say) SIPL.announce(r.say);
+    this.refresh();
+  }
+
+  /** Sincroniza um slider programaticamente (valor + output). */
+  syncSlider(id, v) {
+    const inp = document.getElementById(id);
+    if (!inp) return;
+    inp.value = v;
+    const out = document.getElementById('out-' + id);
+    if (out) out.textContent = this.fmtOut(inp, parseFloat(inp.value));
+  }
+
+  /* ── resultados + rótulo flutuante ── */
+  refresh() {
+    const grid = document.getElementById('result-grid');
+    const resultPanel = grid ? grid.closest('.panel') : null;
+    if (grid) {
+      grid.innerHTML = '';
+      if (!this.mode) {
+        // Nenhum modo ativo: painel de Análise fica com aviso neutro,
+        // igual ao "Clique em elementos..." do SILQ antes de qualquer ação.
+        const p = document.createElement('p');
+        p.className = 'hint-text';
+        p.textContent = 'Ative um modo à esquerda para ver aqui a análise dos resultados.';
+        grid.appendChild(p);
+      } else {
+        (this.mech.getResults() || []).forEach(r => {
+          const row = document.createElement('div');
+          row.className = 'data-row';
+          const dt = document.createElement('dt');
+          dt.className = 'data-label';
+          dt.textContent = r.l;
+          const dd = document.createElement('dd');
+          dd.className = 'data-value' + (r.cls ? ' ' + r.cls : '');
+          dd.textContent = r.v;
+          row.append(dt, dd);
+          grid.appendChild(row);
+        });
+      }
+    }
+    if (resultPanel) resultPanel.classList.toggle('panel--waiting', !this.mode);
+    // INDICADOR DE MODO ATIVO (padrao SILQ): a pilula do topo do canvas
+    // so existe quando ha modo ativo. Sem modo, o canvas fica PURO.
+    const ind = document.getElementById('mode-indicator');
+    const ovTxt = document.getElementById('overlay-text');
+    const ovIco = document.getElementById('overlay-icon');
+    if (ind) ind.classList.toggle('mode-on', !!this.mode);
+    if (this.mode) {
+      // "<Nome do modo> ativo" — igual ao SILQ ("Modo Metálico ativo").
+      // O estado dinamico (temperatura, reagente, etc.) entra depois, num
+      // span proprio, para nao virar frases como "t = 0 ativo".
+      if (ovTxt) {
+        ovTxt.textContent = this.mode.nome + ' ativo';
+        const detalhe = this.mech.getOverlay && this.mech.getOverlay() || this.mode.overlay || '';
+        if (detalhe && detalhe !== this.mode.nome) {
+          const sp = document.createElement('span');
+          sp.className = 'overlay-detail';
+          sp.textContent = ' · ' + detalhe;
+          ovTxt.appendChild(sp);
+        }
+      }
+      if (ovIco) ovIco.innerHTML = this.mode.icon || '';
+    }
+    this._refreshResultChart();
+
+    // botão Iniciar/Pausar da Ordem de Reação alterna de rótulo
+    if (this.mode && this.mode.id === 'ordem') {
+      const btn = document.querySelector('[data-action="ord-play"]');
+      if (btn) btn.innerHTML = this.mech.ordRunning ? '<span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="14" y="3" width="5" height="18" rx="1" /><rect x="5" y="3" width="5" height="18" rx="1" /></svg></span> Pausar corrida' : '<span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Iniciar corrida';
+    }
+  }
+
+  /** Redesenha o canvas auxiliar de gráfico na aba Resultados (hoje só
+   *  o modo Superfície de Contato usa). Chamado tanto de refresh()
+   *  quanto a cada quadro do loop de animação, pra o gráfico acompanhar
+   *  o tempo em tempo real, não só quando um controle muda. */
+  _refreshResultChart() {
+    const rc = document.getElementById('result-chart');
+    if (!rc) return;
+    const temGrafico = this.mode && typeof this.mech.drawResultChart === 'function';
+    let desenhou = false;
+    if (temGrafico) {
+      const dpr = window.devicePixelRatio || 1;
+      const w = rc.clientWidth || 260,
+        h = rc.clientHeight || 160;
+      if (rc.width !== w * dpr || rc.height !== h * dpr) {
+        rc.width = w * dpr;
+        rc.height = h * dpr;
+      }
+      const rctx = rc.getContext('2d');
+      rctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhou = !!this.mech.drawResultChart(rctx, w, h);
+    }
+    rc.hidden = !desenhou;
+  }
+
+  /* ── header: pausa + curiosidades ── */
+  _bindHeader() {
+    const logo = document.getElementById('btn-app-logo');
+    if (logo) logo.addEventListener('click', () => {
+      const c = this.D.CURIOSIDADES;
+      if (!c || !c.length) return;
+      const fato = c[this._curio++ % c.length];
+      SIPL.playTone(660, .09, .06);
+      SIPL.announce('Você sabia? ' + fato);
+    });
+    document.addEventListener('keydown', e => {
+      if (!e.altKey) return;
+      const n = parseInt(e.key, 10);
+      if (n >= 1 && n <= this.D.MODES.length) {
+        e.preventDefault();
+        this.setMode(this.D.MODES[n - 1].id);
+      }
+    });
+  }
+
+  /* ── teclado no canvas: Enter/Espaço = ação primária; setas → mech ── */
+  _bindCanvasKeys() {
+    this.canvas.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (this.mode && this.mode.primary) {
+          this.mech.action(this.mode.primary);
+          this.refresh();
+        }
+      } else if (this.mode && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) && this.mech.onArrow) {
+        const dx = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+        const dy = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0;
+        if (this.mech.onArrow(dx, dy)) {
+          e.preventDefault();
+          this.refresh();
+        }
+      }
+    });
+    if (this.mech.onDrag) {
+      let drag = false,
+        lx = 0,
+        ly = 0;
+      this.canvas.addEventListener('pointerdown', e => {
+        drag = true;
+        lx = e.clientX;
+        ly = e.clientY;
+        this.canvas.setPointerCapture(e.pointerId);
+      });
+      this.canvas.addEventListener('pointermove', e => {
+        if (!drag) return;
+        this.mech.onDrag(e.clientX - lx, e.clientY - ly);
+        lx = e.clientX;
+        ly = e.clientY;
+      });
+      const up = () => {
+        drag = false;
+      };
+      this.canvas.addEventListener('pointerup', up);
+      this.canvas.addEventListener('pointercancel', up);
+    }
+    // clique/toque no canvas — usado hoje pelo botão de alternância
+    // do modo Energia (diagrama ↔ Maxwell-Boltzmann desenhado no canvas)
+    this.canvas.addEventListener('click', e => {
+      if (!this.mode || typeof this.mech.onCanvasClick !== 'function') return;
+      const r = this.canvas.getBoundingClientRect();
+      const x = e.clientX - r.left,
+        y = e.clientY - r.top;
+      if (this.mech.onCanvasClick(x, y, this.W, this.H)) this.refresh();
+    });
+  }
+
+  /* ── loop rAF ── */
+  _loop() {
+    const now = performance.now();
+    const dt = SIPL.clamp((now - this._last) / 1000, 0, .05);
+    this._last = now;
+
+    // Auto-correção de tamanho: ResizeObserver e window.resize cobrem
+    // a maioria dos casos, mas existem formas de zoom (escala do
+    // Windows, certos gestos de zoom) que mudam devicePixelRatio SEM
+    // alterar o layout CSS — nesse caso o tamanho em CSS px continua
+    // igual e só comparar boundingClientRect não pega a mudança.
+    // Por isso comparamos os DOIS: tamanho CSS e devicePixelRatio.
+    const rNow = this.canvas.getBoundingClientRect();
+    const dprNow = window.devicePixelRatio || 1;
+    if (Math.abs(rNow.width - this.W) > .5 || Math.abs(rNow.height - this.H) > .5 || dprNow !== this._lastDPR) {
+      this._resize();
+    }
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.W, this.H);
+
+    // Sem modo ativo → canvas permanece em branco (nada é desenhado
+    // "sozinho"; exige ativação explícita do usuário no painel).
+    if (this.mode) {
+      // "Largada com antecipação": _modeStartsAt (marcado em setMode) segura
+      // o UPDATE por 2s — o desenho continua rodando (mostra o quadro
+      // congelado), só a física não avança até o tempo passar.
+      if (now >= this._modeStartsAt) {
+        this.time += dt;
+        this.mech.update(dt, this);
+      }
+      this.mech.draw(ctx, this.W, this.H, this);
+
+      // Painel de Resultados (texto + gráfico auxiliar) precisa
+      // acompanhar o tempo real da simulação, não só reagir a cliques
+      // em controles — por isso é atualizado aqui também, throttled a
+      // ~8x/s (rebuild de DOM a 60fps seria desperdício).
+      if (!this._lastResultsRefresh || now - this._lastResultsRefresh > 120) {
+        this._lastResultsRefresh = now;
+        this.refresh();
+      }
+      this._fpsN++;
+      if (now - this._fpsT > 500) {
+        const el = document.getElementById('fps-counter');
+        if (el) el.textContent = Math.round(this._fpsN * 1000 / (now - this._fpsT)) + ' fps';
+        this._fpsN = 0;
+        this._fpsT = now;
+      }
+    }
+    requestAnimationFrame(() => this._loop());
+  }
+};
+window.addEventListener('DOMContentLoaded', () => new SIPL.App(new SIPL.Mech(window.SIM_DATA)));

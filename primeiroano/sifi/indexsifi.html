@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark" data-colorblind="none" data-reading="off" data-contrast="off" data-spacing="off" data-motion="off">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina.
+     Mesmo caminho relativo usado pelo SILQ (indexsilq.html) — ajuste
+     se o SIFI for hospedado em outra profundidade de pasta. -->
+<script src="../../a11y.js"></script>
+<title>SIFI — Simulador Interativo de Forças Intermoleculares</title>
+<!-- Mesma paleta de cores do SILQ por enquanto (cópia de stylesilq.css).
+     Isto é intencional: o usuário vai customizar as cores do SIFI
+     depois, num passo separado. -->
+<link href="css/sifi-styles.css" rel="stylesheet">
+<!-- Estilos NOVOS do SIFI (canvas, fichas de molécula).
+     Não define cores próprias — só usa as variáveis de sifi-styles.css. -->
+<link href="css/sifi-extra.css" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Filtros SVG de simulação de daltonismo — mesma matriz do SILQ,
+       para manter as cores padronizadas entre simuladores. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="f-protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-acromatopsia">
+        <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <div id="colorblindOverlay" aria-hidden="true"></div>
+
+  <!-- ===================== SKIP LINKS ===================== -->
+  <nav class="skip-nav" aria-label="Atalhos de navegação">
+    <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
+    <a href="#sidebar-left" class="skip-link">Pular para os módulos</a>
+    <a href="#sandbox" class="skip-link">Pular para o canvas</a>
+    <a href="#sidebar-right" class="skip-link">Pular para a biblioteca de compostos e força detectada</a>
+  </nav>
+
+  <!-- Live regions para leitores de tela -->
+  <div id="a11y-announcer" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+  <div id="a11y-announcer-assertive" aria-live="assertive" aria-atomic="true" class="sr-only"></div>
+
+  <!-- ===================== CABEÇALHO ===================== -->
+  <header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexprimeiroano.html" id="backToHub" aria-label="Voltar aos simuladores do 1º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16">
+          <path d="M19 12H5M11 18l-6-6 6-6"/>
+        </svg>
+        <span>1º Ano</span>
+      </a>
+      <span class="header-logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="9" cy="11" r="4" stroke-width="1.5" fill="currentColor" fill-opacity="0.15"/>
+          <circle cx="23" cy="21" r="4" stroke-width="1.5" fill="currentColor" fill-opacity="0.15"/>
+          <path d="M12 14 C15 16 18 18 20 19" stroke-width="1.3" stroke-dasharray="2.2 2.2"/>
+        </svg>
+      </span>
+      <div>
+        <h1>SIFI</h1>
+        <p class="header-sub">Simulador Interativo de Forças Intermoleculares</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="mobile-menu-btn" id="mobile-menu-btn-right"
+        aria-label="Abrir biblioteca de compostos e força detectada" aria-expanded="false" aria-controls="sidebar-right">
+        <span data-icon="controles" aria-hidden="true"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ════════ BARRA DE MODOS (MOBILE) ════════
+       Só aparece em telas estreitas — substitui a gaveta esquerda pelos
+       3 módulos como abas roláveis. Preenchida em buildModeTabsMobile()
+       (js/ui/modo-mobile.js), DEPOIS de js/ui/icones.js (pra clonar os
+       ícones já preenchidos). -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Módulos do simulador" aria-orientation="horizontal"></nav>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+  <div class="app-container">
+
+    <!-- ===================== SIDEBAR ESQUERDA — Módulos ===================== -->
+    <aside class="sidebar sidebar--left" id="sidebar-left" role="complementary" aria-label="Módulos do SIFI">
+      <div class="sidebar-header">
+        <p class="hint-text">
+          Ative um módulo para começar a interagir no canvas.
+        </p>
+      </div>
+
+      <div class="accordion accordion--exclusive" id="left-accordion">
+
+        <!-- ── MÓDULO 1: TABULEIRO DAS ATRAÇÕES (funcional) ── -->
+        <section class="panel panel--modulo1" aria-labelledby="hdr-modulo1">
+          <button type="button" class="panel-header" id="hdr-modulo1"
+                  aria-expanded="false" aria-controls="body-modulo1" data-mode-card="mod1">
+            <span class="panel-icon" data-icon="modulo1" aria-hidden="true"></span>
+            <span class="panel-label">Tabuleiro das Atrações</span>
+            <span class="panel-badge panel-badge--mod1" aria-hidden="true">1</span>
+            <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="panel-body collapsed" id="body-modulo1" role="region" aria-labelledby="hdr-modulo1">
+
+            <button type="button" class="bond-mode-btn" id="btn-modulo-1"
+                    data-module="1"
+                    aria-pressed="false"
+                    title="Ativar o Módulo 1 no canvas"
+                    aria-label="Ativar Módulo 1 — Tabuleiro das Atrações">
+              <span class="bond-mode-btn-dot bond-mode-dot--mod1"></span>
+              Ativar Módulo 1
+            </button>
+
+            <p class="bond-type-desc">
+              Aproxime duas moléculas no canvas. Se os polos <strong>opostos</strong>
+              (δ+ perto de δ−) se encontrarem, elas se <strong>atraem</strong> sozinhas.
+              Se os polos <strong>iguais</strong> se encontrarem, elas se <strong>repelem</strong>.
+            </p>
+
+            <div class="bond-info-grid">
+              <div class="bond-info-item">
+                <div class="bond-info-label">Moléculas</div>
+                <div class="bond-info-value" id="stat-total-moleculas">6</div>
+              </div>
+              <div class="bond-info-item">
+                <div class="bond-info-label">Forças possíveis</div>
+                <div class="bond-info-value">3</div>
+              </div>
+              <div class="bond-info-item">
+                <div class="bond-info-label">Movimento</div>
+                <div class="bond-info-value">Arraste + física</div>
+              </div>
+              <div class="bond-info-item">
+                <div class="bond-info-label">Mais forte</div>
+                <div class="bond-info-value">Lig. Hidrogênio</div>
+              </div>
+            </div>
+
+            <p class="bond-type-desc">
+              A lista de moléculas para colocar no canvas fica na barra
+              da direita, em <strong>Biblioteca de Compostos</strong>.
+            </p>
+          </div>
+        </section>
+
+        <!-- ── MÓDULO 2: TERMOSTATO MOLECULAR (funcional) ── -->
+        <section class="panel panel--modulo2" aria-labelledby="hdr-modulo2">
+          <button type="button" class="panel-header" id="hdr-modulo2"
+                  aria-expanded="false" aria-controls="body-modulo2" data-mode-card="mod2">
+            <span class="panel-icon" data-icon="modulo2" aria-hidden="true"></span>
+            <span class="panel-label">Termostato Molecular</span>
+            <span class="panel-badge panel-badge--mod2" aria-hidden="true">2</span>
+            <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="panel-body collapsed" id="body-modulo2" role="region" aria-labelledby="hdr-modulo2">
+            <button type="button" class="bond-mode-btn" id="btn-modulo-2"
+                    data-module="2"
+                    aria-pressed="false"
+                    title="Ativar o Módulo 2 — Termostato Molecular"
+                    aria-label="Ativar Módulo 2 — Termostato Molecular">
+              <span class="bond-mode-btn-dot bond-mode-dot--mod2"></span>
+              Ativar Módulo 2
+            </button>
+            <p class="bond-type-desc">
+              Escolha um líquido e aumente a temperatura no termostato. Quando ela
+              passar do <strong>ponto de ebulição real</strong> da substância, a energia
+              térmica vence a força intermolecular: as moléculas escapam para o
+              estado gasoso, uma a uma.
+            </p>
+            <div class="bond-info-grid">
+              <div class="bond-info-item">
+                <div class="bond-info-label">Líquidos</div>
+                <div class="bond-info-value" id="stat-total-liquidos">34</div>
+              </div>
+              <div class="bond-info-item">
+                <div class="bond-info-label">Partículas</div>
+                <div class="bond-info-value">~40</div>
+              </div>
+              <div class="bond-info-item">
+                <div class="bond-info-label">Faixa</div>
+                <div class="bond-info-value">−270 a 200°C</div>
+              </div>
+              <div class="bond-info-item">
+                <div class="bond-info-label">Gráfico</div>
+                <div class="bond-info-value">Temp. × Tempo</div>
+              </div>
+            </div>
+            <p class="bond-type-desc">
+              A ligação <strong>covalente</strong> dentro de cada molécula nunca se
+              rompe — só a força <strong>intermolecular</strong> que a prendia às
+              vizinhas. Escolha o líquido na barra da direita.
+            </p>
+          </div>
+        </section>
+
+        <!-- ── MÓDULO 3: LABORATÓRIO DE SOLUBILIDADE (em breve) ── -->
+        <section class="panel panel--modulo3" aria-labelledby="hdr-modulo3">
+          <button type="button" class="panel-header" id="hdr-modulo3"
+                  aria-expanded="false" aria-controls="body-modulo3" data-mode-card="mod3">
+            <span class="panel-icon" data-icon="modulo3" aria-hidden="true"></span>
+            <span class="panel-label">Laboratório de Solubilidade</span>
+            <span class="panel-badge panel-badge--mod3" aria-hidden="true">3</span>
+            <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="panel-body collapsed" id="body-modulo3" role="region" aria-labelledby="hdr-modulo3">
+            <button type="button" class="bond-mode-btn" id="btn-modulo-3"
+                    data-module="3"
+                    aria-pressed="false"
+                    title="Ativar o Módulo 3 — Laboratório de Solubilidade"
+                    aria-label="Ativar Módulo 3 — Laboratório de Solubilidade">
+              <span class="bond-mode-btn-dot bond-mode-dot--mod3"></span>
+              Ativar Módulo 3
+            </button>
+            <p class="bond-type-desc">
+              Escolha um tubo, coloque um líquido nele e depois adicione outro reagente
+              (líquido ou sólido) pra ver "semelhante dissolve semelhante" na prática: água
+              e óleo se separam, água e álcool se misturam, iodo dissolve em hexano mas não
+              em água.
+            </p>
+            <div class="bond-info-grid">
+              <div class="bond-info-item">
+                <div class="bond-info-label">Reagentes</div>
+                <div class="bond-info-value">6</div>
+              </div>
+              <div class="bond-info-item">
+                <div class="bond-info-label">Tubos</div>
+                <div class="bond-info-value">2</div>
+              </div>
+              <div class="bond-info-item">
+                <div class="bond-info-label">Regra</div>
+                <div class="bond-info-value">Polaridade</div>
+              </div>
+              <div class="bond-info-item">
+                <div class="bond-info-label">Dado real</div>
+                <div class="bond-info-value">Densidade</div>
+              </div>
+            </div>
+            <p class="bond-type-desc">
+              Escolha o tubo e o reagente na barra da direita, em <strong>Prateleira de
+              Reagentes</strong>. Depois de colocar dois líquidos, o tubo mostra se eles se
+              misturam ou se separam em camadas — a densidade real de cada um decide qual
+              fica em cima.
+            </p>
+          </div>
+        </section>
+
+      </div>
+    </aside>
+
+    <!-- ===================== ÁREA PRINCIPAL — Canvas / Béquer ===================== -->
+    <main class="canvas-area" id="main-content" aria-label="Área de simulação">
+      <!-- BUG CORRIGIDO: os 3 módulos escondem o próprio wrapper
+           (canvas-wrapper/beaker-wrapper/lab-wrapper) até serem
+           ativados — sem nenhum módulo ativo, os 3 ficam hidden ao
+           mesmo tempo e a área central fica em branco, sem
+           orientação nenhuma. Esse hint aqui é irmão dos 3, nunca
+           fica dentro de nenhum wrapper de módulo — por isso
+           consegue mostrar a mensagem justamente quando os outros
+           3 estão escondidos (ver ativacao-modulos.js). -->
+      <div id="no-module-hint" aria-live="polite">Escolha um módulo ao lado e clique em "Ativar" para iniciar a simulação.</div>
+      <div id="canvas-wrapper">
+        <div id="sandbox"
+             role="application"
+             aria-label="Canvas — arraste as moléculas para aproximá-las"
+             aria-describedby="app-description"
+             tabindex="0">
+          <svg id="bond-svg" aria-hidden="true"></svg>
+          <div id="sandbox-hint" aria-live="polite">
+            Ative o Módulo 1 no menu ao lado para começar
+          </div>
+          <!-- Indicador de módulo ativo — mesmo padrão do #bond-mode-indicator do SILQ -->
+          <div id="module-indicator" aria-live="polite" class="module-indicator hidden">
+            <span id="module-indicator-icon"></span>
+            <span id="module-indicator-text"></span>
+            <button id="module-indicator-clear" aria-label="Desativar módulo">
+              <span data-icon="fechar" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MÓDULO 2 — Béquer (fechado) com a substância escolhida ── -->
+      <div id="beaker-wrapper" class="hidden" data-modulo="2">
+        <div id="beaker" aria-label="Béquer fechado com a substância escolhida" role="img">
+          <div id="beaker-tampa" aria-hidden="true"></div>
+          <svg id="beaker-bonds-svg" aria-hidden="true"></svg>
+          <div id="beaker-gas-zona"></div>
+          <div id="beaker-superficie" aria-hidden="true"></div>
+          <div id="beaker-liquido-zona"></div>
+        </div>
+        <p id="beaker-hint">Escolha um líquido na barra ao lado para começar</p>
+        <p id="beaker-nota-covalente" hidden>
+          A ligação <strong>covalente</strong> de cada molécula continua intacta — só a
+          força <strong>intermolecular</strong> com as vizinhas se rompeu.
+        </p>
+      </div>
+
+      <!-- ── MÓDULO 3 — Tubos de ensaio (dinâmicos: 2 ao ativar, até 10) ── -->
+      <div id="lab-wrapper" class="hidden" data-modulo="3">
+        <div id="lab-tubos" role="list" aria-label="Tubos de ensaio"></div>
+        <button type="button" id="btn-adicionar-tubo" title="Adicionar mais um tubo de ensaio (até 10)">
+          <span data-icon="modulo3" aria-hidden="true"></span> Adicionar tubo
+        </button>
+        <p id="lab-hint">Escolha um tubo, depois clique num reagente na prateleira ao lado</p>
+      </div>
+    </main>
+
+    <!-- ===================== SIDEBAR DIREITA — Controles (biblioteca + força) ===================== -->
+    <aside class="sidebar sidebar--right" id="sidebar-right" role="complementary" aria-label="Biblioteca de compostos e força intermolecular detectada">
+      <p class="sr-only" id="app-description">
+        Ative o Módulo 1, escolha uma molécula na Biblioteca de Compostos e aproxime
+        duas moléculas no canvas para identificar a força intermolecular
+        que atua entre elas.
+      </p>
+
+      <!-- Mensagem de "tudo trancado" — mesmo padrão do SIEM/SIME/SIMA/
+           SILQ: ícone de cadeado + lista dos módulos + o que libera.
+           Só aparece com nenhum módulo ativo. -->
+      <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+        <svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <p>Ative um módulo à esquerda — <strong>Tabuleiro das Atrações</strong>, <strong>Termostato Molecular</strong> ou <strong>Laboratório de Solubilidade</strong> — para liberar os painéis desse módulo.</p>
+      </div>
+
+      <div class="accordion accordion--exclusive" id="right-accordion">
+
+        <!-- ── BIBLIOTECA DE COMPOSTOS — lista por nome, sem desenhar a geometria ── -->
+        <section class="panel" aria-labelledby="hdr-biblioteca" data-modulo="1" hidden>
+          <button type="button" class="panel-header" id="hdr-biblioteca"
+                  aria-expanded="true" aria-controls="body-biblioteca" data-mode-card="lib">
+            <span class="panel-icon" data-icon="biblioteca" aria-hidden="true"></span>
+            <span class="panel-label">Biblioteca de Compostos</span>
+            <span class="panel-badge" id="badge-biblioteca" aria-label="total de compostos disponíveis">0</span>
+            <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="panel-body" id="body-biblioteca" role="region" aria-labelledby="hdr-biblioteca">
+            <p class="bond-type-desc">
+              Ative o Módulo 1 e clique num composto para colocá-lo no canvas.
+            </p>
+
+            <label for="biblioteca-busca" class="sr-only">Buscar composto por nome ou fórmula</label>
+            <input type="search" id="biblioteca-busca" class="pt-search-input"
+                   placeholder="Buscar por nome ou fórmula…" autocomplete="off">
+
+            <div class="mol-cat-tabs" role="tablist" aria-label="Filtrar por força intermolecular">
+              <button type="button" class="mol-cat-btn active-cat" data-forca="all" role="tab" aria-selected="true">Todos</button>
+              <button type="button" class="mol-cat-btn" data-forca="hydrogen-bond" role="tab" aria-selected="false">Lig. Hidrogênio</button>
+              <button type="button" class="mol-cat-btn" data-forca="dipole-dipole" role="tab" aria-selected="false">Dipolo-Dipolo</button>
+              <button type="button" class="mol-cat-btn" data-forca="london" role="tab" aria-selected="false">London</button>
+            </div>
+
+            <div class="biblioteca-ordenar">
+              <label for="biblioteca-ordenar">Ordenar por</label>
+              <select id="biblioteca-ordenar">
+                <option value="nome">Nome (A–Z)</option>
+                <option value="pe-asc">Ponto de ebulição (menor → maior)</option>
+                <option value="pe-desc">Ponto de ebulição (maior → menor)</option>
+              </select>
+            </div>
+
+            <p class="biblioteca-contador" id="biblioteca-contador" aria-live="polite"></p>
+
+            <div class="composto-lista" id="menu-moleculas-grid" role="list"
+                 aria-label="Compostos — clique para colocar no canvas"></div>
+          </div>
+        </section>
+
+        <!-- ── FORÇA DETECTADA ── -->
+        <section class="panel" aria-labelledby="hdr-forca" data-modulo="1" hidden>
+          <button type="button" class="panel-header" id="hdr-forca"
+                  aria-expanded="true" aria-controls="body-forca" data-mode-card="info">
+            <span class="panel-icon" data-icon="controles" aria-hidden="true"></span>
+            <span class="panel-label">Interações</span>
+            <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="panel-body" id="body-forca" role="region" aria-labelledby="hdr-forca">
+            <section class="mol-panel" id="forca-detectada-painel">
+              <div class="mol-panel-header" aria-hidden="true"><span class="mol-panel-icon" data-icon="atomo"></span> Canvas Agora</div>
+
+              <div class="interacoes-resumo">
+                <div class="interacoes-resumo-item">
+                  <span class="interacoes-resumo-valor" id="stat-num-moleculas">0</span>
+                  <span class="interacoes-resumo-label">substâncias</span>
+                </div>
+                <div class="interacoes-resumo-item">
+                  <span class="interacoes-resumo-valor" id="stat-num-interacoes">0</span>
+                  <span class="interacoes-resumo-label">interações ativas</span>
+                </div>
+              </div>
+
+              <p class="interacoes-limite-aviso" id="interacoes-limite-aviso" hidden aria-live="polite"></p>
+
+              <div class="interacoes-lista" id="interacoes-lista" aria-live="polite">
+                <p class="interacoes-vazio">Ative o Módulo 1 e coloque compostos no canvas.</p>
+              </div>
+            </section>
+            <button type="button" class="bond-mode-btn" id="btn-limpar-sandbox">
+              <span class="btn-icon" data-icon="lixeira" aria-hidden="true"></span> Limpar canvas
+            </button>
+          </div>
+        </section>
+
+        <!-- ── ESCOLHA O LÍQUIDO (Módulo 2) ── -->
+        <section class="panel" aria-labelledby="hdr-termostato-liquido" data-modulo="2" hidden>
+          <button type="button" class="panel-header" id="hdr-termostato-liquido"
+                  aria-expanded="true" aria-controls="body-termostato-liquido" data-mode-card="liq">
+            <span class="panel-icon" data-icon="modulo2" aria-hidden="true"></span>
+            <span class="panel-label">Escolha o Líquido</span>
+            <span class="panel-badge" id="badge-termostato-liquidos" aria-label="total de líquidos disponíveis">0</span>
+            <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="panel-body" id="body-termostato-liquido" role="region" aria-labelledby="hdr-termostato-liquido">
+            <p class="bond-type-desc">Clique num composto para colocá-lo no béquer (troca o que já estava lá).</p>
+            <label for="termostato-busca" class="sr-only">Buscar líquido por nome ou fórmula</label>
+            <input type="search" id="termostato-busca" class="pt-search-input"
+                   placeholder="Buscar por nome ou fórmula…" autocomplete="off">
+            <div class="composto-lista" id="termostato-lista-liquidos" role="list"
+                 aria-label="Líquidos — clique para colocar no béquer"></div>
+          </div>
+        </section>
+
+        <!-- ── TERMOSTATO (Módulo 2) ── -->
+        <section class="panel" aria-labelledby="hdr-termostato" data-modulo="2" hidden>
+          <button type="button" class="panel-header" id="hdr-termostato"
+                  aria-expanded="true" aria-controls="body-termostato" data-mode-card="term">
+            <span class="panel-icon" data-icon="controles" aria-hidden="true"></span>
+            <span class="panel-label">Termostato</span>
+            <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="panel-body" id="body-termostato" role="region" aria-labelledby="hdr-termostato">
+            <section class="mol-panel" id="termostato-info-painel">
+              <div class="mol-panel-header" aria-hidden="true">Substância no béquer</div>
+              <div class="mol-formula" id="termostato-substancia-nome">Nenhuma</div>
+              <div class="mol-stats" id="termostato-pe">—</div>
+            </section>
+
+            <div class="termostato-slider-wrap">
+              <label for="termostato-slider"><span class="btn-icon" data-icon="modulo2" aria-hidden="true"></span> Temperatura do termostato</label>
+              <input type="range" id="termostato-slider" min="-270" max="200" value="20" step="1">
+              <output id="termostato-temp-atual" for="termostato-slider">20°C</output>
+            </div>
+
+            <div class="interacoes-resumo">
+              <div class="interacoes-resumo-item">
+                <span class="interacoes-resumo-valor" id="termostato-num-solido">0</span>
+                <span class="interacoes-resumo-label">sólido</span>
+              </div>
+              <div class="interacoes-resumo-item">
+                <span class="interacoes-resumo-valor" id="termostato-num-liquido">0</span>
+                <span class="interacoes-resumo-label">líquido</span>
+              </div>
+              <div class="interacoes-resumo-item">
+                <span class="interacoes-resumo-valor" id="termostato-num-gas">0</span>
+                <span class="interacoes-resumo-label">gás</span>
+              </div>
+            </div>
+
+            <p class="bond-type-desc" id="termostato-status-texto">Escolha um líquido para começar.</p>
+
+            <div class="termostato-grafico-wrap">
+              <div class="termostato-grafico-label">Temperatura × Tempo</div>
+              <svg id="termostato-grafico" viewBox="0 0 260 120" aria-label="Gráfico de temperatura ao longo do tempo"></svg>
+            </div>
+
+            <button type="button" class="bond-mode-btn" id="btn-limpar-bequer">
+              <span class="btn-icon" data-icon="lixeira" aria-hidden="true"></span> Esvaziar béquer
+            </button>
+          </div>
+        </section>
+
+        <!-- ── PRATELEIRA DE REAGENTES (Módulo 3) ── -->
+        <section class="panel" aria-labelledby="hdr-prateleira" data-modulo="3" hidden>
+          <button type="button" class="panel-header" id="hdr-prateleira"
+                  aria-expanded="true" aria-controls="body-prateleira" data-mode-card="prat">
+            <span class="panel-icon" data-icon="modulo3" aria-hidden="true"></span>
+            <span class="panel-label">Prateleira de Reagentes</span>
+            <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="panel-body" id="body-prateleira" role="region" aria-labelledby="hdr-prateleira">
+            <p class="bond-type-desc">Escolha um tubo (acima do desenho) e clique num reagente pra colocar nele.</p>
+            <div class="composto-lista" id="prateleira-lista" role="list" aria-label="Reagentes disponíveis"></div>
+          </div>
+        </section>
+
+        <!-- ── TUBO SELECIONADO (Módulo 3) ── -->
+        <section class="panel" aria-labelledby="hdr-tubo-info" data-modulo="3" hidden>
+          <button type="button" class="panel-header" id="hdr-tubo-info"
+                  aria-expanded="true" aria-controls="body-tubo-info" data-mode-card="tubo">
+            <span class="panel-icon" data-icon="controles" aria-hidden="true"></span>
+            <span class="panel-label">Tubo Selecionado</span>
+            <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="panel-body" id="body-tubo-info" role="region" aria-labelledby="hdr-tubo-info">
+            <section class="mol-panel" id="tubo-info-painel">
+              <div class="mol-panel-header" aria-hidden="true">
+                Tubo <span id="tubo-info-numero">1</span>
+                <span class="tubo-info-contador" id="tubo-info-contador">0/5 substâncias</span>
+              </div>
+              <ul class="tubo-info-lista" id="tubo-info-lista">
+                <li class="tubo-info-vazio">Vazio — adicione um líquido primeiro.</li>
+              </ul>
+            </section>
+
+            <div class="termostato-slider-wrap">
+              <label for="tubo-temp-slider"><span class="btn-icon" data-icon="modulo2" aria-hidden="true"></span> Temperatura deste tubo</label>
+              <input type="range" id="tubo-temp-slider" min="-270" max="200" value="20" step="1">
+              <output id="tubo-temp-atual" for="tubo-temp-slider">20°C</output>
+            </div>
+
+            <div class="interacoes-resumo">
+              <div class="interacoes-resumo-item">
+                <span class="interacoes-resumo-valor" id="tubo-num-solido">0</span>
+                <span class="interacoes-resumo-label">sólido</span>
+              </div>
+              <div class="interacoes-resumo-item">
+                <span class="interacoes-resumo-valor" id="tubo-num-liquido">0</span>
+                <span class="interacoes-resumo-label">líquido</span>
+              </div>
+              <div class="interacoes-resumo-item">
+                <span class="interacoes-resumo-valor" id="tubo-num-gas">0</span>
+                <span class="interacoes-resumo-label">gás</span>
+              </div>
+            </div>
+
+            <p class="bond-type-desc" id="tubo-status-texto">Escolha um tubo e comece a adicionar reagentes.</p>
+            <button type="button" class="bond-mode-btn" id="btn-limpar-tubo">
+              <span class="btn-icon" data-icon="lixeira" aria-hidden="true"></span> Limpar tubo selecionado
+            </button>
+          </div>
+        </section>
+      </div>
+    </aside>
+
+  </div><!-- /.app-container -->
+
+  <!-- ════════ MODAL — INFORMAÇÕES DO MÓDULO (1ª ATIVAÇÃO, MOBILE) ════════ -->
+  <div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+       aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+    <div class="mode-info-modal" id="modeInfoModal">
+      <div class="mode-info-header">
+        <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+        <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+        <button type="button" class="mode-info-close" id="modeInfoClose"
+                aria-label="Fechar informações do módulo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+      </div>
+      <div class="mode-info-body" id="modeInfoBody"></div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <!-- GSAP auto-hospedado (antes vinha de cdnjs.cloudflare.com) — ver
+       vendor/js/. Funciona offline depois da primeira visita. -->
+  <script src="../../vendor/js/gsap-3.12.5.min.js"></script>
+
+  <!-- ═══ CAMADA DE DADOS ═══ -->
+  <script src="js/data/tabela-elementos.js"></script>
+  <script src="js/data/eletronegatividade.js"></script>
+  <script src="js/data/dados-forcas-intermoleculares.js"></script>
+
+  <!-- ═══ NAMESPACE COMPARTILHADO ═══ -->
+  <script src="js/core/namespace.js"></script>
+
+  <!-- ═══ ACESSIBILIDADE (preferências de tema/URL/Central) ═══
+       Precisa vir ANTES do resto — aplica tema/contraste/daltonismo
+       assim que possível, antes do app terminar de montar a tela. -->
+  <script src="js/a11y/preferencias.js"></script>
+
+  <!-- ═══ TOUR GUIADO (COACHMARK) — boas-vindas + por módulo ═══ -->
+  <script src="../../coachmark.js"></script>
+  <script src="js/a11y/tour.js"></script>
+
+  <!-- ═══ NÚCLEO: ESTADO E REFERÊNCIAS DE DOM ═══ -->
+  <script src="js/core/estado.js"></script>
+  <script src="js/core/dom-refs.js"></script>
+  <script src="js/a11y/anuncios.js"></script>
+
+  <!-- ═══ INTERFACE: ÍCONES, MENU DE MOLÉCULAS E SANDBOX ═══ -->
+  <script src="js/ui/icones.js"></script>
+  <script src="js/ui/menu-moleculas.js"></script>
+  <script src="js/ui/sandbox.js"></script>
+
+  <!-- ═══ INTERFACE: MÓDULO 2 — TERMOSTATO MOLECULAR ═══ -->
+  <script src="js/ui/termostato-lista.js"></script>
+  <script src="js/ui/beaker.js"></script>
+  <script src="js/ui/grafico-temperatura.js"></script>
+
+  <!-- ═══ INTERFACE: MÓDULO 3 — LABORATÓRIO DE SOLUBILIDADE ═══ -->
+  <script src="js/ui/prateleira.js"></script>
+  <script src="js/ui/tubo-ensaio.js"></script>
+
+  <!-- ═══ SIMULAÇÃO FÍSICA (atração/repulsão entre moléculas) ═══ -->
+  <script src="js/simulation/fisica-intermolecular.js"></script>
+  <script src="js/simulation/fisica-termostato.js"></script>
+  <script src="js/simulation/fisica-solubilidade.js"></script>
+
+  <!-- ═══ INICIALIZAÇÃO (ponto de entrada) ═══ -->
+  <script src="js/init/ativacao-modulos.js"></script>
+  <script src="js/ui/modo-mobile.js"></script>
+  <script src="js/init/inicializacao-sifi.js"></script>
+
+  <!-- ═══ INTERFACE — gavetas mobile (independente do namespace SIFI) ═══ -->
+  <script src="js/ui/menu-mobile.js"></script>
+  <script src="js/ui/sidebar-resizer.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'sifi', bp: 900 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+  <!-- ══════════════ VLIBRAS — tradução para Língua Brasileira de Sinais ══════════════ -->
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+  <script>
+    (function() {
+      var script = document.createElement('script');
+      script.src = 'https://vlibras.gov.br/app/vlibras-plugin.js';
+      script.onload = function() {
+        try { new window.VLibras.Widget('https://vlibras.gov.br/app'); } catch (e) { /* VLibras indisponível sem conexão */ }
+      };
+      document.body.appendChild(script);
+    })();
+  </script>
+</body>
+</html>

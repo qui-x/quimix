@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+  <meta name="description" content="Desenhe as setas de elétrons de cada passo de uma reação orgânica, confira e veja o intermediário se formar: adição, eliminação, substituição e combustão."/>
+  <title>SIRO — Simulador Interativo de Reações Orgânicas</title>
+  <link rel="stylesheet" href="css/stylereacoes.css"/>
+</head>
+<body>
+
+  <!-- Camada de simulação de daltonismo (backdrop-filter, nunca no body) -->
+  <div id="colorblindOverlay" aria-hidden="true"></div>
+  <!-- ══ FILTROS DE DALTONISMO ══════════════════════════════════════
+       O a11y.js aplica `backdrop-filter: url(#f-<tipo>)` no
+       #colorblindOverlay. Sem estes <filter> declarados NESTE
+       documento, a URL aponta para um id inexistente e o navegador
+       ignora em silencio — sem erro no console. Era o caso aqui: o
+       overlay existia, o CSS existia, mas os filtros nao. A simulacao
+       de daltonismo simplesmente nao acontecia.
+
+       Matrizes: Brettel para as tres dicromacias e Rec.601
+       (0.299/0.587/0.114) para acromatopsia. Identicas as das outras
+       paginas — ha uma fonte unica de verdade no projeto.
+       ══════════════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="f-protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-acromatopsia">
+        <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <nav class="skip-nav" aria-label="Atalhos de navegação">
+    <a href="#sidebar-left"  class="skip-link">Pular para menus e informações</a>
+    <a href="#sim-canvas"    class="skip-link">Pular para a simulação</a>
+    <a href="#sidebar-right" class="skip-link">Pular para os controles</a>
+  </nav>
+
+  <div id="sr-live"           class="sr-only" aria-live="polite"    aria-atomic="true"></div>
+  <div id="sr-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+  <header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexterceiroano.html" aria-label="Voltar aos simuladores do 3º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>3º Ano</span>
+      </a>
+      <button class="header-logo" id="btn-app-logo" aria-label="Logo do SIRO — toque para uma curiosidade química">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" width="22" height="22"><path d="M4 9h13M14 6l3 3-3 3M20 15H7M10 12l-3 3 3 3"/></svg>
+      </button>
+      <div>
+        <h1>SIRO</h1>
+        <p class="header-sub">Simulador Interativo de Reações Orgânicas</p>
+      </div>
+    </div>
+
+    <button type="button" class="mobile-menu-btn" id="mobile-menu-btn"
+      aria-label="Abrir controles da simulação" aria-expanded="false" aria-controls="sidebar-right"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
+  </header>
+
+  <!-- ════════ BARRA DE MODOS (MOBILE) ════════
+       Só aparece em telas estreitas — substitui a gaveta esquerda (☰)
+       por uma barra rolável sempre visível, na MESMA ordem/dados de
+       SIM_DATA.MODES. Preenchida em _buildModeTabsMobile() (mesmo
+       arquivo). O botão "mobile-info-btn" foi removido de propósito:
+       esta barra assume essa função no mobile. -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Modos do simulador" aria-orientation="horizontal"></nav>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+  <div class="keyboard-hints" role="note" aria-label="Atalhos de teclado disponíveis">
+    <kbd>Alt+1–3</kbd> Modos &nbsp;
+    <kbd>Enter/Espaço</kbd> Ação no canvas
+  </div>
+
+  <main class="app-main" id="main-content" role="main">
+
+    <aside class="sidebar sidebar--left" id="sidebar-left"
+           aria-label="Menus, listagens e informações do simulador">
+      <!-- ════════ MODOS (um painel-acordeão por modo, gerado de SIM_DATA.MODES) ════════ -->
+      <div id="model-list" aria-label="Modos disponíveis, cada um com painel próprio"></div>
+    </aside>
+
+    <div class="canvas-wrap">
+      <canvas id="sim-canvas" tabindex="0" role="img"
+              aria-label="Desenho do modo selecionado"
+              aria-describedby="canvas-desc"></canvas>
+      <p id="canvas-desc" class="sr-only">
+        Área de desenho com a reação em fórmula estrutural completa: os pares de elétrons, as cargas e os radicais aparecem em volta dos átomos, e as setas de elétrons são desenhadas sobre ela.
+      </p>
+      <!-- INDICADOR DE MODO ATIVO (padrão SILQ) — a pílula fica ESCONDIDA
+           enquanto nenhum modo está ativo: o canvas começa puro. Ao ativar
+           um modo, a classe .mode-on aparece e mostra ícone + nome + ✕. -->
+      <div class="canvas-overlay" id="mode-indicator">
+        <span class="overlay-label" id="overlay-label">
+          <span class="overlay-icon" id="overlay-icon" aria-hidden="true"></span>
+          <span class="overlay-text" id="overlay-text">SIRO</span>
+          <button type="button" class="overlay-clear" id="overlay-clear"
+                  aria-label="Desativar o modo ativo" title="Desativar o modo ativo">✕</button>
+        </span>
+      </div>
+      <div class="canvas-hint" aria-hidden="true" id="canvas-hint">Escolha um modo ao lado e clique em "Ativar" para iniciar a simulação.</div>
+      <div class="fps-counter" aria-hidden="true" id="fps-counter">-- fps</div>
+    </div>
+
+    <aside class="sidebar sidebar--right" id="sidebar-right"
+           aria-label="Controles da simulação">
+
+      <!-- Mensagem de "tudo trancado" — mesmo padrão do 1º ano. -->
+      <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+        <svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <p>Ative um modo à esquerda para liberar os controles.</p>
+      </div>
+
+      <!-- ════════ RESUMO DO MODO (MOBILE) ════════
+           Só usado dentro do bottom sheet mobile — no desktop essa
+           informação já aparece no acordeão da sidebar esquerda, então
+           aqui fica escondida (ver CSS). Populado por
+           _syncMobileModeUI() a partir do mesmo SIM_DATA.MODES. -->
+      <div class="mode-summary-mobile" id="mode-summary-mobile" hidden>
+        <button type="button" class="mode-summary-toggle" id="mode-summary-toggle"
+                aria-expanded="false" aria-controls="mode-summary-body">
+          <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="11"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span> Sobre este modo
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="mode-summary-body" id="mode-summary-body"></div>
+      </div>
+
+      <!-- ════════ MÓDULO 1 — ADIÇÃO ════════ -->
+      <section class="panel" id="panel-ad-reacao" data-owner hidden aria-labelledby="hdr-ad-rea">
+        <button type="button" class="panel-header" id="hdr-ad-rea" aria-expanded="true" aria-controls="body-ad-rea">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h13M14 6l3 3-3 3M20 15H7M10 12l-3 3 3 3"/></svg></span>
+          <span class="panel-label">Reação</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-ad-rea" role="region" aria-labelledby="hdr-ad-rea">
+          <p class="sr-only" id="ad-atual" aria-live="polite"></p>
+          <label class="sr-only" for="ad-busca">Buscar reação</label>
+          <input type="search" id="ad-busca" class="gf-busca" placeholder="Buscar: reagente (ex.: propeno, HBr)" autocomplete="off" spellcheck="false" aria-controls="ad-lista" aria-describedby="ad-contagem">
+          <p class="hint-text" id="ad-contagem" aria-live="polite"></p>
+          <ul class="op-lista" id="ad-lista" role="listbox" aria-label="Reações de adição"></ul>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-ad-construtor" data-owner hidden aria-labelledby="hdr-ad-con">
+        <button type="button" class="panel-header" id="hdr-ad-con" aria-expanded="true" aria-controls="body-ad-con">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg></span>
+          <span class="panel-label">Construtor</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-ad-con" role="region" aria-labelledby="hdr-ad-con">
+          <div id="ad-construtor" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-ad-catalisador" data-owner hidden aria-labelledby="hdr-ad-cat">
+        <button type="button" class="panel-header" id="hdr-ad-cat" aria-expanded="true" aria-controls="body-ad-cat">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/></svg></span>
+          <span class="panel-label">Catalisador</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-ad-cat" role="region" aria-labelledby="hdr-ad-cat">
+          <div id="ad-catalisador" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-ad-mecanismo" data-owner hidden aria-labelledby="hdr-ad-mec">
+        <button type="button" class="panel-header" id="hdr-ad-mec" aria-expanded="true" aria-controls="body-ad-mec">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c3-9 11-9 14 0"/><path d="M16 15l3 4 1-5"/></svg></span>
+          <span class="panel-label">Laboratório</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-ad-mec" role="region" aria-labelledby="hdr-ad-mec">
+          <div id="ad-mecanismo" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-el-reacao" data-owner hidden aria-labelledby="hdr-el-rea">
+        <button type="button" class="panel-header" id="hdr-el-rea" aria-expanded="true" aria-controls="body-el-rea">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h13M14 6l3 3-3 3M20 15H7M10 12l-3 3 3 3"/></svg></span>
+          <span class="panel-label">Reação</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-el-rea" role="region" aria-labelledby="hdr-el-rea">
+          <p class="sr-only" id="el-atual" aria-live="polite"></p>
+          <label class="sr-only" for="el-busca">Buscar reação</label>
+          <input type="search" id="el-busca" class="gf-busca" placeholder="Buscar: reagente (ex.: etanol, bromo)" autocomplete="off" spellcheck="false" aria-controls="el-lista" aria-describedby="el-contagem">
+          <p class="hint-text" id="el-contagem" aria-live="polite"></p>
+          <ul class="op-lista" id="el-lista" role="listbox" aria-label="Reações de eliminação"></ul>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-el-construtor" data-owner hidden aria-labelledby="hdr-el-con">
+        <button type="button" class="panel-header" id="hdr-el-con" aria-expanded="true" aria-controls="body-el-con">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg></span>
+          <span class="panel-label">Construtor</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-el-con" role="region" aria-labelledby="hdr-el-con">
+          <div id="el-construtor" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-el-catalisador" data-owner hidden aria-labelledby="hdr-el-cat">
+        <button type="button" class="panel-header" id="hdr-el-cat" aria-expanded="true" aria-controls="body-el-cat">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/></svg></span>
+          <span class="panel-label">Catalisador</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-el-cat" role="region" aria-labelledby="hdr-el-cat">
+          <div id="el-catalisador" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-el-mecanismo" data-owner hidden aria-labelledby="hdr-el-mec">
+        <button type="button" class="panel-header" id="hdr-el-mec" aria-expanded="true" aria-controls="body-el-mec">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c3-9 11-9 14 0"/><path d="M16 15l3 4 1-5"/></svg></span>
+          <span class="panel-label">Laboratório</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-el-mec" role="region" aria-labelledby="hdr-el-mec">
+          <div id="el-mecanismo" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-sb-reacao" data-owner hidden aria-labelledby="hdr-sb-rea">
+        <button type="button" class="panel-header" id="hdr-sb-rea" aria-expanded="true" aria-controls="body-sb-rea">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h13M14 6l3 3-3 3M20 15H7M10 12l-3 3 3 3"/></svg></span>
+          <span class="panel-label">Reação</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-sb-rea" role="region" aria-labelledby="hdr-sb-rea">
+          <p class="sr-only" id="sb-atual" aria-live="polite"></p>
+          <label class="sr-only" for="sb-busca">Buscar reação</label>
+          <input type="search" id="sb-busca" class="gf-busca" placeholder="Buscar: reagente (ex.: propano, benzeno)" autocomplete="off" spellcheck="false" aria-controls="sb-lista" aria-describedby="sb-contagem">
+          <p class="hint-text" id="sb-contagem" aria-live="polite"></p>
+          <ul class="op-lista" id="sb-lista" role="listbox" aria-label="Reações de substituição"></ul>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-sb-construtor" data-owner hidden aria-labelledby="hdr-sb-con">
+        <button type="button" class="panel-header" id="hdr-sb-con" aria-expanded="true" aria-controls="body-sb-con">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg></span>
+          <span class="panel-label">Construtor</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-sb-con" role="region" aria-labelledby="hdr-sb-con">
+          <div id="sb-construtor" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-sb-mecanismo" data-owner hidden aria-labelledby="hdr-sb-mec">
+        <button type="button" class="panel-header" id="hdr-sb-mec" aria-expanded="true" aria-controls="body-sb-mec">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c3-9 11-9 14 0"/><path d="M16 15l3 4 1-5"/></svg></span>
+          <span class="panel-label">Laboratório</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-sb-mec" role="region" aria-labelledby="hdr-sb-mec">
+          <div id="sb-mecanismo" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <!-- ════════ MÓDULO 4 — COMBUSTÃO (js/simulation/modulo-combustao.js) ════════ -->
+      <section class="panel" id="panel-cb-reacao" data-owner hidden aria-labelledby="hdr-cb-rea">
+        <button type="button" class="panel-header" id="hdr-cb-rea" aria-expanded="true" aria-controls="body-cb-rea">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-10-1 3-3 4-4 6-1-1-1-3-1-4-3 2-5 5-5 8 0 4 3 7 7 7z"/></svg></span>
+          <span class="panel-label">Combustível</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-cb-rea" role="region" aria-labelledby="hdr-cb-rea">
+          <p class="sr-only" id="cb-atual" aria-live="polite"></p>
+          <label class="sr-only" for="cb-busca">Buscar combustível</label>
+          <input type="search" id="cb-busca" class="gf-busca" placeholder="Buscar: combustível (ex.: GLP, etanol)" autocomplete="off" spellcheck="false" aria-controls="cb-lista" aria-describedby="cb-contagem">
+          <p class="hint-text" id="cb-contagem" aria-live="polite"></p>
+          <ul class="op-lista" id="cb-lista" role="listbox" aria-label="Combustíveis"></ul>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-cb-construtor" data-owner hidden aria-labelledby="hdr-cb-con">
+        <button type="button" class="panel-header" id="hdr-cb-con" aria-expanded="true" aria-controls="body-cb-con">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg></span>
+          <span class="panel-label">Construtor</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-cb-con" role="region" aria-labelledby="hdr-cb-con">
+          <div id="cb-construtor" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-cb-ar" data-owner hidden aria-labelledby="hdr-cb-ar">
+        <button type="button" class="panel-header" id="hdr-cb-ar" aria-expanded="true" aria-controls="body-cb-ar">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 12h15a3 3 0 1 1-3 3"/><path d="M3 16h7"/></svg></span>
+          <span class="panel-label">Ar</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-cb-ar" role="region" aria-labelledby="hdr-cb-ar">
+          <div id="cb-ar"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-cb-mecanismo" data-owner hidden aria-labelledby="hdr-cb-mec">
+        <button type="button" class="panel-header" id="hdr-cb-mec" aria-expanded="true" aria-controls="body-cb-mec">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c3-9 11-9 14 0"/><path d="M16 15l3 4 1-5"/></svg></span>
+          <span class="panel-label">Laboratório</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-cb-mec" role="region" aria-labelledby="hdr-cb-mec">
+          <div id="cb-mecanismo" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-cb-balanco" data-owner hidden aria-labelledby="hdr-cb-bal">
+        <button type="button" class="panel-header" id="hdr-cb-bal" aria-expanded="true" aria-controls="body-cb-bal">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M8 21h8"/><path d="M5 7h14"/><path d="M5 7l-3 7a3 3 0 0 0 6 0z"/><path d="M19 7l-3 7a3 3 0 0 0 6 0z"/></svg></span>
+          <span class="panel-label">Balanço e energia</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-cb-bal" role="region" aria-labelledby="hdr-cb-bal">
+          <div id="cb-balanco"></div>
+        </div>
+      </section>
+
+
+
+      <!-- ════════ RESULTADOS (sempre visível, independe do modo) ════════ -->
+      <section class="panel" aria-labelledby="hdr-result">
+        <button type="button" class="panel-header" id="hdr-result" aria-expanded="true" aria-controls="body-result">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
+          <span class="panel-label">Resultados</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-result" role="region" aria-labelledby="hdr-result">
+          <dl class="data-grid" id="result-grid" aria-live="polite" aria-atomic="true"></dl>
+          <canvas id="result-chart" class="result-chart" hidden aria-label="Gráfico auxiliar do modo atual"></canvas>
+        </div>
+      </section>
+
+    </aside>
+
+  </main>
+
+  <!-- ════════ MODAL — INFORMAÇÕES DO MODO (1ª ATIVAÇÃO, MOBILE) ════════ -->
+  <div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+       aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+    <div class="mode-info-modal" id="modeInfoModal">
+      <div class="mode-info-header">
+        <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+        <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+        <button type="button" class="mode-info-close" id="modeInfoClose"
+                aria-label="Fechar informações do modo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+      </div>
+      <div class="mode-info-body" id="modeInfoBody"></div>
+    </div>
+  </div>
+
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+  <!-- ═══ ORDEM DE CARGA — não reordenar ═══
+       a11y → core → data → ui → simulation → init.
+       Escopo global compartilhado entre as tags: cada arquivo
+       conta com o que os anteriores declararam. -->
+  <script src="js/a11y/anuncios.js"></script>
+  <script src="js/core/formatacao.js"></script>
+  <script src="js/core/grafo-molecular.js"></script>
+  <script src="js/core/geometria-molecular.js"></script>
+  <script src="js/core/smiles.js"></script>
+  <script src="js/core/classificacao-cadeias.js"></script>
+  <script src="js/core/grupos-funcionais.js"></script>
+  <script src="js/core/formula-condensada.js"></script>
+  <script src="js/core/nomenclatura.js"></script>
+  <script src="js/core/nomenclatura-completa.js"></script>
+  <script src="js/core/isomeros-gerais.js"></script>
+  <script src="js/core/mecanismo.js"></script>
+  <script src="js/core/combustao.js"></script>
+  <script src="js/data/dadosreacoes.js"></script>
+  <script src="js/data/biblioteca-adicao.js"></script>
+  <script src="js/data/biblioteca-eliminacao.js"></script>
+  <script src="js/data/biblioteca-substituicao.js"></script>
+  <script src="js/data/biblioteca-combustao.js"></script>
+  <script src="js/render/desenho-molecula.js"></script>
+  <script src="js/render/desenho-mecanismo.js"></script>
+  <script src="js/ui/kit-desenho.js"></script>
+  <script src="js/simulation/modulo-mecanismo.js"></script>
+  <script src="js/simulation/modulo-combustao.js"></script>
+  <script src="js/simulation/mecanica.js"></script>
+  <script src="js/init/app.js"></script>
+  <script src="js/ui/offcanvas-mobile.js"></script>
+
+  <!-- ═══ TOUR GUIADO — motor genérico na raiz + roteiro deste simulador ═══
+       Antes do trilho: o trilho escuta coachmark:inicio/fim para sair de
+       cena durante o tour, e o motor precisa existir quando o tour começa. -->
+  <script src="../../coachmark.js"></script>
+  <script src="js/a11y/tour.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'reacoes', bp: 1100 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

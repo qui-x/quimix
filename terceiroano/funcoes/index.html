@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+  <meta name="description" content="Investigue os grupos funcionais de compostos reais — medicamentos, aromas, alimentos e combustíveis — pintando cada grupo na estrutura."/>
+  <title>SIFO — Simulador Interativo de Funções Orgânicas</title>
+  <link rel="stylesheet" href="css/stylefuncoes.css"/>
+</head>
+<body>
+
+  <!-- Camada de simulação de daltonismo (backdrop-filter, nunca no body) -->
+  <div id="colorblindOverlay" aria-hidden="true"></div>
+  <!-- ══ FILTROS DE DALTONISMO ══════════════════════════════════════
+       O a11y.js aplica `backdrop-filter: url(#f-<tipo>)` no
+       #colorblindOverlay. Sem estes <filter> declarados NESTE
+       documento, a URL aponta para um id inexistente e o navegador
+       ignora em silencio — sem erro no console. Era o caso aqui: o
+       overlay existia, o CSS existia, mas os filtros nao. A simulacao
+       de daltonismo simplesmente nao acontecia.
+
+       Matrizes: Brettel para as tres dicromacias e Rec.601
+       (0.299/0.587/0.114) para acromatopsia. Identicas as das outras
+       paginas — ha uma fonte unica de verdade no projeto.
+       ══════════════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="f-protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-acromatopsia">
+        <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <nav class="skip-nav" aria-label="Atalhos de navegação">
+    <a href="#sidebar-left"  class="skip-link">Pular para menus e informações</a>
+    <a href="#sim-canvas"    class="skip-link">Pular para a simulação</a>
+    <a href="#sidebar-right" class="skip-link">Pular para os controles</a>
+  </nav>
+
+  <div id="sr-live"           class="sr-only" aria-live="polite"    aria-atomic="true"></div>
+  <div id="sr-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+  <header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexterceiroano.html" aria-label="Voltar aos simuladores do 3º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>3º Ano</span>
+      </a>
+      <button class="header-logo" id="btn-app-logo" aria-label="Logo do SIFO — toque para uma curiosidade química">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" width="22" height="22">
+          <path d="M12 3l7 4.5v9L12 21l-7-4.5v-9L12 3z"/>
+          <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+      <div>
+        <h1>SIFO</h1>
+        <p class="header-sub">Simulador Interativo de Funções Orgânicas</p>
+      </div>
+    </div>
+
+    <button type="button" class="mobile-menu-btn" id="mobile-menu-btn"
+      aria-label="Abrir controles da simulação" aria-expanded="false" aria-controls="sidebar-right"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
+  </header>
+
+  <!-- ════════ BARRA DE MODOS (MOBILE) ════════
+       Só aparece em telas estreitas — substitui a gaveta esquerda (☰)
+       por uma barra rolável sempre visível, na MESMA ordem/dados de
+       SIM_DATA.MODES. Preenchida em _buildModeTabsMobile() (mesmo
+       arquivo). O botão "mobile-info-btn" foi removido de propósito:
+       esta barra assume essa função no mobile. -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Modos do simulador" aria-orientation="horizontal"></nav>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+  <div class="keyboard-hints" role="note" aria-label="Atalhos de teclado disponíveis">
+    <kbd>Alt+1–3</kbd> Modos &nbsp;
+    <kbd>Enter/Espaço</kbd> Ação no canvas
+  </div>
+
+  <main class="app-main" id="main-content" role="main">
+
+    <aside class="sidebar sidebar--left" id="sidebar-left"
+           aria-label="Menus, listagens e informações do simulador">
+      <!-- ════════ MODOS (um painel-acordeão por modo, gerado de SIM_DATA.MODES) ════════ -->
+      <div id="model-list" aria-label="Modos disponíveis, cada um com painel próprio"></div>
+    </aside>
+
+    <div class="canvas-wrap">
+      <canvas id="sim-canvas" tabindex="0" role="img"
+              aria-label="Desenho do modo selecionado"
+              aria-describedby="canvas-desc"></canvas>
+      <p id="canvas-desc" class="sr-only">
+        Área de desenho com a estrutura de um composto real, onde os átomos de cada grupo funcional são pintados com a cor da função.
+      </p>
+      <!-- INDICADOR DE MODO ATIVO (padrão SILQ) — a pílula fica ESCONDIDA
+           enquanto nenhum modo está ativo: o canvas começa puro. Ao ativar
+           um modo, a classe .mode-on aparece e mostra ícone + nome + ✕. -->
+      <div class="canvas-overlay" id="mode-indicator">
+        <span class="overlay-label" id="overlay-label">
+          <span class="overlay-icon" id="overlay-icon" aria-hidden="true"></span>
+          <span class="overlay-text" id="overlay-text">SIFO</span>
+          <button type="button" class="overlay-clear" id="overlay-clear"
+                  aria-label="Desativar o modo ativo" title="Desativar o modo ativo">✕</button>
+        </span>
+      </div>
+      <div class="canvas-hint" aria-hidden="true" id="canvas-hint">Escolha um modo ao lado e clique em "Ativar" para iniciar a simulação.</div>
+      <div class="fps-counter" aria-hidden="true" id="fps-counter">-- fps</div>
+    </div>
+
+    <aside class="sidebar sidebar--right" id="sidebar-right"
+           aria-label="Controles da simulação">
+
+      <!-- Mensagem de "tudo trancado" — mesmo padrão do 1º ano. -->
+      <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+        <svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <p>Ative um modo à esquerda para liberar os controles.</p>
+      </div>
+
+      <!-- ════════ RESUMO DO MODO (MOBILE) ════════
+           Só usado dentro do bottom sheet mobile — no desktop essa
+           informação já aparece no acordeão da sidebar esquerda, então
+           aqui fica escondida (ver CSS). Populado por
+           _syncMobileModeUI() a partir do mesmo SIM_DATA.MODES. -->
+      <div class="mode-summary-mobile" id="mode-summary-mobile" hidden>
+        <button type="button" class="mode-summary-toggle" id="mode-summary-toggle"
+                aria-expanded="false" aria-controls="mode-summary-body">
+          <span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="11"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span> Sobre este modo
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="mode-summary-body" id="mode-summary-body"></div>
+      </div>
+
+      <!-- ════════ MÓDULO 1 — GRUPOS FUNCIONAIS ════════ -->
+      <section class="panel" id="panel-biblioteca" data-owner hidden aria-labelledby="hdr-bib">
+        <button type="button" class="panel-header" id="hdr-bib" aria-expanded="true" aria-controls="body-bib">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+          <span class="panel-label">Biblioteca</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-bib" role="region" aria-labelledby="hdr-bib">
+          <div class="seg" data-group="gf-fonte" role="group" aria-label="De onde vem a molécula">
+            <button type="button" class="seg-btn" data-value="biblioteca" aria-pressed="true">Biblioteca</button>
+            <button type="button" class="seg-btn" data-value="construir" aria-pressed="false">Construir</button>
+          </div>
+          <div id="gf-grupo-biblioteca">
+          <label class="ctrl-label" for="gf-busca">Buscar</label>
+          <input type="search" id="gf-busca" class="gf-busca" placeholder="nome ou uso — ex.: aroma, dor" autocomplete="off" spellcheck="false">
+          <div class="seg gf-categorias" data-group="gf-categoria" role="group" aria-label="Categoria dos compostos">
+            <button type="button" class="seg-btn" data-value="todas" aria-pressed="true">Todas</button>
+            <button type="button" class="seg-btn" data-value="medicamento" aria-pressed="false">Medicamentos</button>
+            <button type="button" class="seg-btn" data-value="aroma" aria-pressed="false">Aromas</button>
+            <button type="button" class="seg-btn" data-value="alimento" aria-pressed="false">Alimentos e corpo</button>
+            <button type="button" class="seg-btn" data-value="combustivel" aria-pressed="false">Combustíveis</button>
+            <button type="button" class="seg-btn" data-value="industria" aria-pressed="false">Indústria</button>
+          </div>
+          <p class="hint-text" id="gf-contagem" aria-live="polite"></p>
+          <div class="seg gf-lista" id="gf-lista" data-group="gf-composto" role="group" aria-label="Compostos da biblioteca"></div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="gf-sortear"><span aria-hidden="true">↻</span> Sortear da lista</button>
+          </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-investigar" data-owner hidden aria-labelledby="hdr-inv">
+        <button type="button" class="panel-header" id="hdr-inv" aria-expanded="true" aria-controls="body-inv">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18.37 2.63 14 7l-1.59-1.59a2 2 0 0 0-2.82 0L8 7l9 9 1.59-1.59a2 2 0 0 0 0-2.82L17 10l4.37-4.37a2.12 2.12 0 1 0-3-3Z"/><path d="M9 8c-2 3-4 3.5-7 4l8 10c2-1 6-5 6-7"/></svg></span>
+          <span class="panel-label">Investigar</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-inv" role="region" aria-labelledby="hdr-inv">
+          <p class="hint-text" id="gf-dica" aria-live="polite"></p>
+          <div id="gf-grupo-pintura">
+          <p class="ctrl-label">Pincel</p>
+          <div class="seg gf-pinceis" id="gf-pinceis" data-group="gf-pincel" role="group" aria-label="Função com que o toque pinta o átomo"></div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="gf-conferir">Revelar os grupos</button>
+            <button type="button" class="action-btn" data-action="gf-nenhum">Não há grupo funcional</button>
+          </div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="gf-limpar">Apagar a pintura</button>
+          </div>
+          <p class="hint-text gf-retorno" id="gf-retorno"></p>
+          </div>
+          <div id="gf-grupo-livre" hidden>
+            <p class="ctrl-label">Grupos na molécula</p>
+            <p class="hint-text" id="gf-livre-lista" aria-live="polite">Nenhum.</p>
+            <p class="hint-text" id="gf-livre-limite"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ MÓDULO 2 — NOMENCLATURA ════════ -->
+      <section class="panel" id="panel-bancada" data-owner hidden aria-labelledby="hdr-banc">
+        <button type="button" class="panel-header" id="hdr-banc" aria-expanded="true" aria-controls="body-banc">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+          <span class="panel-label">Bancada</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-banc" role="region" aria-labelledby="hdr-banc">
+          <div id="nm-grupo-bancada">
+            <label class="ctrl-label" for="nm-molecular">Fórmula molecular</label>
+            <input type="text" id="nm-molecular" class="gf-busca" placeholder="ex.: C4H10O" autocomplete="off" spellcheck="false">
+            <div class="action-row"><button type="button" class="action-btn" data-action="nm-gerar">Gerar isômeros</button></div>
+            <label class="ctrl-label" for="nm-estrutural" id="nm-rotulo-espaco">Fórmula estrutural do espaço 1</label>
+            <input type="text" id="nm-estrutural" class="gf-busca" placeholder="ex.: CH≡C-CH3" autocomplete="off" spellcheck="false">
+            <div class="nm-simbolos" role="group" aria-label="Inserir símbolo na fórmula">
+              <button type="button" class="nm-simbolo" data-simbolo="-" aria-label="ligação simples">–</button>
+              <button type="button" class="nm-simbolo" data-simbolo="=" aria-label="ligação dupla">=</button>
+              <button type="button" class="nm-simbolo" data-simbolo="≡" aria-label="ligação tripla (atalho: digite -=)" title="ligação tripla — ou digite -= (uma σ e duas π)">≡</button>
+              <button type="button" class="nm-simbolo" data-simbolo="(" aria-label="abre ramificação">(</button>
+              <button type="button" class="nm-simbolo" data-simbolo=")" aria-label="fecha ramificação">)</button>
+            </div>
+            <div class="action-row">
+              <button type="button" class="action-btn" data-action="nm-por">Pôr no espaço</button>
+              <button type="button" class="action-btn" data-action="nm-desenhar">Desenhar no editor</button>
+            </div>
+            <div class="action-row"><button type="button" class="action-btn" data-action="nm-esvaziar">Esvaziar o espaço</button></div>
+          </div>
+          <div id="nm-grupo-desenho" hidden>
+            <div class="action-row">
+              <button type="button" class="action-btn" data-action="nm-levar">Levar o desenho para o espaço</button>
+              <button type="button" class="action-btn" data-action="nm-voltar">Voltar à bancada</button>
+            </div>
+          </div>
+          <p class="hint-text" id="nm-nota" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-nome" data-owner hidden aria-labelledby="hdr-nome">
+        <button type="button" class="panel-header" id="hdr-nome" aria-expanded="true" aria-controls="body-nome">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg></span>
+          <span class="panel-label">Nome</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-nome" role="region" aria-labelledby="hdr-nome">
+          <div class="nm-grade">
+            <label class="nm-campo nm-largo"><span>Anel</span><select data-peca="anel"><option value="">— (cadeia aberta)</option><option value="ciclo">ciclo… (anel de carbono)</option><optgroup label="Benzeno e derivados"><option value="benzeno">benzeno</option><option value="fenol">fenol</option><option value="anilina">anilina</option><option value="benzaldeído">benzaldeído</option><option value="ácido benzoico">ácido benzoico</option><option value="benzonitrila">benzonitrila</option><option value="benzamida">benzamida</option></optgroup><optgroup label="Heterociclos"><option value="oxirano">oxirano</option><option value="oxetano">oxetano</option><option value="oxolano">oxolano</option><option value="oxano">oxano</option><option value="furano">furano</option><option value="aziridina">aziridina</option><option value="azetidina">azetidina</option><option value="pirrolidina">pirrolidina</option><option value="piperidina">piperidina</option><option value="pirrol">pirrol</option><option value="piridina">piridina</option></optgroup></select></label>
+            <label class="nm-campo"><span>Ramificação</span><select data-peca="ramo"><option value="">—</option><option value="metil">metil</option><option value="etil">etil</option><option value="propil">propil</option><option value="ciclopropil">ciclopropil</option><option value="ciclobutil">ciclobutil</option><option value="ciclopentil">ciclopentil</option><option value="ciclo-hexil">ciclo-hexil</option><option value="fenil">fenil</option></select></label><label class="nm-campo"><span>no carbono</span><select data-peca="ramoLoc"><option value="">—</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
+            <label class="nm-campo"><span>Halogênio</span><select data-peca="hal"><option value="">—</option><option value="fluoro">fluoro</option><option value="cloro">cloro</option><option value="bromo">bromo</option><option value="iodo">iodo</option></select></label><label class="nm-campo"><span>no carbono</span><select data-peca="halLoc"><option value="">—</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
+            <label class="nm-campo"><span>Alcóxi (éter)</span><select data-peca="alcoxi"><option value="">—</option><option value="metoxi">metoxi</option><option value="etoxi">etoxi</option><option value="propoxi">propoxi</option><option value="butoxi">butoxi</option></select></label><label class="nm-campo"><span>no carbono</span><select data-peca="alcoxiLoc"><option value="">—</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
+            <label class="nm-campo" data-cadeia><span>Cadeia principal</span><select data-peca="prefixo"><option value="">—</option><option value="met">met</option><option value="et">et</option><option value="prop">prop</option><option value="but">but</option><option value="pent">pent</option><option value="hex">hex</option><option value="hept">hept</option><option value="oct">oct</option><option value="non">non</option><option value="dec">dec</option></select></label><span></span>
+            <label class="nm-campo" data-cadeia><span>Ligações</span><select data-peca="infixo"><option value="">—</option><option value="an">an (simples)</option><option value="en">en (dupla)</option><option value="in">in (tripla)</option></select></label><label class="nm-campo" data-cadeia><span>no carbono</span><select data-peca="insatLoc"><option value="">—</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
+            <label class="nm-campo" data-cadeia><span>Função (sufixo)</span><select data-peca="sufixo"><option value="">—</option><option value="o">o</option><option value="ol">ol</option><option value="al">al</option><option value="ona">ona</option><option value="oico">oico (ácido)</option><option value="amina">amina</option><option value="nitrila">nitrila</option><option value="amida">amida</option><option value="oato">oato (éster)</option><option value="oila">oíla (haleto de ácido)</option><option value="anidrido">anidrido …oico</option><option value="carbaldeído">carbaldeído (anel)</option><option value="carboxílico">carboxílico (ácido, anel)</option><option value="carbonitrila">carbonitrila (anel)</option><option value="carboxamida">carboxamida (anel)</option></select></label><label class="nm-campo" data-cadeia><span>no carbono</span><select data-peca="grupoLoc"><option value="">—</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
+          </div>
+                    <div class="nm-grade">
+            <label class="nm-campo" data-contexto="oato" hidden><span>de … (éster)</span><select data-peca="esterAlq"><option value="">—</option><option value="metila">metila</option><option value="etila">etila</option><option value="propila">propila</option><option value="butila">butila</option></select></label><span data-contexto="oato" hidden></span>
+            <label class="nm-campo" data-contexto="oila" hidden><span>Haleto</span><select data-peca="haleto"><option value="">—</option><option value="fluoreto">fluoreto</option><option value="cloreto">cloreto</option><option value="brometo">brometo</option><option value="iodeto">iodeto</option></select></label><span data-contexto="oila" hidden></span>
+            <label class="nm-campo" data-contexto="anidrido" hidden><span>Segundo ácido</span><select data-peca="anidrido2"><option value="">—</option><option value="mesmo">o mesmo</option><option value="met">met…oico</option><option value="et">et…oico</option><option value="prop">prop…oico</option><option value="but">but…oico</option></select></label><span data-contexto="anidrido" hidden></span>
+            <label class="nm-campo" data-contexto="N" hidden><span>Grupo no N</span><select data-peca="n1"><option value="">—</option><option value="metil">N-metil</option><option value="etil">N-etil</option><option value="propil">N-propil</option><option value="butil">N-butil</option></select></label><label class="nm-campo" data-contexto="N" hidden><span>outro no N</span><select data-peca="n2"><option value="">—</option><option value="metil">N-metil</option><option value="etil">N-etil</option><option value="propil">N-propil</option><option value="butil">N-butil</option></select></label>
+          </div>
+          <p class="hint-text" id="nm-previsao" aria-live="polite"></p>
+          <p class="hint-text nm-nome" id="nm-nome"></p>
+          <div class="action-row"><button type="button" class="action-btn" data-action="nm-conferir">Conferir as previsões</button></div>
+        </div>
+      </section>
+
+      <!-- ════════ MÓDULO 3 — PONTO DE EBULIÇÃO ════════ -->
+      <section class="panel" id="panel-trilha" data-owner hidden aria-labelledby="hdr-trilha">
+        <button type="button" class="panel-header" id="hdr-trilha" aria-expanded="true" aria-controls="body-trilha">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span>
+          <span class="panel-label">Trilha</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-trilha" role="region" aria-labelledby="hdr-trilha">
+          <span class="ctrl-label" id="eb-lbl-conj">Conjunto</span>
+          <div class="seg seg--vertical eb-conjuntos" data-group="eb-conjunto" role="group" aria-labelledby="eb-lbl-conj"><!-- montada a partir de Q3.EBULICAO, com os títulos de grupo --></div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="eb-conferir">Conferir a trilha</button>
+            <button type="button" class="action-btn" data-action="eb-recomecar">Recomeçar</button>
+          </div>
+          <p class="hint-text eb-status" id="eb-status" aria-live="off"></p>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-dados" data-owner hidden aria-labelledby="hdr-dados">
+        <button type="button" class="panel-header" id="hdr-dados" aria-expanded="true" aria-controls="body-dados">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg></span>
+          <span class="panel-label">Dados</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-dados" role="region" aria-labelledby="hdr-dados">
+          <ul class="eb-lista" id="eb-tabela" aria-label="Dados dos compostos"></ul>
+          <p class="hint-text eb-explicacao" id="eb-explicacao"></p>
+          <p class="hint-text eb-fonte" id="eb-fonte"></p>
+        </div>
+      </section>
+
+      <!-- ════════ MÓDULO 4 — PRIORIDADE DE FUNÇÕES (nomes completos) ════════ -->
+      <section class="panel" id="panel-nc-bancada" data-owner hidden aria-labelledby="hdr-nc-banc">
+        <button type="button" class="panel-header" id="hdr-nc-banc" aria-expanded="true" aria-controls="body-nc-banc">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+          <span class="panel-label">Biblioteca</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-nc-banc" role="region" aria-labelledby="hdr-nc-banc">
+          <div class="action-row"><button type="button" class="action-btn" data-action="nc-gerar">Sortear compostos</button></div>
+          <label class="ctrl-label" for="nc-estrutural" id="nc-rotulo-espaco">Fórmula estrutural do espaço 1</label>
+          <input type="text" id="nc-estrutural" class="gf-busca" placeholder="ex.: HO-CH2-CH(OH)-CH2-OH" autocomplete="off" spellcheck="false">
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="nc-por">Pôr no espaço</button>
+            <button type="button" class="action-btn" data-action="nc-esvaziar">Esvaziar o espaço</button>
+          </div>
+          <p class="hint-text" id="nc-nota" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-nc-nome" data-owner hidden aria-labelledby="hdr-nc-nome">
+        <button type="button" class="panel-header" id="hdr-nc-nome" aria-expanded="true" aria-controls="body-nc-nome">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"/><path d="M6 20V14h4v-4h4V6h4v14"/></svg></span>
+          <span class="panel-label">Nome completo</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-nc-nome" role="region" aria-labelledby="hdr-nc-nome">
+          <div id="nc-construtor"></div>
+          <p class="hint-text" id="nc-previsao" aria-live="polite"></p>
+          <p class="hint-text nm-nome" id="nc-nome"></p>
+          <p class="hint-text eb-fonte" id="nc-onde"></p>
+          <div class="action-row"><button type="button" class="action-btn" data-action="nc-conferir">Conferir as previsões</button></div>
+        </div>
+      </section>
+
+<!-- ════════ CONSTRUÇÃO LIVRE (editor herdado do SIQC; o Módulo 1 mostra estes painéis na fonte Construir) ════════
+           Um único painel de CONTROLES: só o que o aluno muda. O que a
+           cadeia É (os quatro critérios, a classe de cada carbono) mora em
+           Resultados — calculado da estrutura, nunca repetido aqui. -->
+      <section class="panel" id="panel-construcao" data-owner hidden aria-labelledby="hdr-cons">
+        <button type="button" class="panel-header" id="hdr-cons" aria-expanded="true" aria-controls="body-cons">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="16.5" r="2.2"/><circle cx="12" cy="7" r="2.2"/><circle cx="18.5" cy="16.5" r="2.2"/><path d="M6.8 14.6 10.7 8.9M13.3 8.9l3.9 5.7"/></svg></span>
+          <span class="panel-label">Construção</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-cons" role="region" aria-labelledby="hdr-cons">
+          <p class="ctrl-label">Elemento a anexar</p>
+          <div class="seg seg-paleta" data-group="elemento" role="group" aria-label="Elemento a anexar">
+            <span class="paleta-rotulo" aria-hidden="true">cadeia</span>
+            <button type="button" class="seg-btn" data-value="C" aria-pressed="true" aria-label="Carbono">C</button><button type="button" class="seg-btn" data-value="Si" aria-pressed="false" aria-label="Silício">Si</button><button type="button" class="seg-btn" data-value="N" aria-pressed="false" aria-label="Nitrogênio">N</button><button type="button" class="seg-btn" data-value="O" aria-pressed="false" aria-label="Oxigênio">O</button><button type="button" class="seg-btn" data-value="S" aria-pressed="false" aria-label="Enxofre">S</button><button type="button" class="seg-btn" data-value="P" aria-pressed="false" aria-label="Fósforo">P</button>
+            <span class="paleta-rotulo" aria-hidden="true">halogênios</span>
+            <button type="button" class="seg-btn" data-value="F" aria-pressed="false" aria-label="Flúor">F</button><button type="button" class="seg-btn" data-value="Cl" aria-pressed="false" aria-label="Cloro">Cl</button><button type="button" class="seg-btn" data-value="Br" aria-pressed="false" aria-label="Bromo">Br</button><button type="button" class="seg-btn" data-value="I" aria-pressed="false" aria-label="Iodo">I</button>
+            <span class="paleta-rotulo" aria-hidden="true">metais</span>
+            <button type="button" class="seg-btn" data-value="Na" aria-pressed="false" aria-label="Sódio">Na</button><button type="button" class="seg-btn" data-value="K" aria-pressed="false" aria-label="Potássio">K</button><button type="button" class="seg-btn" data-value="Mg" aria-pressed="false" aria-label="Magnésio">Mg</button>
+          </div>
+          <p class="ctrl-label">Ferramenta</p>
+          <div class="seg" data-group="ferramenta" role="group" aria-label="Ferramenta">
+            <button type="button" class="seg-btn" data-value="anexar" aria-pressed="true">Anexar</button>
+            <button type="button" class="seg-btn" data-value="ligar" aria-pressed="false">Ligar</button>
+            <button type="button" class="seg-btn" data-value="apagar" aria-pressed="false">Apagar</button>
+            <button type="button" class="seg-btn" data-value="cunha" aria-pressed="false">Cunha</button>
+          </div>
+          <!-- Com a ferramenta Cunha: para onde a ligação tocada aponta. Só aparece com ela ativa. -->
+          <div id="grupo-cunha" hidden>
+            <p class="ctrl-label">A ligação tocada…</p>
+            <div class="seg" data-group="cunhaTipo" role="group" aria-label="Para onde a ligação tocada aponta">
+              <button type="button" class="seg-btn" data-value="frente" aria-pressed="true" aria-label="Vem para a frente, cunha cheia"><svg viewBox="0 0 24 12" width="1.6em" height="0.8em" aria-hidden="true"><path d="M2 6 22 1.5v9z" fill="currentColor"/></svg> Frente</button>
+              <button type="button" class="seg-btn" data-value="tras" aria-pressed="false" aria-label="Vai para trás, cunha tracejada"><svg viewBox="0 0 24 12" width="1.6em" height="0.8em" aria-hidden="true"><path d="M4 5.2V6.8" stroke="currentColor" stroke-width="1.6"/><path d="M8 4.4V7.6" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.6V8.4" stroke="currentColor" stroke-width="1.6"/><path d="M16 2.8V9.2" stroke="currentColor" stroke-width="1.6"/><path d="M20 1.8V10.2" stroke="currentColor" stroke-width="1.6"/></svg> Trás</button>
+              <button type="button" class="seg-btn" data-value="plano" aria-pressed="false" aria-label="Fica no plano, traço simples"><svg viewBox="0 0 24 12" width="1.6em" height="0.8em" aria-hidden="true"><path d="M2 6h20" stroke="currentColor" stroke-width="2"/></svg> No plano</button>
+            </div>
+          </div>
+          <div class="action-row">
+            <button type="button" class="action-btn" data-action="cad-desfazer">Desfazer</button>
+            <button type="button" class="action-btn" data-action="cad-snap">Snap Literatura</button>
+            <button type="button" class="action-btn" data-action="cad-limpar">Limpar</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-representacao" data-owner hidden aria-labelledby="hdr-rep">
+        <button type="button" class="panel-header" id="hdr-rep" aria-expanded="true" aria-controls="body-rep">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="m2 13 10 5 10-5"/><path d="m2 18 10 5 10-5" opacity=".55"/></svg></span>
+          <span class="panel-label">Representação</span>
+          <span class="panel-badge">6</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-rep" role="region" aria-labelledby="hdr-rep">
+          <div class="opt-grid cols-1" id="vista-grid" data-group="vista" role="listbox"
+               aria-label="Forma de representar a cadeia"></div>
+          <p class="ctrl-label">Tensão angular entre as nuvens</p>
+          <div class="seg" data-group="tensao" role="group" aria-label="Tensão angular entre as nuvens eletrônicas" aria-describedby="tensao-dica">
+            <button type="button" class="seg-btn" data-value="on" aria-pressed="false">Ligada</button>
+            <button type="button" class="seg-btn" data-value="off" aria-pressed="true">Desligada</button>
+          </div>
+          <p class="sr-only" id="tensao-dica">Ligada: pares isolados, duplas e grupos volumosos ocupam mais espaço e mudam os ângulos. Desligada: ângulos ideais.</p>
+        </div>
+      </section>
+
+
+      <!-- ════════ RESULTADOS (sempre visível, independe do modo) ════════ -->
+      <section class="panel" aria-labelledby="hdr-result">
+        <button type="button" class="panel-header" id="hdr-result" aria-expanded="true" aria-controls="body-result">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
+          <span class="panel-label">Resultados</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-result" role="region" aria-labelledby="hdr-result">
+          <dl class="data-grid" id="result-grid" aria-live="polite" aria-atomic="true"></dl>
+          <canvas id="result-chart" class="result-chart" hidden aria-label="Gráfico auxiliar do modo atual"></canvas>
+        </div>
+      </section>
+
+    </aside>
+
+  </main>
+
+  <!-- ════════ MODAL — INFORMAÇÕES DO MODO (1ª ATIVAÇÃO, MOBILE) ════════ -->
+  <div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+       aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+    <div class="mode-info-modal" id="modeInfoModal">
+      <div class="mode-info-header">
+        <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+        <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+        <button type="button" class="mode-info-close" id="modeInfoClose"
+                aria-label="Fechar informações do modo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+      </div>
+      <div class="mode-info-body" id="modeInfoBody"></div>
+    </div>
+  </div>
+
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+  <!-- ═══ ORDEM DE CARGA — não reordenar ═══
+       a11y → core → data → ui → simulation → init.
+       Escopo global compartilhado entre as tags: cada arquivo
+       conta com o que os anteriores declararam. -->
+  <script src="js/a11y/anuncios.js"></script>
+  <script src="js/core/formatacao.js"></script>
+  <script src="js/core/grafo-molecular.js"></script>
+  <script src="js/core/geometria-molecular.js"></script>
+  <script src="js/core/geometria-3d.js"></script>
+  <script src="js/core/lewis.js"></script>
+  <script src="js/core/smiles.js"></script>
+  <script src="js/core/classificacao-cadeias.js"></script>
+  <script src="js/core/grupos-funcionais.js"></script>
+  <script src="js/core/formula-condensada.js"></script>
+  <script src="js/core/nomenclatura.js"></script>
+  <script src="js/core/nomenclatura-completa.js"></script>
+  <script src="js/data/ebulicao.js"></script>
+  <script src="js/data/nomes-completos.js"></script>
+  <script src="js/data/dadosfuncoes.js"></script>
+  <script src="js/data/biblioteca-funcoes.js"></script>
+  <script src="js/render/desenho-molecula.js"></script>
+  <script src="js/render/representacoes.js"></script>
+  <script src="js/ui/kit-desenho.js"></script>
+  <script src="js/view3d/camera-orbital.js"></script>
+  <script src="js/view3d/navegacao-3d.js"></script>
+  <script src="js/simulation/editor-cadeias.js"></script>
+  <script src="js/simulation/investigador-grupos.js"></script>
+  <script src="js/simulation/nomeador-cadeias.js"></script>
+  <script src="js/simulation/trilha-ebulicao.js"></script>
+  <script src="js/simulation/nomeador-completo.js"></script>
+  <script src="js/simulation/mecanica.js"></script>
+  <script src="js/init/app.js"></script>
+  <script src="js/ui/offcanvas-mobile.js"></script>
+
+  <!-- ═══ TOUR GUIADO — motor genérico na raiz + roteiro deste simulador ═══
+       Antes do trilho: o trilho escuta coachmark:inicio/fim para sair de
+       cena durante o tour, e o motor precisa existir quando o tour começa. -->
+  <script src="../../coachmark.js"></script>
+  <script src="js/a11y/tour.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'funcoes', bp: 1100 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

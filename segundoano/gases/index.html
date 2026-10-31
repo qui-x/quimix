@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+  <meta name="description" content="Estude as transformações gasosas no pistão, a equação de Clapeyron, a difusão pela Lei de Graham e um motor de partículas de teoria cinética com 19 gases."/>
+  <title>SIGAS — Simulador Interativo de Gases</title>
+  <link rel="stylesheet" href="css/stylegases.css"/>
+</head>
+<body>
+
+  <!-- Camada de simulação de daltonismo (backdrop-filter, nunca no body) -->
+  <div id="colorblindOverlay" aria-hidden="true"></div>
+  <!-- ══ FILTROS DE DALTONISMO ══════════════════════════════════════
+       O a11y.js aplica `backdrop-filter: url(#f-<tipo>)` no
+       #colorblindOverlay. Sem estes <filter> declarados NESTE
+       documento, a URL aponta para um id inexistente e o navegador
+       ignora em silencio — sem erro no console. Era o caso aqui: o
+       overlay existia, o CSS existia, mas os filtros nao. A simulacao
+       de daltonismo simplesmente nao acontecia.
+
+       Matrizes: Brettel para as tres dicromacias e Rec.601
+       (0.299/0.587/0.114) para acromatopsia. Identicas as das outras
+       paginas — ha uma fonte unica de verdade no projeto.
+       ══════════════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="f-protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+      </filter>
+      <filter id="f-acromatopsia">
+        <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <nav class="skip-nav" aria-label="Atalhos de navegação">
+    <a href="#sidebar-left"  class="skip-link">Pular para menus e informações</a>
+    <a href="#sim-canvas"    class="skip-link">Pular para a simulação</a>
+    <a href="#sidebar-right" class="skip-link">Pular para os controles</a>
+  </nav>
+
+  <div id="sr-live"           class="sr-only" aria-live="polite"    aria-atomic="true"></div>
+  <div id="sr-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+  <header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexsegundoano.html" aria-label="Voltar aos simuladores do 2º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>2º Ano</span>
+      </a>
+      <button class="header-logo" id="btn-app-logo" aria-label="Logo do SIGAS — toque para uma curiosidade química">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" width="22" height="22"><rect x="4.5" y="7" width="10" height="14" rx="1.4"/><path d="M8 3.5v7M11 3.5v7M4.5 12.5h10"/><circle cx="19.5" cy="8.5" r="3.2"/><path d="M19.5 8.5l1.8-1.6"/><circle cx="8" cy="16.5" r="0.9" fill="currentColor"/><circle cx="11.4" cy="18.6" r="0.9" fill="currentColor"/></svg>
+      </button>
+      <div>
+        <h1>SIGAS</h1>
+        <p class="header-sub">Simulador Interativo de Gases</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button type="button" class="mobile-menu-btn" id="mobile-menu-btn"
+        aria-label="Abrir controles da simulação" aria-expanded="false" aria-controls="sidebar-right"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h4" /><path d="M12 21v-9" /><path d="M12 8V3" /><path d="M17 16h4" /><path d="M19 12V3" /><path d="M19 21v-5" /><path d="M3 14h4" /><path d="M5 10V3" /><path d="M5 21v-7" /></svg></button>
+    </div>
+  </header>
+
+  <!-- ════════ BARRA DE MODOS (MOBILE) ════════
+       Só aparece em telas estreitas (ver @media 1100px no CSS) — substitui
+       a navegação por gaveta esquerda (☰) por uma barra rolável sempre
+       visível, na MESMA ordem e com os MESMOS dados de SIM_DATA.MODES que
+       já alimentam o acordeão da sidebar esquerda (sem duplicar dado,
+       só a forma de exibir). Preenchida em _buildModeTabsMobile() (app.js).
+       O botão "mobile-info-btn" que abria a sidebar esquerda foi removido
+       de propósito: esta barra assume essa função no mobile. -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Modos do simulador" aria-orientation="horizontal"></nav>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+  <div class="keyboard-hints" role="note" aria-label="Atalhos de teclado disponíveis">
+    <kbd>Alt+1–4</kbd> Modos &nbsp;
+    <kbd>Enter/Espaço</kbd> Ação no gráfico &nbsp;
+    <kbd>← ↑ ↓ →</kbd> Percorrer valores
+  </div>
+
+  <main class="app-main" id="main-content" role="main">
+
+    <aside class="sidebar sidebar--left" id="sidebar-left"
+           aria-label="Menus, listagens e informações do simulador">
+
+      <!-- ════════ MODOS (um painel-acordeão por modo, gerado de SIM_DATA.MODES) ════════ -->
+      <div id="model-list" aria-label="Modos de exemplo disponíveis, cada um com painel próprio"></div>
+
+    </aside>
+
+    <div class="canvas-wrap">
+      <canvas id="sim-canvas" tabindex="0" role="img"
+              aria-label="Simulação animada do modo selecionado"
+              aria-describedby="canvas-desc"></canvas>
+      <p id="canvas-desc" class="sr-only">
+        Área de simulação com cilindro e pistão, manômetro, termômetro, tubo de difusão de gases e câmara do motor cinético de partículas, atualizada em tempo real conforme os controles.
+      </p>
+      <!-- INDICADOR DE MODO ATIVO (padrão SILQ) — a pílula fica ESCONDIDA
+           enquanto nenhum modo está ativo: o canvas começa puro. Ao ativar
+           um modo, a classe .mode-on aparece e mostra ícone + nome + ✕. -->
+      <div class="canvas-overlay" id="mode-indicator">
+        <span class="overlay-label" id="overlay-label">
+          <span class="overlay-icon" id="overlay-icon" aria-hidden="true"></span>
+          <span class="overlay-text" id="overlay-text">SIGAS</span>
+          <button type="button" class="overlay-clear" id="overlay-clear"
+                  aria-label="Desativar o modo ativo" title="Desativar o modo ativo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+        </span>
+      </div>
+      <div class="canvas-hint" aria-hidden="true" id="canvas-hint">Escolha um modo ao lado e clique em "Ativar" para iniciar a simulação.</div>
+      <div class="fps-counter" aria-hidden="true" id="fps-counter">-- fps</div>
+        </div>
+
+    <aside class="sidebar sidebar--right" id="sidebar-right"
+           aria-label="Controles da simulação">
+
+      <!-- Mensagem de "tudo trancado" — mesmo padrão do 1º ano. -->
+      <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+        <svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <p>Ative um modo à esquerda — <strong>Transformações Gasosas</strong>, <strong>Equação de Clapeyron</strong>, <strong>Difusão de Graham</strong>, <strong>Teoria Cinética</strong> ou <strong>Mistura de Gases</strong> — para liberar a substância, o diagrama, os controles e as medidas.</p>
+      </div>
+
+      <!-- ════════ RESUMO DO MODO (MOBILE) ════════
+           Só usado dentro do bottom sheet mobile — no desktop essa
+           informação (definição + fatos-chave) já aparece no acordeão da
+           sidebar esquerda, então aqui fica escondida (ver CSS). Populado
+           por _syncMobileModeUI() em app.js a partir do mesmo SIM_DATA.MODES,
+           sem duplicar a lógica de montagem. -->
+      <div class="mode-summary-mobile" id="mode-summary-mobile" hidden>
+        <button type="button" class="mode-summary-toggle" id="mode-summary-toggle"
+                aria-expanded="false" aria-controls="mode-summary-body">
+          <span aria-hidden="true">ℹ️</span> Sobre este modo
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="mode-summary-body" id="mode-summary-body"></div>
+      </div>
+
+      <!-- ════════ MODO 1 — TRANSFORMAÇÕES ════════ -->
+      <!-- ════════ MODO 1 — TRANSFORMAÇÕES ════════ -->
+      <section class="panel" id="panel-transf-tipo" data-owner hidden aria-labelledby="hdr-transf-tipo">
+        <button type="button" class="panel-header" id="hdr-transf-tipo" aria-expanded="true" aria-controls="body-transf-tipo">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6.5V3a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v3.5" /><path d="M9 18h8" /><path d="M18 3h-3" /><path d="M11 3a6 6 0 0 0-6 6v11" /><path d="M5 13h4" /><path d="M17 10a4 4 0 0 0-8 0v10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2Z" /></svg></span>
+          <span class="panel-label">Tipo de Transformação</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-transf-tipo" role="region" aria-labelledby="hdr-transf-tipo">
+          <div class="seg" data-group="trtipo" role="group" aria-label="Tipo de transformação gasosa">
+            <button class="seg-btn" data-value="isotermica" aria-pressed="true">Isotérmica</button>
+            <button class="seg-btn" data-value="isobarica" aria-pressed="false">Isobárica</button>
+            <button class="seg-btn" data-value="isocorica" aria-pressed="false">Isocórica</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-transf-param" data-owner hidden aria-labelledby="hdr-transf-param">
+        <button type="button" class="panel-header" id="hdr-transf-param" aria-expanded="true" aria-controls="body-transf-param">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h4" /><path d="M12 21v-9" /><path d="M12 8V3" /><path d="M17 16h4" /><path d="M19 12V3" /><path d="M19 21v-5" /><path d="M3 14h4" /><path d="M5 10V3" /><path d="M5 21v-7" /></svg></span>
+          <span class="panel-label">Grandezas</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-transf-param" role="region" aria-labelledby="hdr-transf-param">
+          <div class="slider-row">
+            <label for="tr-n">Quantidade n</label>
+            <input type="range" id="tr-n" data-bind="trN" min="0.5" max="5" step="0.5" value="1" data-fmt="f1" data-unit="mol"/>
+            <output id="out-tr-n" for="tr-n">1,0 mol</output>
+          </div>
+          <div class="slider-row">
+            <label for="tr-t">Temperatura</label>
+            <input type="range" id="tr-t" data-bind="trT" min="0" max="600" step="5" value="300" data-unit="K"/>
+            <output id="out-tr-t" for="tr-t">300 K</output>
+          </div>
+          <div id="row-tr-v">
+            <div class="slider-row">
+              <label for="tr-v">Volume</label>
+              <input type="range" id="tr-v" data-bind="trV" min="5" max="50" step="1" value="20" data-unit="L"/>
+              <output id="out-tr-v" for="tr-v">20 L</output>
+            </div>
+          </div>
+          <div id="row-tr-p" hidden>
+            <div class="slider-row">
+              <label for="tr-p">Pressão</label>
+              <input type="range" id="tr-p" data-bind="trP" min="0.5" max="3" step="0.05" value="1" data-fmt="f2" data-unit="atm"/>
+              <output id="out-tr-p" for="tr-p">1,00 atm</output>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-transf-acoes" data-owner hidden aria-labelledby="hdr-transf-acoes">
+        <button type="button" class="panel-header" id="hdr-transf-acoes" aria-expanded="true" aria-controls="body-transf-acoes">
+          <span class="panel-icon" aria-hidden="true">▶️</span>
+          <span class="panel-label">Ações</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-transf-acoes" role="region" aria-labelledby="hdr-transf-acoes">
+          <div class="action-row">
+            <button class="action-btn" data-action="tr-reset"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg></span> Reiniciar</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 2 — CLAPEYRON ════════ -->
+      <section class="panel" id="panel-clape-gas" data-owner hidden aria-labelledby="hdr-clape-gas">
+        <button type="button" class="panel-header" id="hdr-clape-gas" aria-expanded="true" aria-controls="body-clape-gas">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18" /><path d="m19 8 3 8a5 5 0 0 1-6 0zV7" /><path d="M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1" /><path d="m5 8 3 8a5 5 0 0 1-6 0zV7" /><path d="M7 21h10" /></svg></span>
+          <span class="panel-label">Gás</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-clape-gas" role="region" aria-labelledby="hdr-clape-gas">
+          <div class="opt-grid" id="clape-grid" data-group="gas" role="listbox"
+               aria-label="Gases disponíveis com massa molar"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-clape-param" data-owner hidden aria-labelledby="hdr-clape-param">
+        <button type="button" class="panel-header" id="hdr-clape-param" aria-expanded="true" aria-controls="body-clape-param">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h4" /><path d="M12 21v-9" /><path d="M12 8V3" /><path d="M17 16h4" /><path d="M19 12V3" /><path d="M19 21v-5" /><path d="M3 14h4" /><path d="M5 10V3" /><path d="M5 21v-7" /></svg></span>
+          <span class="panel-label">Grandezas (n, T, V)</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-clape-param" role="region" aria-labelledby="hdr-clape-param">
+          <div class="slider-row">
+            <label for="cla-n">Quantidade n</label>
+            <input type="range" id="cla-n" data-bind="claN" min="0.2" max="3" step="0.1" value="1" data-fmt="f1" data-unit="mol"/>
+            <output id="out-cla-n" for="cla-n">1,0 mol</output>
+          </div>
+          <div class="slider-row">
+            <label for="cla-t">Temperatura</label>
+            <input type="range" id="cla-t" data-bind="claT" min="0" max="600" step="5" value="300" data-unit="K"/>
+            <output id="out-cla-t" for="cla-t">300 K</output>
+          </div>
+          <div class="slider-row">
+            <label for="cla-v">Volume</label>
+            <input type="range" id="cla-v" data-bind="claV" min="5" max="50" step="0.5" value="24.6" data-fmt="f1" data-unit="L"/>
+            <output id="out-cla-v" for="cla-v">24,6 L</output>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-clape-acoes" data-owner hidden aria-labelledby="hdr-clape-acoes">
+        <button type="button" class="panel-header" id="hdr-clape-acoes" aria-expanded="true" aria-controls="body-clape-acoes">
+          <span class="panel-icon" aria-hidden="true">▶️</span>
+          <span class="panel-label">Ações</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-clape-acoes" role="region" aria-labelledby="hdr-clape-acoes">
+          <div class="action-row">
+            <button class="action-btn" data-action="cla-status"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg></span> Calcular P</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 3 — GRAHAM ════════ -->
+      <section class="panel" id="panel-graham-gases" data-owner hidden aria-labelledby="hdr-graham-gases">
+        <button type="button" class="panel-header" id="hdr-graham-gases" aria-expanded="true" aria-controls="body-graham-gases">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" /></svg></span>
+          <span class="panel-label">Gases da Corrida</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-graham-gases" role="region" aria-labelledby="hdr-graham-gases">
+          <label class="ctrl-label" for="graham-a">Gás A — ponta esquerda</label>
+          <select id="graham-a" class="ctrl-select" data-bind="gasa" aria-label="Gás liberado na ponta esquerda do tubo"></select>
+
+          <label class="ctrl-label" for="graham-b">Gás B — ponta direita</label>
+          <select id="graham-b" class="ctrl-select" data-bind="gasb" aria-label="Gás liberado na ponta direita do tubo"></select>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-graham-param" data-owner hidden aria-labelledby="hdr-graham-param">
+        <button type="button" class="panel-header" id="hdr-graham-param" aria-expanded="true" aria-controls="body-graham-param">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h4" /><path d="M12 21v-9" /><path d="M12 8V3" /><path d="M17 16h4" /><path d="M19 12V3" /><path d="M19 21v-5" /><path d="M3 14h4" /><path d="M5 10V3" /><path d="M5 21v-7" /></svg></span>
+          <span class="panel-label">Temperatura</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-graham-param" role="region" aria-labelledby="hdr-graham-param">
+          <div class="slider-row">
+            <label for="graham-t">Temperatura</label>
+            <input type="range" id="graham-t" data-bind="grT" min="0" max="600" step="5" value="300" data-unit="K"/>
+            <output id="out-graham-t" for="graham-t">300 K</output>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-graham-pares" data-owner hidden aria-labelledby="hdr-graham-pares">
+        <button type="button" class="panel-header" id="hdr-graham-pares" aria-expanded="true" aria-controls="body-graham-pares">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></svg></span>
+          <span class="panel-label">Duplas Clássicas</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-graham-pares" role="region" aria-labelledby="hdr-graham-pares">
+          <div class="pair-row" id="pares-row" role="group" aria-label="Duplas clássicas de gases para a corrida"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-graham-acoes" data-owner hidden aria-labelledby="hdr-graham-acoes">
+        <button type="button" class="panel-header" id="hdr-graham-acoes" aria-expanded="true" aria-controls="body-graham-acoes">
+          <span class="panel-icon" aria-hidden="true">▶️</span>
+          <span class="panel-label">Ações</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-graham-acoes" role="region" aria-labelledby="hdr-graham-acoes">
+          <div class="action-row">
+            <button class="action-btn" data-action="liberar"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg></span> Liberar gases</button>
+            <button class="action-btn" data-action="gr-reset"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg></span> Limpar tubo</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 4 — TEORIA CINÉTICA ════════ -->
+      <section class="panel" id="panel-kin-gas" data-owner hidden aria-labelledby="hdr-kin-gas">
+        <button type="button" class="panel-header" id="hdr-kin-gas" aria-expanded="true" aria-controls="body-kin-gas">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1" /><path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5Z" /><path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5Z" /></svg></span>
+          <span class="panel-label">Gás</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-kin-gas" role="region" aria-labelledby="hdr-kin-gas">
+          <select id="kin-gas" class="ctrl-select" data-bind="kinGas" aria-label="Gás simulado no motor cinético"></select>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-kin-param" data-owner hidden aria-labelledby="hdr-kin-param">
+        <button type="button" class="panel-header" id="hdr-kin-param" aria-expanded="true" aria-controls="body-kin-param">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h4" /><path d="M12 21v-9" /><path d="M12 8V3" /><path d="M17 16h4" /><path d="M19 12V3" /><path d="M19 21v-5" /><path d="M3 14h4" /><path d="M5 10V3" /><path d="M5 21v-7" /></svg></span>
+          <span class="panel-label">Grandezas</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-kin-param" role="region" aria-labelledby="hdr-kin-param">
+          <div class="slider-row">
+            <label for="kin-n">Partículas</label>
+            <input type="range" id="kin-n" data-bind="kinN" min="10" max="240" step="5" value="80"/>
+            <output id="out-kin-n" for="kin-n">80</output>
+          </div>
+          <div class="slider-row">
+            <label for="kin-t">Temperatura</label>
+            <input type="range" id="kin-t" data-bind="kinT" min="0" max="1000" step="10" value="300" data-unit="K"/>
+            <output id="out-kin-t" for="kin-t">300 K</output>
+          </div>
+          <div class="slider-row">
+            <label for="kin-v">Volume</label>
+            <input type="range" id="kin-v" data-bind="kinV" min="10" max="50" step="0.5" value="24.6" data-fmt="f1" data-unit="L"/>
+            <output id="out-kin-v" for="kin-v">24,6 L</output>
+          </div>
+          <div class="slider-row">
+            <label for="kin-r">Tamanho da partícula</label>
+            <input type="range" id="kin-r" data-bind="kinR" min="2" max="6" step="0.5" value="3" data-fmt="f1" data-unit="px"/>
+            <output id="out-kin-r" for="kin-r">3,0 px</output>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-kin-exibicao" data-owner hidden aria-labelledby="hdr-kin-exibicao">
+        <button type="button" class="panel-header" id="hdr-kin-exibicao" aria-expanded="true" aria-controls="body-kin-exibicao">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg></span>
+          <span class="panel-label">Exibição</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-kin-exibicao" role="region" aria-labelledby="hdr-kin-exibicao">
+          <label class="ctrl-label">Colisões entre partículas</label>
+          <div class="seg" data-group="kincol" role="group" aria-label="Colisões entre partículas">
+            <button class="seg-btn" data-value="on" aria-pressed="true">Ligadas</button>
+            <button class="seg-btn" data-value="off" aria-pressed="false">Desligadas</button>
+          </div>
+
+          <label class="ctrl-label">Cor das partículas</label>
+          <div class="seg" data-group="kinview" role="group" aria-label="Critério de cor das partículas">
+            <button class="seg-btn" data-value="gas" aria-pressed="true">Por gás</button>
+            <button class="seg-btn" data-value="vel" aria-pressed="false">Por velocidade</button>
+          </div>
+
+          <label class="ctrl-label">Histograma de velocidades</label>
+          <div class="seg" data-group="kinhist" role="group" aria-label="Exibição do histograma de velocidades">
+            <button class="seg-btn" data-value="on" aria-pressed="true">Visível</button>
+            <button class="seg-btn" data-value="off" aria-pressed="false">Oculto</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-kin-acoes" data-owner hidden aria-labelledby="hdr-kin-acoes">
+        <button type="button" class="panel-header" id="hdr-kin-acoes" aria-expanded="true" aria-controls="body-kin-acoes">
+          <span class="panel-icon" aria-hidden="true">▶️</span>
+          <span class="panel-label">Ações</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-kin-acoes" role="region" aria-labelledby="hdr-kin-acoes">
+          <div class="action-row">
+            <button class="action-btn" data-action="kin-mb"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="12" height="12" x="2" y="10" rx="2" ry="2" /><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6" /><path d="M6 18h.01" /><path d="M10 14h.01" /><path d="M15 6h.01" /><path d="M18 9h.01" /></svg></span> Termalizar</button>
+            <button class="action-btn" data-action="kin-uni"><span aria-hidden="true">＝</span> v iguais</button>
+            <button class="action-btn" data-action="kin-reset"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg></span> Reiniciar</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ MODO 5 — MISTURA DE GASES (Dalton e Amagat) ════════
+           NOVO. Os tres paineis abaixo pertencem ao modo 'mistura' e sao
+           declarados em SIM_DATA.MODES[4].panels — o casco App mostra e
+           esconde por conta propria, pelo atributo data-owner. -->
+      <section class="panel" id="panel-mix-gases" data-owner hidden aria-labelledby="hdr-mix-gases">
+        <button type="button" class="panel-header" id="hdr-mix-gases" aria-expanded="true" aria-controls="body-mix-gases">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" /><path d="M16 17H7" /><path d="M17 21H9" /></svg></span>
+          <span class="panel-label">Gases da Mistura</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-mix-gases" role="region" aria-labelledby="hdr-mix-gases">
+          <label class="ctrl-label" for="mix-a">Gás A</label>
+          <select id="mix-a" class="ctrl-select" data-bind="mixA" aria-label="Primeiro gás da mistura"></select>
+          <label class="ctrl-label" for="mix-b">Gás B</label>
+          <select id="mix-b" class="ctrl-select" data-bind="mixB" aria-label="Segundo gás da mistura"></select>
+          <label class="ctrl-label" for="mix-c">Gás C (opcional)</label>
+          <select id="mix-c" class="ctrl-select" data-bind="mixC" aria-label="Terceiro gás da mistura, opcional"></select>
+          <p class="hint-text">Deixe o gás C em <strong>nenhum</strong> para estudar uma mistura binária.</p>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-mix-param" data-owner hidden aria-labelledby="hdr-mix-param">
+        <button type="button" class="panel-header" id="hdr-mix-param" aria-expanded="true" aria-controls="body-mix-param">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h4" /><path d="M12 21v-9" /><path d="M12 8V3" /><path d="M17 16h4" /><path d="M19 12V3" /><path d="M19 21v-5" /><path d="M3 14h4" /><path d="M5 10V3" /><path d="M5 21v-7" /></svg></span>
+          <span class="panel-label">Mols, T e V</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-mix-param" role="region" aria-labelledby="hdr-mix-param">
+          <div class="slider-row">
+            <label for="mix-na">Mols de A</label>
+            <input type="range" id="mix-na" data-bind="mixNa" min="0" max="3" step="0.05" value="1" data-fmt="f2" data-unit="mol"/>
+            <output id="out-mix-na" for="mix-na">1,00 mol</output>
+          </div>
+          <div class="slider-row">
+            <label for="mix-nb">Mols de B</label>
+            <input type="range" id="mix-nb" data-bind="mixNb" min="0" max="3" step="0.05" value="1" data-fmt="f2" data-unit="mol"/>
+            <output id="out-mix-nb" for="mix-nb">1,00 mol</output>
+          </div>
+          <div class="slider-row" id="row-mix-nc" hidden>
+            <label for="mix-nc">Mols de C</label>
+            <input type="range" id="mix-nc" data-bind="mixNc" min="0" max="3" step="0.05" value="0.5" data-fmt="f2" data-unit="mol"/>
+            <output id="out-mix-nc" for="mix-nc">0,50 mol</output>
+          </div>
+          <div class="slider-row">
+            <label for="mix-t">Temperatura</label>
+            <input type="range" id="mix-t" data-bind="mixT" min="100" max="900" step="10" value="300" data-unit="K"/>
+            <output id="out-mix-t" for="mix-t">300 K</output>
+          </div>
+          <div class="slider-row">
+            <label for="mix-v">Volume</label>
+            <input type="range" id="mix-v" data-bind="mixV" min="10" max="60" step="0.5" value="24.6" data-fmt="f1" data-unit="L"/>
+            <output id="out-mix-v" for="mix-v">24,6 L</output>
+          </div>
+
+          <label class="ctrl-label">O que mostrar no canvas</label>
+          <div class="seg" data-group="mixview" role="group" aria-label="Modo de exibição da mistura">
+            <button class="seg-btn" data-value="dalton" aria-pressed="true">Dalton (P)</button>
+            <button class="seg-btn" data-value="amagat" aria-pressed="false">Amagat (V)</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-mix-acoes" data-owner hidden aria-labelledby="hdr-mix-acoes">
+        <button type="button" class="panel-header" id="hdr-mix-acoes" aria-expanded="true" aria-controls="body-mix-acoes">
+          <span class="panel-icon" aria-hidden="true">▶️</span>
+          <span class="panel-label">Misturas Prontas e Ações</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-mix-acoes" role="region" aria-labelledby="hdr-mix-acoes">
+          <div class="chip-row" id="mix-presets" role="group" aria-label="Misturas prontas"></div>
+          <div class="action-row">
+            <button class="action-btn" data-action="mix-status"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg></span> Ler parciais</button>
+            <button class="action-btn" data-action="mix-reset"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg></span> Reiniciar</button>
+          </div>
+          <p class="hint-text">As parciais no canvas são <strong>medidas</strong> pelos choques nas paredes. Confira: a soma delas fecha com a total.</p>
+        </div>
+      </section>
+
+      <!-- ════════ RESULTADOS (sempre visível, independe do modo) ════════ -->
+      <section class="panel" aria-labelledby="hdr-result">
+        <button type="button" class="panel-header" id="hdr-result" aria-expanded="true" aria-controls="body-result">
+          <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21v-6" /><path d="M12 21V9" /><path d="M19 21V3" /></svg></span>
+          <span class="panel-label">Resultados</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="panel-body" id="body-result" role="region" aria-labelledby="hdr-result">
+          <dl class="data-grid" id="result-grid" aria-live="polite" aria-atomic="true"></dl>
+        </div>
+      </section>
+
+    </aside>
+
+    
+
+  </main>
+
+  <!-- ════════ MODAL — INFORMAÇÕES DO MODO (1ª ATIVAÇÃO, MOBILE) ════════
+       Aberto por _showModeInfoModal() (app.js) na 1ª vez que cada modo é
+       ativado nesta sessão, pelo toque na barra de modos mobile
+       (mode-tabs-mobile). Mesmo conteúdo de "Sobre este modo" no bottom
+       sheet (_modeSummaryHTML, sem duplicar dado) — só a APRESENTAÇÃO é
+       diferente: aqui é um modal de verdade, por cima de tudo, que força
+       a leitura antes de simular pela 1ª vez. Fecha pelo ✕, por toque no
+       fundo escurecido, ou Esc — depois disso o mesmo conteúdo continua
+       acessível quando o aluno quiser, recolhido dentro do próprio bottom
+       sheet. -->
+  <div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+       aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+    <div class="mode-info-modal" id="modeInfoModal">
+      <div class="mode-info-header">
+        <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+        <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+        <button type="button" class="mode-info-close" id="modeInfoClose"
+                aria-label="Fechar informações do modo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+      </div>
+      <div class="mode-info-body" id="modeInfoBody"></div>
+    </div>
+  </div>
+
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+  <script src="js/data/dadosgases.js"></script>
+  <script src="js/core/namespace.js"></script>
+  <script src="js/a11y/preferencias.js"></script>
+  <script src="js/a11y/anuncios.js"></script>
+  <script src="js/core/formatacao.js"></script>
+  <script src="js/core/canvas-escala.js"></script>
+  <script src="js/ui/kit-desenho.js"></script>
+  <script src="js/ui/icones-canvas.js"></script>
+  <script src="js/simulation/mecanica.js"></script>
+  <script src="js/init/app.js"></script>
+
+  <!-- ═══ TOUR GUIADO (COACHMARK) — boas-vindas + por módulo ═══ -->
+  <script src="../../coachmark.js"></script>
+  <script src="js/a11y/tour.js"></script>
+  <script src="js/ui/offcanvas-mobile.js"></script>
+  <script src="js/ui/sidebar-resizer.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'gases', bp: 1100 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,672 @@
+/* ═══════════════════════════════════════════════════════════════
+   ARQUIVO: sifi-extra.css
+   ───────────────────────────────────────────────────────────────
+   Este arquivo NÃO define nenhuma cor nova — todo `var(--...)` aqui
+   já existe em sifi-styles.css (cópia integral de stylesilq.css).
+   Ele só ensina o navegador a desenhar os elementos que são NOVOS
+   do SIFI e não existiam no SILQ: o canvas (#sandbox) e as
+   "fichas" de molécula arrastáveis (.sifi-molecule). Quando o vídeo
+   de cores for trocado depois, basta editar sifi-styles.css — este
+   arquivo continua funcionando sem mudança nenhuma, porque só usa
+   variáveis.
+   Carregado DEPOIS de sifi-styles.css em index-sifi.html.
+═══════════════════════════════════════════════════════════════ */
+
+/* ---- Canvas (equivalente ao #canvas do SILQ) ---- */
+#sandbox {
+  position: absolute; inset: 0;
+  background-color: var(--bg-base);
+  background-image:
+    linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+  border: 2px dashed transparent; border-radius: 13px; overflow: hidden;
+}
+body.light-mode #sandbox {
+  background-image:
+    linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
+}
+#sandbox-hint {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  color: var(--text-dim); font-size: .95rem; text-align: center; width: 60%;
+  pointer-events: none; font-style: italic; opacity: .6;
+}
+#sandbox-hint.hidden { display: none; }
+
+/* ---- Ficha de molécula arrastável dentro do canvas ----
+   DE PROPÓSITO sem cartão/moldura visual: nada de background, borda
+   ou sombra por padrão — só os átomos soltos interagindo, sem caixa
+   e sem identificar qual composto é (ver sandbox.js para o porquê).
+   O padding continua existindo (10px, invisível) só para dar uma
+   área de toque confortável ao redor dos átomos — arrastar/tocar
+   exatamente em cima de um círculo fino seria difícil sem isso. */
+.sifi-molecule {
+  position: absolute;
+  display: flex; align-items: center; justify-content: center;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  touch-action: none; /* necessário para o arraste funcionar com Pointer Events no toque */
+  user-select: none;
+  transform-origin: center center; /* gira em torno do próprio eixo, não do canto */
+  transition: filter .15s;
+}
+.sifi-molecule:hover {
+  filter: drop-shadow(0 0 5px rgba(71,182,255,.55));
+}
+.sifi-molecule:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 50%;
+}
+.sifi-molecule--dragging {
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,.5)) drop-shadow(0 0 6px rgba(71,182,255,.6));
+  z-index: 20;
+}
+.sifi-molecule .mol-card-svg { width: 78px; height: 58px; }
+
+/* ============================================================
+   ÍCONES SVG (substituem os emojis do SILQ) — js/ui/icones.js
+   Todo ícone é <svg> só com viewBox, sem width/height fixo no
+   próprio SVG: quem manda no tamanho é o CSS abaixo. A cor vem de
+   `currentColor`, então cada ícone herda a cor do texto ao redor
+   automaticamente (funciona igual em tema claro/escuro/alto
+   contraste e nas cores por força/módulo, sem precisar de uma
+   versão do desenho por cor).
+   ============================================================ */
+.panel-icon svg,
+.mol-panel-icon svg,
+.btn-icon svg,
+#module-indicator-icon svg,
+#module-indicator-clear svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+.panel-icon,
+.mol-panel-icon,
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.mol-panel-icon { color: var(--accent); margin-right: 2px; vertical-align: -3px; }
+.btn-icon { margin-right: 2px; vertical-align: -3px; }
+
+/* Ícone dentro do texto do painel "Força Detectada" (vem do próprio
+   dado — FORCE_TYPES.icon, em dados-forcas-intermoleculares.js) */
+#forca-detectada-nome svg {
+  width: 15px; height: 15px;
+  display: inline-block;
+  vertical-align: -3px;
+  margin-right: 2px;
+}
+
+/* ---- Animação de saída ao remover uma molécula ---- */
+.sifi-molecule--removendo {
+  transition: transform .2s ease, opacity .2s ease;
+  transform: scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sifi-molecule--removendo { transition: opacity .15s ease; transform: none; }
+}
+
+/* ============================================================
+   MÓDULOS DO SIFI — mesmo padrão visual do "Ativar Modo Metálico"
+   do SILQ (.bond-mode-btn, .bond-mode-dot--*, .panel-badge--*,
+   .bond-mode-indicator). As três cores abaixo não são novas: são
+   as MESMAS já usadas em outro lugar do projeto —
+     Módulo 1 → #47B6FF é o próprio var(--accent) do tema
+     Módulo 2 → #ffb74d já é a cor iônica (SILQ) — combina com "calor"
+     Módulo 3 → #34d399 já é a cor das Forças de London (FORCE_TYPES,
+                dados-forcas-intermoleculares.js) — combina com "lab"
+   ============================================================ */
+
+.bond-mode-dot--mod1 { background: #47B6FF; box-shadow: 0 0 6px #47B6FF; }
+.bond-mode-dot--mod2 { background: #ffb74d; box-shadow: 0 0 6px #ffb74d; }
+.bond-mode-dot--mod3 { background: #34d399; box-shadow: 0 0 6px #34d399; }
+
+.panel-badge--mod1 { background: rgba(71,182,255,.2); color: #47B6FF; }
+.panel-badge--mod2 { background: rgba(255,183,77,.2); color: #ffb74d; }
+.panel-badge--mod3 { background: rgba(52,211,153,.2);  color: #34d399; }
+body.light-mode .panel-badge--mod1 { color: #0a5a96; }  /* mesmo tipo de ajuste de contraste do SILQ */
+body.light-mode .panel-badge--mod2 { color: #975a00; }
+body.light-mode .panel-badge--mod3 { color: #067a56; }
+
+.panel--modulo1 .bond-mode-btn[aria-pressed="true"] {
+  border-color: #47B6FF; background: rgba(71,182,255,.12); color: #47B6FF;
+  box-shadow: 0 0 0 3px rgba(71,182,255,.2);
+}
+.panel--modulo2 .bond-mode-btn[aria-pressed="true"] {
+  border-color: #ffb74d; background: rgba(255,183,77,.12); color: #ffb74d;
+  box-shadow: 0 0 0 3px rgba(255,183,77,.2);
+}
+.panel--modulo3 .bond-mode-btn[aria-pressed="true"] {
+  border-color: #34d399; background: rgba(52,211,153,.12); color: #067a56;
+  box-shadow: 0 0 0 3px rgba(52,211,153,.2);
+}
+
+.panel--modulo1:has(.panel-header[aria-expanded="true"]) {
+  border-color: rgba(71,182,255,.45); box-shadow: 0 0 0 1px rgba(71,182,255,.15);
+}
+.panel--modulo2:has(.panel-header[aria-expanded="true"]) {
+  border-color: rgba(255,183,77,.45); box-shadow: 0 0 0 1px rgba(255,183,77,.15);
+}
+.panel--modulo3:has(.panel-header[aria-expanded="true"]) {
+  border-color: rgba(52,211,153,.45); box-shadow: 0 0 0 1px rgba(52,211,153,.15);
+}
+
+/* Botão "Em breve" dos Módulos 2 e 3 — desabilitado de verdade */
+.bond-mode-btn:disabled {
+  opacity: .55; cursor: not-allowed;
+}
+.bond-mode-btn:disabled:hover {
+  border-color: var(--border-color); background: var(--bg-card); color: var(--text-primary);
+}
+
+/* ---- Indicador de módulo ativo (mesmo papel do #bond-mode-indicator do SILQ) ---- */
+.module-indicator {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  z-index: 20; display: flex; align-items: center; gap: 7px;
+  padding: 5px 12px 5px 10px; border-radius: 20px;
+  font-size: .72rem; font-weight: 700;
+  backdrop-filter: blur(8px); border: 1.5px solid;
+  box-shadow: 0 2px 12px rgba(0,0,0,.4);
+  white-space: nowrap; pointer-events: auto; transition: opacity .2s;
+}
+.module-indicator.hidden { display: none; }
+.module-indicator.mode--modulo1 { background: rgba(71,182,255,.18);  border-color: rgba(71,182,255,.6);  color: #47B6FF; }
+.module-indicator.mode--modulo2 { background: rgba(255,183,77,.18); border-color: rgba(255,183,77,.6); color: #ffb74d; }
+.module-indicator.mode--modulo3 { background: rgba(52,211,153,.18); border-color: rgba(52,211,153,.6); color: #067a56; }
+#module-indicator-clear {
+  background: none; border: none; cursor: pointer; color: inherit;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 0 0 4px; opacity: .7; line-height: 1;
+  transition: opacity .15s;
+}
+#module-indicator-clear:hover { opacity: 1; }
+
+/* Borda do canvas muda de acordo com o módulo ativo */
+#sandbox.modulo-1-ativo { border-color: rgba(71,182,255,.5) !important; }
+#sandbox.modulo-2-ativo { border-color: rgba(255,183,77,.5) !important; }
+#sandbox.modulo-3-ativo { border-color: rgba(52,211,153,.5) !important; }
+
+/* Menu de moléculas "apagado" enquanto o Módulo 1 não está ativo —
+   continua clicável (o clique explica por que não funcionou ainda,
+   ver SIFI.addMoleculeToSandbox em sandbox.js), só fica visualmente
+   claro que é preciso ativar o módulo primeiro. */
+#menu-moleculas-grid.grid-bloqueado { opacity: .4; }
+
+/* ---- Biblioteca de Compostos — lista por nome (sidebar direita) ----
+   Sem desenho de geometria aqui de propósito: o desenho completo com
+   os polos δ+/δ− só aparece quando o composto é colocado na caixa de
+   areia (.sifi-molecule, já definida acima). Aqui é só "o que existe
+   pra escolher", igual a uma lista de itens de biblioteca. */
+.composto-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.composto-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: all .15s;
+}
+.composto-item:hover,
+.composto-item:focus-visible {
+  border-color: var(--accent);
+  background: rgba(71,182,255,.08);
+  outline: none;
+}
+.composto-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.composto-item:active { transform: scale(.98); }
+.composto-dot {
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+}
+.composto-formula {
+  font-size: .78rem; font-weight: 800; color: var(--text-primary);
+  min-width: 46px; flex-shrink: 0;
+}
+.composto-nome {
+  font-size: .72rem; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---- Selo de ponto de ebulição em cada item da Biblioteca ---- */
+.composto-pe {
+  font-size: .64rem; font-weight: 700; color: var(--text-dim);
+  flex-shrink: 0; margin-left: auto; padding-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Ordenar por (select) — sem equivalente pronto no SILQ ---- */
+.biblioteca-ordenar {
+  display: flex; align-items: center; gap: 6px;
+  margin: 6px 0 4px; font-size: .68rem; color: var(--text-dim);
+}
+.biblioteca-ordenar select {
+  flex: 1; padding: 4px 6px; border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface3); color: var(--text-primary);
+  font-size: .68rem; outline: none; transition: border-color .2s;
+}
+.biblioteca-ordenar select:focus { border-color: var(--accent); }
+
+.biblioteca-contador {
+  font-size: .62rem; color: var(--text-dim); margin: 2px 0 5px;
+}
+
+.composto-lista-vazia {
+  font-size: .74rem; color: var(--text-dim); text-align: center;
+  padding: 14px 6px; font-style: italic;
+}
+
+/* ---- "Piscar" dos polos δ+/δ− (pedido explícito da especificação) ---- */
+.sifi-pole { animation: sifi-pole-blink 1.8s ease-in-out infinite; }
+@keyframes sifi-pole-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sifi-pole { animation: none; }
+}
+
+/* ============================================================
+   PAINEL "INTERAÇÕES" — várias interações simultâneas
+   ============================================================ */
+.interacoes-resumo {
+  display: flex; gap: 8px; margin: 6px 0 8px;
+}
+.interacoes-resumo-item {
+  flex: 1; text-align: center;
+  background: var(--bg-surface3);
+  border: 1px solid var(--border-color);
+  border-radius: 8px; padding: 6px 4px;
+}
+.interacoes-resumo-valor {
+  display: block; font-size: 1.05rem; font-weight: 800; color: var(--accent);
+  line-height: 1.1;
+}
+.interacoes-resumo-label {
+  display: block; font-size: .6rem; color: var(--text-dim); margin-top: 1px;
+}
+
+/* Aviso discreto de teto de interações atingido — cor âmbar já usada
+   no projeto (Módulo 2/ligação iônica), nada novo inventado. De
+   propósito pequeno e sem ícone de alarme: é um limite técnico
+   esperado com muitas moléculas, não um erro. */
+.interacoes-limite-aviso {
+  font-size: .64rem; color: #ffb74d;
+  background: rgba(255,183,77,.1);
+  border: 1px solid rgba(255,183,77,.35);
+  border-radius: 6px;
+  padding: 5px 8px;
+  margin: 0 0 8px;
+  line-height: 1.35;
+}
+.interacoes-limite-aviso[hidden] { display: none; }
+
+.interacoes-lista {
+  display: flex; flex-direction: column; gap: 5px;
+  max-height: 260px; overflow-y: auto; padding-right: 2px;
+}
+.interacoes-vazio {
+  font-size: .72rem; color: var(--text-dim); text-align: center;
+  padding: 12px 6px; font-style: italic;
+}
+
+.interacao-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 8px;
+  background: var(--bg-surface3);
+  border: 1px solid var(--forca-cor, var(--border-color));
+  border-left-width: 3px;
+}
+.interacao-icone {
+  flex-shrink: 0; width: 17px; height: 17px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--forca-cor, var(--accent));
+}
+.interacao-icone svg { width: 15px; height: 15px; }
+.interacao-texto { display: flex; flex-direction: column; min-width: 0; flex: 1; overflow: hidden; }
+.interacao-forca-label {
+  font-size: .68rem; font-weight: 700; color: var(--forca-cor, var(--text-primary));
+}
+.interacao-par {
+  font-size: .62rem; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Contador "×N" — quando a MESMA interação (força + par de compostos)
+   acontece em vários pares ao mesmo tempo, em vez de repetir a linha
+   N vezes seguidas, agrupa numa linha só com esse selo. */
+.interacao-contador {
+  flex-shrink: 0;
+  font-size: .66rem; font-weight: 800;
+  color: var(--forca-cor, var(--accent));
+  background: color-mix(in srgb, var(--forca-cor, var(--accent)) 18%, transparent);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Interação recém-detectada — pisca uma vez ao aparecer na lista */
+.interacao-nova { animation: sifi-interacao-nova .5s ease; }
+@keyframes sifi-interacao-nova {
+  0%   { opacity: .2; transform: translateX(-6px) scale(.96); }
+  60%  { opacity: 1;  transform: translateX(0) scale(1.02); }
+  100% { opacity: 1;  transform: translateX(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .interacao-nova { animation: none; }
+}
+
+/* Item selecionado na lista "Escolha o Líquido" — mesma cor de
+   destaque já usada em outros estados de seleção do projeto. */
+.composto-item--selecionado {
+  border-color: var(--accent);
+  background: rgba(71,182,255,.14);
+}
+
+/* ============================================================
+   MÓDULO 2 — BÉQUER (TERMOSTATO MOLECULAR)
+   ============================================================ */
+/* Faltava esta regra — o JS já trocava a classe `.hidden` certinho em
+   SIFI.canvasWrapper (ativacao-modulos.js → atualizarVisibilidadePorModulo),
+   mas sem NENHUM CSS reagindo a ela, o canvas (com a dica
+   "Ative o Módulo 1") continuava visível o tempo todo, mesmo com o
+   Módulo 2 ou 3 ativo — só o `#beaker-wrapper`/`#lab-wrapper` tinham
+   essa regra; o `#canvas-wrapper` (o único dos três que já vem
+   visível por padrão no HTML, sem `class="hidden"` de cara) nunca
+   ganhou a contrapartida de escondER quando outro módulo assume.
+   ============================================================ */
+#canvas-wrapper.hidden { display: none; }
+
+#beaker-wrapper {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 16px;
+}
+#beaker-wrapper.hidden { display: none; }
+
+#beaker {
+  position: relative;
+  width: min(380px, 88%);
+  height: min(440px, 65vh);
+  border: 3px solid var(--border-color);
+  border-radius: 4px 4px 26px 26px;
+  background: var(--bg-base);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+#beaker-tampa {
+  position: absolute; top: -3px; left: -8px; right: -8px; height: 9px;
+  background: var(--bg-surface3);
+  border: 2px solid var(--border-color);
+  border-radius: 5px;
+}
+#beaker-superficie {
+  position: absolute; left: 0; right: 0; top: 62%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: .55;
+}
+#beaker-gas-zona {
+  position: absolute; left: 0; right: 0; top: 0; height: 62%;
+  overflow: hidden;
+}
+#beaker-liquido-zona {
+  position: absolute; left: 0; right: 0; top: 62%; bottom: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(71,182,255,.04), rgba(71,182,255,.13));
+}
+#beaker-bonds-svg {
+  position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
+}
+#beaker-hint {
+  font-size: .8rem; color: var(--text-dim); text-align: center; font-style: italic;
+  max-width: 380px;
+}
+#beaker-hint.hidden { display: none; }
+#beaker-nota-covalente {
+  font-size: .72rem; color: var(--text-dim); text-align: center; max-width: 380px;
+  background: var(--bg-surface3); border: 1px solid rgba(255,183,77,.4); border-radius: 8px;
+  padding: 6px 10px; margin: 0;
+}
+
+/* Partícula do béquer — a estrutura molecular DE VERDADE (átomos,
+   ligações, polos δ+/δ−), a mesma que o Módulo 1 desenha, só pequena
+   o bastante pra caber 40 no béquer ao mesmo tempo. Posição em %,
+   com transform pra centralizar exatamente no ponto (x%,y%) — igual
+   ao padrão já usado pelas moléculas do Módulo 1. Um leve brilho na
+   cor da força dominante da substância (`--particula-cor`, herdada
+   de FORCE_TYPES) dá uma pista visual rápida sem esconder o desenho. */
+.termostato-particula {
+  position: absolute;
+  width: 40px;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)) drop-shadow(0 0 3px var(--particula-cor, transparent));
+  transition: filter .25s, opacity .25s;
+  pointer-events: none;
+}
+.termostato-particula .mol-card-svg { width: 100%; height: auto; display: block; }
+.termostato-particula--gas {
+  opacity: .88;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.3)) drop-shadow(0 0 5px var(--particula-cor, transparent));
+}
+/* Sólida — brilho esbranquiçado ("gelado"), diferente da cor da força
+   usada nos outros dois estados: reforça visualmente "presa no lugar,
+   organizada" (grade fixa), diferente do líquido balançando livre. */
+.termostato-particula--solido {
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)) drop-shadow(0 0 4px rgba(255,255,255,.55));
+}
+
+/* ---- Controles do termostato (slider, gráfico) ---- */
+.termostato-slider-wrap {
+  display: flex; flex-direction: column; gap: 3px; margin: 8px 0 10px;
+}
+.termostato-slider-wrap label {
+  font-size: .68rem; color: var(--text-dim); font-weight: 700;
+}
+.termostato-slider-wrap input[type="range"] {
+  width: 100%; accent-color: var(--accent);
+}
+#termostato-temp-atual {
+  align-self: flex-end;
+  font-size: .82rem; font-weight: 800; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.termostato-grafico-wrap { margin: 8px 0; }
+.termostato-grafico-label { font-size: .62rem; color: var(--text-dim); margin-bottom: 3px; font-weight: 700; }
+#termostato-grafico {
+  width: 100%; height: auto; display: block;
+  background: var(--bg-surface3); border-radius: 8px; border: 1px solid var(--border-color);
+}
+.termostato-grafico-linha { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.termostato-grafico-pe { stroke: #ffb74d; stroke-width: 1; stroke-dasharray: 4 3; }
+.termostato-grafico-pe-label { font-size: 6.5px; fill: #ffb74d; font-weight: 700; }
+.termostato-grafico-pf { stroke: #60a5fa; stroke-width: 1; stroke-dasharray: 4 3; }
+.termostato-grafico-pf-label { font-size: 6.5px; fill: #60a5fa; font-weight: 700; }
+
+/* ============================================================
+   MÓDULO 3 — LABORATÓRIO DE SOLUBILIDADE (tubos de ensaio dinâmicos,
+   2 a 10 — ver js/ui/tubo-ensaio.js)
+   ============================================================ */
+#lab-wrapper {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 16px;
+}
+#lab-wrapper.hidden { display: none; }
+
+/* Com até 10 tubos, o tamanho de cada um é CALCULADO em JS
+   (SIFI.atualizarTamanhoTubos, em tubo-ensaio.js) pra sempre caber
+   todos sem precisar rolar — as variáveis abaixo são só o valor
+   inicial, antes do primeiro cálculo rodar. `overflow-y` continua
+   como rede de segurança pra telas realmente extremas (não deveria
+   disparar no uso normal, já que o cálculo sempre tenta caber tudo). */
+#lab-tubos {
+  display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start;
+  gap: 10px 14px;
+  width: 100%; max-height: 68vh; overflow-y: auto; padding: 4px;
+}
+.tubo-coluna {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+
+.tubo-coluna-cabecalho {
+  display: flex; align-items: center; gap: 4px;
+}
+.tubo-selecionar {
+  font-size: .74rem; font-weight: 800; color: var(--text-dim);
+  background: var(--bg-surface3); border: 1px solid var(--border-color);
+  border-radius: 999px; padding: 4px 14px; cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.tubo-selecionar:hover { border-color: var(--accent); color: var(--text-primary); }
+.tubo-selecionar[aria-pressed="true"] {
+  background: var(--accent); color: #04121c; border-color: var(--accent);
+}
+
+/* Botão "×" de remover o tubo inteiro — mesmo visual de remoção já
+   usado no projeto (bolinha vermelha), só que aqui sempre visível
+   (não só no hover), já que cada tubo é pequeno na tela. */
+.tubo-remover {
+  width: 20px; height: 20px; flex-shrink: 0;
+  background: rgba(239,68,68,.15); color: #ef4444;
+  border: 1px solid rgba(239,68,68,.4); border-radius: 50%;
+  font-size: .72rem; font-weight: 900; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .15s, box-shadow .15s;
+}
+.tubo-remover:hover { background: #ef4444; color: #fff; box-shadow: 0 0 6px rgba(239,68,68,.6); }
+
+/* O corpo do tubo — fundo arredondado só embaixo (o "tubo de ensaio"
+   de verdade), o resto reto, igual a um tubo de vidro de laboratório.
+   `--tubo-largura`/`--tubo-altura` são setadas por
+   SIFI.atualizarTamanhoTubos (calculadas pro número de tubos + espaço
+   disponível de verdade); os `min()` são só o valor antes do primeiro
+   cálculo rodar (ou se JS falhar por algum motivo). */
+.tubo-corpo {
+  position: relative;
+  width: var(--tubo-largura, min(120px, 26vw));
+  height: var(--tubo-altura, min(260px, 40vh));
+  border: 3px solid var(--border-color);
+  border-radius: 0 0 45% 45% / 0 0 26% 26%;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+.tubo-coluna--ativo .tubo-corpo { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(71,182,255,.18); }
+
+.tubo-bonds-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.tubo-particulas { position: absolute; inset: 0; }
+
+.tubo-legenda {
+  font-size: .68rem; color: var(--text-dim); font-weight: 700;
+  /* no máximo a largura do tubo: uma legenda longa ("H₂O + óleo…") não pode
+     alargar a coluna além do que SIFI.atualizarTamanhoTubos calculou */
+  text-align: center; min-height: 1.2em; max-width: var(--tubo-largura, 120px);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Botão "Adicionar tubo" — mesmo estilo dos outros botões de ação do
+   projeto (.bond-mode-btn), reaproveitado aqui direto via seletor de
+   ID pra não precisar duplicar a classe no HTML. */
+#btn-adicionar-tubo {
+  font-size: .78rem; font-weight: 700; color: var(--text-primary);
+  background: var(--bg-surface3); border: 1px dashed var(--border-color);
+  border-radius: 8px; padding: 7px 16px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: border-color .15s, background .15s;
+}
+#btn-adicionar-tubo:hover:not(:disabled) { border-color: var(--accent); background: rgba(71,182,255,.08); }
+#btn-adicionar-tubo:disabled { opacity: .4; cursor: not-allowed; }
+
+#lab-hint {
+  font-size: .8rem; color: var(--text-dim); text-align: center; font-style: italic;
+  max-width: 380px;
+}
+
+/* ---- Painel "Tubo Selecionado" — lista de até 5 substâncias ---- */
+.tubo-info-contador {
+  float: right; font-size: .62rem; font-weight: 700; color: var(--text-dim);
+}
+.tubo-info-lista {
+  list-style: none; margin: 4px 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.tubo-info-lista li {
+  font-size: .72rem; color: var(--text-primary);
+  display: flex; align-items: center; gap: 6px;
+}
+.tubo-info-vazio { color: var(--text-dim); font-style: italic; }
+.tubo-info-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+
+/* Partícula de um tubo — mesma técnica do Módulo 2 (estrutura
+   molecular real, pequena, com brilho na cor da força dominante). */
+.tubo-particula {
+  position: absolute;
+  width: var(--particula-tamanho, 30px);
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)) drop-shadow(0 0 3px var(--particula-cor, transparent));
+  transition: filter .25s, opacity .25s, left .1s linear, top .1s linear;
+  pointer-events: none;
+}
+.tubo-particula .mol-card-svg { width: 100%; height: auto; display: block; }
+/* Sólido ainda em cristal — mesmo brilho esbranquiçado "gelado" do
+   Módulo 2, reforçando visualmente "presa, organizada, intacta". */
+.tubo-particula--cristal {
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)) drop-shadow(0 0 4px rgba(255,255,255,.55));
+}
+/* Gasosa — mesma ideia do Módulo 2: um pouco mais translúcida, brilho
+   na cor da própria força (reforça "solta, escapando pra cima"). */
+.tubo-particula--gas {
+  opacity: .85;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.3)) drop-shadow(0 0 5px var(--particula-cor, transparent));
+}
+/* Íon separado (Na⁺/Cl⁻ depois de dissolver) — um pouco menor, já
+   que é só 1 átomo, não uma molécula inteira. */
+.tubo-particula--ion { width: calc(var(--particula-tamanho, 30px) * 0.55); }
+
+/* Divisória sutil marcando onde a zona de gás termina e a zona
+   líquida/sólida começa (SIFI.LAB_ZONA_GAS_MAX, em fisica-solubilidade.js)
+   — só uma pista visual discreta, não uma parede real. */
+.tubo-corpo::before {
+  content: '';
+  position: absolute; left: 6%; right: 6%; top: 30%;
+  border-top: 1px dashed rgba(255,255,255,.12);
+  pointer-events: none;
+}
+.termostato-grafico-eixo { font-size: 6.5px; fill: var(--text-dim); }
+.termostato-grafico-ponto-atual { fill: var(--accent); }
+.termostato-grafico-vazio { font-size: 8px; fill: var(--text-dim); }
+
+/* ═══ A ÁREA LIVRE (ver js/ui/sidebar-rail.js · Oclusao) ═══════════════
+   Um card flutuante cobre uma faixa da cena sem mudar o tamanho da janela.
+   A cena do SIFI é HTML, então ela simplesmente ENCOLHE para a parte que
+   se vê: o #main-content ganha padding do lado do card, e tudo o que mede
+   a sandbox ao vivo (a física, o arrasto, o lugar de cada molécula nova)
+   passa a usar a parte livre. O béquer e o laboratório são absolutos (não
+   respeitam padding): recebem a mesma faixa em left/right. A dica sem
+   módulo se recentra. Mesmo deslizamento da cena (280 ms). Sem card,
+   --oc-* valem 0 e nada muda. */
+@media (min-width: 901px) {
+  #main-content { padding-left: max(12px, var(--oc-esq, 0px)); padding-right: max(12px, var(--oc-dir, 0px)); transition: padding .28s ease; }
+  #main-content #beaker-wrapper, #main-content #lab-wrapper { left: var(--oc-esq, 0px); right: var(--oc-dir, 0px); transition: left .28s ease, right .28s ease; }
+  #main-content #no-module-hint { left: calc(var(--oc-esq, 0px) + (100% - var(--oc-esq, 0px) - var(--oc-dir, 0px)) / 2); max-width: calc((100% - var(--oc-esq, 0px) - var(--oc-dir, 0px)) * .8); transition: left .28s ease; }
+  body.reduce-motion #main-content, body.reduce-motion #main-content #beaker-wrapper, body.reduce-motion #main-content #lab-wrapper, body.reduce-motion #main-content #no-module-hint { transition: none; }
+}

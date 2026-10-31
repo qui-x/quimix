@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<link rel="manifest" href="../../manifest.json">
+<meta name="theme-color" content="#0E1320">
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../../a11y.js"></script>
+  <title>SIME — Simulador Interativo de Matéria e Estados</title>
+  <link rel="stylesheet" href="css/stylesime.css?v=1" />
+</head>
+<body>
+<div id="colorblindOverlay" aria-hidden="true"></div>
+ 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="f-protanopia">  <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/></filter>
+    <filter id="f-deuteranopia"><feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/></filter>
+    <filter id="f-tritanopia">  <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/></filter>
+    <filter id="f-acromatopsia"><feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/></filter>
+  </defs>
+</svg>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     BIBLIOTECA DE ÍCONES SVG — substitui todos os emojis do SIME
+     ───────────────────────────────────────────────────────────────
+     Mesmo mecanismo do SIMA: um único bloco de <symbol>, usado no
+     resto da página como <svg class="icon"><use href="#ic-NOME"/></svg>.
+     stroke/fill:currentColor herda a cor do texto ao redor (é assim que
+     os ícones dos 3 estados físicos ficam azul/verde/âmbar automaticamente
+     ao herdar de .solido/.liquido/.gasoso); width/height:1em acompanha o
+     tamanho da fonte do elemento-pai.
+     ═══════════════════════════════════════════════════════════════ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- interface geral -->
+    <symbol id="ic-menu" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5v2.4M12 18.1v2.4M20.5 12h-2.4M5.9 12H3.5M17.8 6.2l-1.7 1.7M7.9 16.1l-1.7 1.7M17.8 17.8l-1.7-1.7M7.9 7.9 6.2 6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-sliders" viewBox="0 0 24 24"><path d="M4 21V14M4 10V3M12 21V12M12 8V3M20 21V16M20 12V3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="14" r="2" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7V5z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-flask" viewBox="0 0 24 24"><path d="M9 2h6M10 2v6.2L4.8 18a2 2 0 0 0 1.75 3h10.9a2 2 0 0 0 1.75-3L14 8.2V2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 15h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-retort" viewBox="0 0 24 24"><path d="M12 2v7.5L6.2 19a1.8 1.8 0 0 0 1.55 2.7h8.5A1.8 1.8 0 0 0 17.8 19L12 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 2h6M8.3 16h7.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-ruler" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="8" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8" transform="rotate(0 12 12)"/><path d="M7 8v3M11 8v3M15 8v3M19 8v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-thermometer" viewBox="0 0 24 24"><path d="M12 14.5V5a2 2 0 1 0-4 0v9.5a4 4 0 1 0 4 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="10" cy="16.2" r="1.7" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-gauge" viewBox="0 0 24 24"><path d="M4 15.5a8 8 0 1 1 16 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 15.5 16 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-flame" viewBox="0 0 24 24"><path d="M12 21.5c-3.6 0-6.4-2.5-6.4-6 0-2.7 1.7-4.3 2.5-6.4.5 1.4 1.4 2 2.1 1.4-.4-2.6.4-5 3-8 .8 3 3.6 4.7 5 7.4.9 1.7 1.2 3.3 1.2 4.6 0 3.9-3.4 7-7.4 7z" fill="currentColor" opacity=".92" stroke="none"/></symbol>
+    <symbol id="ic-snow" viewBox="0 0 24 24"><path d="M12 2v20M4.2 6.5l15.6 11M4.2 17.5l15.6-11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 2 9.8 4.4M12 2l2.2 2.4M12 22l-2.2-2.4M12 22l2.2-2.4M4.2 6.5l.4 3.2M4.2 6.5l3.1-.9M19.8 6.5l-.4 3.2M19.8 6.5l-3.1-.9M4.2 17.5l.4-3.2M4.2 17.5l3.1.9M19.8 17.5l-.4-3.2M19.8 17.5l-3.1.9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="ic-solid" viewBox="0 0 24 24"><path d="M12 3 20 7.5v9L12 21 4 16.5v-9L12 3z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M4 7.5 12 12l8-4.5M12 12v9" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-liquid" viewBox="0 0 24 24"><path d="M12 2.5c3 3.8 6.5 8 6.5 12A6.5 6.5 0 1 1 5.5 14.5c0-4 3.5-8.2 6.5-12z" fill="currentColor" opacity=".85" stroke="none"/></symbol>
+    <symbol id="ic-gas" viewBox="0 0 24 24"><circle cx="7" cy="8" r="2.1" fill="currentColor" opacity=".85" stroke="none"/><circle cx="15.5" cy="6.5" r="1.5" fill="currentColor" opacity=".65" stroke="none"/><circle cx="17" cy="13" r="2.4" fill="currentColor" opacity=".8" stroke="none"/><circle cx="8.5" cy="16" r="1.7" fill="currentColor" opacity=".7" stroke="none"/><circle cx="12.5" cy="11" r="1.3" fill="currentColor" opacity=".55" stroke="none"/></symbol>
+    <symbol id="ic-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V7a4 4 0 1 1 8 0v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="15.3" r="1.3" fill="currentColor" stroke="none"/></symbol>
+  </defs>
+</svg>
+ 
+<!-- Skip links múltiplos (WCAG 2.1 AA) -->
+<nav class="skip-nav" aria-label="Atalhos de navegação">
+  <a href="#main-content"  class="skip-link">Pular para o conteúdo principal</a>
+  <a href="#sidebar-left"  class="skip-link">Pular para os módulos de estado físico</a>
+  <a href="#sim-area"      class="skip-link">Pular para o simulador</a>
+  <a href="#sidebar-right" class="skip-link">Pular para substância, controles e medidas</a>
+</nav>
+ 
+<!-- Regiões aria-live para anúncios ao leitor de tela -->
+<div id="sr-live"           class="sr-only" aria-live="polite"   aria-atomic="true"></div>
+<div id="sr-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+ 
+  <!-- ═══ CABEÇALHO ═══ -->
+  <header class="app-header">
+    <div class="header-brand">
+      <a class="header-back" href="../indexprimeiroano.html" aria-label="Voltar aos simuladores do 1º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>1º Ano</span>
+      </a>
+      <span class="header-logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg"><rect x="1.5" y="8" width="8" height="16" rx="1.5" stroke-width="1.2"/><circle cx="4" cy="13" r="1.2" fill="currentColor" stroke="none"/><circle cx="7" cy="13" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="17" r="1.2" fill="currentColor" stroke="none"/><circle cx="7" cy="17" r="1.2" fill="currentColor" stroke="none"/><rect x="12" y="8" width="8" height="16" rx="1.5" stroke-width="1.2"/><circle cx="14.5" cy="21" r="1.2" fill="currentColor" stroke="none"/><circle cx="17.5" cy="20" r="1.2" fill="currentColor" stroke="none"/><circle cx="16" cy="18" r="1.2" fill="currentColor" stroke="none"/><rect x="22.5" y="8" width="8" height="16" rx="1.5" stroke-width="1.2"/><circle cx="25" cy="11.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="28" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="25" cy="19" r="1.1" fill="currentColor" stroke="none"/><line x1="25" y1="11.5" x2="27" y2="13" stroke-width="0.8" opacity="0.6"/><line x1="28" y1="15" x2="26" y2="16.5" stroke-width="0.8" opacity="0.6"/></svg>
+      </span>
+      <div>
+        <h1>SIME</h1>
+        <p class="header-sub">Simulador Interativo de Matéria e Estados</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <!-- O rotulo em .sr-only diz ao leitor de tela do que o badge trata.
+           Sem ele o aria-live anunciava so "Solido" ou, no estado vazio,
+           so um travessao. -->
+      <span class="state-pill state-pill--vazio" id="state-pill" role="status" aria-live="polite">
+        <span class="sr-only">Estado físico da substância: </span>
+        <span id="state-pill-icon" aria-hidden="true"></span>
+        <span id="state-pill-text">sem substância</span>
+      </span>
+      <button type="button" class="mobile-menu-btn" id="mobile-menu-btn-right"
+        aria-label="Abrir substância, controles e medidas"
+        aria-expanded="false" aria-controls="sidebar-right"><svg class="icon" aria-hidden="true"><use href="#ic-gear"/></svg></button>
+    </div>
+  </header>
+
+  <!-- ════════ BARRA DE MODOS (MOBILE) ════════
+       Só aparece em telas estreitas — substitui a gaveta esquerda pelos
+       3 módulos (Gases/Líquidos/Sólidos) como abas roláveis. Preenchida
+       em buildModeTabsMobile() (js/ui/modo-mobile.js). O botão que abria
+       essa gaveta foi removido de propósito: esta barra assume essa
+       função no mobile. -->
+  <nav id="mode-tabs-mobile" class="mode-tabs-mobile" role="tablist"
+       aria-label="Módulos de estado físico" aria-orientation="horizontal"></nav>
+ 
+  <!-- Dicas de teclado (visíveis apenas ao focar skip-link) -->
+  <div class="keyboard-hints" role="note" aria-label="Atalhos de teclado disponíveis">
+    <kbd>Tab</kbd> Navegar &nbsp;
+    <kbd>Enter/Espaço</kbd> Selecionar
+  </div>
+ 
+  <!-- ═══ CORPO ═══ -->
+  <div class="app-body" id="main-content">
+ 
+    <!-- ══════════════════════════════════════════
+         ESQUERDA — MÓDULOS DE ESTADO FÍSICO
+         ──────────────────────────────────────────
+         Mesmo padrão do SIMA: a coluna esquerda contém só os cartões
+         de módulo (lá, os 5 modelos atômicos; aqui, os 3 estados
+         físicos). Tudo o mais — seletor de substância, controles e
+         leitura de medidas — está na coluna direita. Ativar um módulo
+         (botão "Ativar módulo" dentro do cartão) filtra a lista de
+         substâncias do painel direito pelo estado físico de referência
+         (25 °C, 1 atm); ver ui/painel-modulos.js.
+    ══════════════════════════════════════════ -->
+    <aside class="sidebar sidebar--left" id="sidebar-left" aria-label="Módulos de estado físico da matéria">
+
+      <!-- Módulo: GASES -->
+      <section class="panel panel--mode" data-modulo="gasoso" data-open="false" aria-labelledby="hdr-mod-gasoso">
+        <button class="panel-header" id="hdr-mod-gasoso" type="button" aria-expanded="false" aria-controls="body-mod-gasoso">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-gas"/></svg></span>
+          <span class="panel-label">Gases</span>
+          <span class="panel-badge" id="badge-mod-gasoso">—</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body" id="body-mod-gasoso" role="region" aria-labelledby="hdr-mod-gasoso">
+
+          <button type="button" class="action-btn mode-activate-btn" data-modulo-ativar="gasoso"
+                  title="Filtrar a lista de substâncias para mostrar só os gases" aria-pressed="false" aria-describedby="def-mod-gasoso">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <svg class="icon" aria-hidden="true"><use href="#ic-play"/></svg> Ativar módulo <span class="model-name">Gases</span>
+          </button>
+
+          <p class="mode-define" id="def-mod-gasoso">
+            <strong>Partículas livres</strong>: energia cinética alta o bastante para vencer quase por
+            completo as forças intermoleculares. Movimento desordenado e ocupam todo o volume disponível.
+          </p>
+
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Forma</span><span class="fact-value">Indefinida</span></div>
+            <div class="fact-cell"><span class="fact-label">Volume</span><span class="fact-value">Ocupa o recipiente</span></div>
+            <div class="fact-cell"><span class="fact-label">Compressibilidade</span><span class="fact-value">Alta</span></div>
+            <div class="fact-cell"><span class="fact-label">Forças intermol.</span><span class="fact-value">Muito fracas</span></div>
+          </div>
+
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">No experimento</p>
+            <p>Com um gás selecionado, o cilindro mostra partículas dispersas por todo o espaço acima
+               do êmbolo. Resfrie ou reduza o volume (aumentando a pressão efetiva) para observar a
+               condensação em líquido.</p>
+          </div>
+
+          <div class="recommended">
+            <p class="recommended-title">Exemplos — clique para carregar</p>
+            <div class="chip-row">
+              <button type="button" class="chip" data-sub-id="oxigenio">O₂</button>
+              <button type="button" class="chip" data-sub-id="nitrogenio">N₂</button>
+              <button type="button" class="chip" data-sub-id="co2">CO₂</button>
+              <button type="button" class="chip" data-sub-id="hidrogenio">H₂</button>
+              <button type="button" class="chip" data-sub-id="amonia">NH₃</button>
+              <button type="button" class="chip" data-sub-id="metano">CH₄</button>
+            </div>
+          </div>
+
+          <p class="mode-note">
+            <span class="mode-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-gas"/></svg></span>
+            <span>É o único dos 3 estados em que a equação de gás ideal (PV=nRT) descreve bem o
+                  comportamento — por isso pressão e volume são controles centrais do simulador.</span>
+          </p>
+        </div>
+      </section>
+
+      <!-- Módulo: LÍQUIDOS -->
+      <section class="panel panel--mode" data-modulo="liquido" data-open="false" aria-labelledby="hdr-mod-liquido">
+        <button class="panel-header" id="hdr-mod-liquido" type="button" aria-expanded="false" aria-controls="body-mod-liquido">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-liquid"/></svg></span>
+          <span class="panel-label">Líquidos</span>
+          <span class="panel-badge" id="badge-mod-liquido">—</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body" id="body-mod-liquido" role="region" aria-labelledby="hdr-mod-liquido">
+
+          <button type="button" class="action-btn mode-activate-btn" data-modulo-ativar="liquido"
+                  title="Filtrar a lista de substâncias para mostrar só os líquidos" aria-pressed="false" aria-describedby="def-mod-liquido">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <svg class="icon" aria-hidden="true"><use href="#ic-play"/></svg> Ativar módulo <span class="model-name">Líquidos</span>
+          </button>
+
+          <p class="mode-define" id="def-mod-liquido">
+            <strong>Volume próprio, forma do recipiente</strong>: as partículas mantêm-se unidas por
+            forças intermoleculares moderadas a fortes, mas ainda deslizam umas sobre as outras.
+          </p>
+
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Forma</span><span class="fact-value">Do recipiente</span></div>
+            <div class="fact-cell"><span class="fact-label">Volume</span><span class="fact-value">Definido</span></div>
+            <div class="fact-cell"><span class="fact-label">Compressibilidade</span><span class="fact-value">Muito baixa</span></div>
+            <div class="fact-cell"><span class="fact-label">Forças intermol.</span><span class="fact-value">Moderadas/fortes</span></div>
+          </div>
+
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">No experimento</p>
+            <p>Com um líquido selecionado, o cilindro mostra a substância preenchendo a base, com a
+               superfície ondulando. Aqueça para vaporizar ou resfrie para solidificar.</p>
+          </div>
+
+          <div class="recommended">
+            <p class="recommended-title">Exemplos — clique para carregar</p>
+            <div class="chip-row">
+              <button type="button" class="chip" data-sub-id="agua">H₂O</button>
+              <button type="button" class="chip" data-sub-id="etanol">C₂H₅OH</button>
+              <button type="button" class="chip" data-sub-id="mercurio">Hg</button>
+              <button type="button" class="chip" data-sub-id="acetona">C₃H₆O</button>
+              <button type="button" class="chip" data-sub-id="benzeno">C₆H₆</button>
+              <button type="button" class="chip" data-sub-id="glicerol">C₃H₈O₃</button>
+            </div>
+          </div>
+
+          <p class="mode-note">
+            <span class="mode-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-liquid"/></svg></span>
+            <span>A água é a referência do simulador: suas pontes de hidrogênio elevam o ponto de
+                  ebulição bem acima do que a massa molar sozinha previria.</span>
+          </p>
+        </div>
+      </section>
+
+      <!-- Módulo: SÓLIDOS -->
+      <section class="panel panel--mode" data-modulo="solido" data-open="false" aria-labelledby="hdr-mod-solido">
+        <button class="panel-header" id="hdr-mod-solido" type="button" aria-expanded="false" aria-controls="body-mod-solido">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-solid"/></svg></span>
+          <span class="panel-label">Sólidos</span>
+          <span class="panel-badge" id="badge-mod-solido">—</span>
+          <span class="mode-active-tag">Ativo</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body" id="body-mod-solido" role="region" aria-labelledby="hdr-mod-solido">
+
+          <button type="button" class="action-btn mode-activate-btn" data-modulo-ativar="solido"
+                  title="Filtrar a lista de substâncias para mostrar só os sólidos" aria-pressed="false" aria-describedby="def-mod-solido">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <svg class="icon" aria-hidden="true"><use href="#ic-play"/></svg> Ativar módulo <span class="model-name">Sólidos</span>
+          </button>
+
+          <p class="mode-define" id="def-mod-solido">
+            <strong>Forma e volume próprios</strong>: partículas presas numa rede quase fixa por
+            forças intermoleculares fortes, vibrando em torno de uma posição de equilíbrio.
+          </p>
+
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Forma</span><span class="fact-value">Própria</span></div>
+            <div class="fact-cell"><span class="fact-label">Volume</span><span class="fact-value">Definido</span></div>
+            <div class="fact-cell"><span class="fact-label">Compressibilidade</span><span class="fact-value">Praticamente nula</span></div>
+            <div class="fact-cell"><span class="fact-label">Forças intermol.</span><span class="fact-value">Fortes</span></div>
+          </div>
+
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">No experimento</p>
+            <p>Com um sólido selecionado, o cilindro mostra um bloco compacto na base. Aqueça até
+               ultrapassar o ponto de fusão efetivo para observar a fusão em líquido.</p>
+          </div>
+
+          <div class="recommended">
+            <p class="recommended-title">Exemplos — clique para carregar</p>
+            <div class="chip-row">
+              <button type="button" class="chip" data-sub-id="ferro">Fe</button>
+              <button type="button" class="chip" data-sub-id="ouro">Au</button>
+              <button type="button" class="chip" data-sub-id="nacl">NaCl</button>
+              <button type="button" class="chip" data-sub-id="naftaleno">C₁₀H₈</button>
+              <button type="button" class="chip" data-sub-id="iodo">I₂</button>
+              <button type="button" class="chip" data-sub-id="aluminio">Al</button>
+            </div>
+          </div>
+
+          <p class="mode-note">
+            <span class="mode-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-solid"/></svg></span>
+            <span>O tipo de ligação define o ponto de fusão: metais e sais iônicos (como o NaCl) fundem
+                  bem mais tarde que sólidos moleculares (como o naftaleno ou o gelo seco).</span>
+          </p>
+        </div>
+      </section>
+
+    </aside><!-- /sidebar-left -->
+ 
+    <!-- ══════════════════════════════════════
+         CENTRO — Cilindro SVG
+    ══════════════════════════════════════ -->
+    <main class="sim-area" id="sim-area" aria-label="Área de experimento">
+ 
+      <!-- Dica do estado vazio: some sozinha por CSS (:has) quando a lista
+           da esquerda passa a ter um .sub-item.ativa. Sem JS. -->
+      <p class="sim-hint" id="sim-hint">
+        Escolha uma substância no painel da esquerda para montar o experimento.
+      </p>
+ 
+      <svg id="seringa-svg" class="seringa-svg"
+        viewBox="0 0 220 460" xmlns="http://www.w3.org/2000/svg"
+        role="img" aria-label="Cilindro experimental com êmbolo móvel">
+        <defs>
+          <linearGradient id="grad-vidro" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stop-color="#1a3a6a" stop-opacity="0.5"/>
+            <stop offset="15%"  stop-color="#0a1a3a" stop-opacity="0.15"/>
+            <stop offset="85%"  stop-color="#0a1a3a" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#1a3a6a" stop-opacity="0.5"/>
+          </linearGradient>
+          <linearGradient id="grad-pistao" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%"   stop-color="#475569"/>
+            <stop offset="50%"  stop-color="#1E293B"/>
+            <stop offset="100%" stop-color="#334155"/>
+          </linearGradient>
+          <linearGradient id="grad-haste" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stop-color="#334155"/>
+            <stop offset="50%"  stop-color="#64748B"/>
+            <stop offset="100%" stop-color="#334155"/>
+          </linearGradient>
+          <linearGradient id="grad-base" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%"   stop-color="#1E293B"/>
+            <stop offset="100%" stop-color="#0F172A"/>
+          </linearGradient>
+          <linearGradient id="grad-gelo" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%"   stop-color="#BFE0FF"/>
+            <stop offset="30%"  stop-color="#7EC8FF"/>
+            <stop offset="70%"  stop-color="#5BAAEE"/>
+            <stop offset="100%" stop-color="#3A88CC"/>
+          </linearGradient>
+          <linearGradient id="grad-liquido" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%"   stop-color="rgba(74,158,255,0.8)"/>
+            <stop offset="60%"  stop-color="rgba(30,100,200,0.9)"/>
+            <stop offset="100%" stop-color="rgba(10,40,130,0.95)"/>
+          </linearGradient>
+          <clipPath id="clip-cilindro-fixo">
+            <rect x="44" y="104" width="132" height="320"/>
+          </clipPath>
+        </defs>
+        <!-- Paredes -->
+        <rect x="30"  y="104" width="14"  height="320" fill="url(#grad-vidro)" stroke="rgba(100,160,220,0.5)" stroke-width="1.5"/>
+        <rect x="176" y="104" width="14"  height="320" fill="url(#grad-vidro)" stroke="rgba(100,160,220,0.5)" stroke-width="1.5"/>
+        <rect x="34"  y="104" width="5"   height="320" fill="rgba(255,255,255,0.04)"/>
+        <!-- Conteúdo -->
+        <g clip-path="url(#clip-cilindro-fixo)">
+          <g id="sv-solido" opacity="1">
+            <rect id="sv-sol-rect" x="57" y="340" width="106" height="84" rx="8" fill="url(#grad-gelo)"/>
+            <rect x="64" y="348" width="26" height="8" rx="3" fill="rgba(255,255,255,0.45)" transform="rotate(-12,77,352)"/>
+            <rect x="74" y="361" width="14" height="4" rx="2" fill="rgba(255,255,255,0.35)"/>
+          </g>
+          <g id="sv-liquido" opacity="0">
+            <rect id="sv-liq-corpo" x="44" y="220" width="132" height="204" fill="url(#grad-liquido)"/>
+            <ellipse id="sv-onda1" cx="110" cy="220" rx="66" ry="7"   fill="rgba(74,158,255,0.6)"  class="onda-svg o-svg-1"/>
+            <ellipse id="sv-onda2" cx="110" cy="220" rx="52" ry="4.5" fill="rgba(140,200,255,0.35)" class="onda-svg o-svg-2"/>
+          </g>
+          <g id="sv-gasoso" opacity="0">
+            <rect    id="sv-gas-rect" x="44" y="104" width="132" height="320" fill="rgba(139,92,246,0.07)"/>
+            <ellipse id="sv-blob-1"   cx="90"  cy="170" rx="36" ry="26" fill="rgba(139,92,246,0.18)" class="gas-blob gb-1"/>
+            <ellipse id="sv-blob-2"   cx="142" cy="230" rx="42" ry="30" fill="rgba(167,130,255,0.15)" class="gas-blob gb-2"/>
+            <ellipse id="sv-blob-3"   cx="86"  cy="300" rx="32" ry="22" fill="rgba(139,92,246,0.14)" class="gas-blob gb-3"/>
+            <ellipse id="sv-blob-4"   cx="146" cy="345" rx="38" ry="26" fill="rgba(200,170,255,0.12)" class="gas-blob gb-4"/>
+          </g>
+        </g>
+        <!-- Êmbolo -->
+        <g id="sv-embolo">
+          <rect x="102" y="10"  width="16"  height="72" fill="url(#grad-haste)" rx="3"/>
+          <rect x="32"  y="82"  width="156" height="22" fill="url(#grad-pistao)" rx="4"/>
+          <line x1="60" y1="90" x2="160" y2="90" stroke="rgba(0,212,255,0.3)" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="48"  cy="93" r="3" fill="#475569"/>
+          <circle cx="172" cy="93" r="3" fill="#475569"/>
+          <rect class="sv-mascara-embolo" x="44" y="0" width="132" height="82" fill="#070C18"/>
+        </g>
+        <!-- Borda -->
+        <rect x="30" y="104" width="160" height="320" fill="none" stroke="rgba(100,160,220,0.45)" stroke-width="2.5"/>
+        <path d="M 30 400 Q 30 424 54 424 L 166 424 Q 190 424 190 400" fill="none" stroke="rgba(100,160,220,0.45)" stroke-width="2.5"/>
+        <!-- Base e chapa -->
+        <rect x="24" y="424" width="172" height="14" fill="url(#grad-base)" rx="4" stroke="#334155" stroke-width="1.5"/>
+        <rect id="sv-chapa" x="14" y="438" width="192" height="20" fill="#1A0E05" rx="5" stroke="#3D2010" stroke-width="1.5"/>
+        <line id="sv-res-1" x1="34"  y1="448" x2="64"  y2="448" stroke="#3D2010" stroke-width="3.5" stroke-linecap="round"/>
+        <line id="sv-res-2" x1="80"  y1="448" x2="110" y2="448" stroke="#3D2010" stroke-width="3.5" stroke-linecap="round"/>
+        <line id="sv-res-3" x1="126" y1="448" x2="156" y2="448" stroke="#3D2010" stroke-width="3.5" stroke-linecap="round"/>
+        <line id="sv-res-4" x1="170" y1="448" x2="192" y2="448" stroke="#3D2010" stroke-width="3.5" stroke-linecap="round"/>
+        <!-- Escala -->
+        <g stroke="rgba(100,160,220,0.3)" stroke-width="1">
+          <line x1="19" y1="144" x2="26" y2="144"/><line x1="19" y1="184" x2="26" y2="184"/>
+          <line x1="19" y1="224" x2="26" y2="224"/><line x1="19" y1="264" x2="26" y2="264"/>
+          <line x1="19" y1="304" x2="26" y2="304"/><line x1="19" y1="344" x2="26" y2="344"/>
+          <line x1="19" y1="384" x2="26" y2="384"/>
+        </g>
+ 
+      </svg>
+ 
+      <!-- compat JS -->
+      <div id="materia-solida"  hidden aria-hidden="true"></div>
+      <div id="materia-liquida" hidden aria-hidden="true"></div>
+      <div id="materia-gasosa"  hidden aria-hidden="true"></div>
+ 
+    </main><!-- /sim-area -->
+ 
+    <!-- ══════════════════════════════════════════════════════════════
+         DIREITA — TRÊS PAINÉIS
+         Reorganização (mesmo espírito do SIMA: a coluna esquerda só tem
+         cartões de módulo, tudo o resto foi para a direita):
+
+           1) SUBSTÂNCIA — o seletor que antes vivia na sidebar esquerda
+                            (abas de categoria química + lista); agora
+                            também filtrado pelo módulo de estado físico
+                            ativo à esquerda (ver ui/painel-modulos.js).
+           2) CONTROLES  — os tres controles num unico painel, cada um
+                           identificado por seu bloco (.ctrl-block).
+           3) ESTADO & MEDIDAS — a leitura do estado fisico + todas as
+                           medidas numericas no mesmo painel.
+
+         DESENHOS REMOVIDOS (eram redundantes com a leitura numerica):
+           · termometro SVG  — a barra de progresso termico ja mostra as
+             faixas solido/liquido/gasoso E a posicao atual, com os
+             valores de fusao/ebulicao efetivos; o mercurio repetia isso.
+           · manometro SVG   — repetia o mesmo numero de #display-pressao
+             e #m-pressao, ocupando ~180px de altura.
+         O JS nao quebra: todo acesso a esses elementos e protegido por
+         "if (el)" em scriptsime.js (atualizarTermometro, atualizarManometro,
+         atualizarArcoPressao e atualizarLinhasTermometro).
+    ══════════════════════════════════════════════════════════════ -->
+    <aside class="sidebar sidebar--right" id="sidebar-right" aria-label="Substância, controles e medidas">
+
+      <!-- Aviso exibido só enquanto NENHUM módulo está ativo — some sozinho
+           por CSS (:has()) assim que um botão "Ativar módulo" é pressionado,
+           mesma técnica já usada para esconder os cartões de módulo inativos.
+           Os 3 painéis abaixo também recebem o atributo `inert` via JS (ver
+           ui/painel-modulos.js): o CSS aqui só cuida da aparência (opacidade
+           + pointer-events:none), quem de fato bloqueia clique, foco por
+           teclado e leitura de tela é o `inert`. -->
+      <div class="sidebar-lock-hint" id="sidebar-right-lock" role="note">
+        <svg class="icon" aria-hidden="true"><use href="#ic-lock"/></svg>
+        <p>Ative um módulo à esquerda — <strong>Gases</strong>, <strong>Líquidos</strong> ou <strong>Sólidos</strong> — para liberar a substância, os controles e as medidas.</p>
+      </div>
+ 
+      <!-- ══════════ PAINEL 1 — SUBSTÂNCIA ══════════
+           Movido da antiga sidebar esquerda: mesmo markup e mesmo JS
+           (ui/painel-substancias.js) — só o LUGAR na página mudou.
+           As abas de categoria química foram removidas: a lista agora
+           mostra todas as substâncias do módulo ativo, sem classificação
+           por categoria. -->
+      <section class="panel" data-open="true">
+        <button class="panel-header" id="hdr-substancia" type="button" aria-expanded="true" aria-controls="body-substancia">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-flask"/></svg></span>
+          <span class="panel-label">Substância</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body" id="body-substancia" role="region" aria-labelledby="hdr-substancia">
+          <p class="mode-define">Escolha a substância a estudar. Fusão, ebulição e comportamento sob pressão são os valores <strong>experimentais reais</strong> dela — todo o resto do simulador se recalibra a partir daqui. Ative um módulo à esquerda para filtrar por estado físico.</p>
+          <ul id="sub-lista" class="sub-lista" role="listbox" aria-label="Substâncias disponíveis"></ul>
+        </div>
+      </section>
+
+      <!-- ══════════ PAINEL 2 — CONTROLES UNIFICADOS ══════════ -->
+      <section class="panel" data-open="true">
+        <button class="panel-header" id="hdr-controles" type="button" aria-expanded="true" aria-controls="body-controles">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-sliders"/></svg></span>
+          <span class="panel-label">Controles</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body" id="body-controles" role="region" aria-labelledby="hdr-controles">
+
+          <!-- UNICO texto explicativo do painel: cobre as tres variaveis -->
+          <p class="mode-define">
+            <strong>Temperatura</strong> move a amostra pelas transições de fase.
+            <strong>Pressão</strong> desloca os pontos de fusão e ebulição.
+            <strong>Volume</strong> comprime o êmbolo e altera a pressão efetiva.
+            As leituras resultantes estão no painel abaixo.
+          </p>
+ 
+          <!-- ── Bloco 1: TEMPERATURA ── -->
+          <div class="ctrl-block" role="group" aria-labelledby="cb-temp-lbl">
+            <p class="ctrl-block-hd" id="cb-temp-lbl">
+              <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-thermometer"/></svg></span>
+              <span class="ctrl-block-name">Temperatura</span>
+              <span class="panel-valor" id="pv-temperatura">25 °C</span>
+            </p>
+            <div class="ctrl-group">
+              <div class="ctrl-label-row">
+                <label for="slider-temperatura" class="ctrl-label">Chapa aquecedora</label>
+                <span class="ctrl-val" id="display-temp">25 °C</span>
+              </div>
+              <input type="range" id="slider-temperatura" min="-50" max="300" value="25" step="1"
+                aria-label="Temperatura em graus Celsius"/>
+              <div class="ctrl-sublabels" aria-hidden="true">
+                <span id="slider-temp-min">-50 °C</span>
+                <span id="slider-temp-max">300 °C</span>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="action-btn" id="btn-cool" type="button"><svg class="icon" aria-hidden="true"><use href="#ic-snow"/></svg> Resfriar</button>
+              <button class="action-btn" id="btn-heat" type="button"><svg class="icon" aria-hidden="true"><use href="#ic-flame"/></svg> Aquecer</button>
+            </div>
+            <div class="indicador-faixa">
+              <span class="faixa-ponto" id="ponto-faixa-temp"></span>
+              <span class="ctrl-note"   id="texto-faixa-temp">Ambiente</span>
+            </div>
+          </div>
+ 
+          <!-- ── Bloco 2: PRESSAO ── -->
+          <div class="ctrl-block" role="group" aria-labelledby="cb-press-lbl">
+            <p class="ctrl-block-hd" id="cb-press-lbl">
+              <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-gauge"/></svg></span>
+              <span class="ctrl-block-name">Pressão</span>
+              <span class="panel-valor" id="pv-pressao">1.00 atm</span>
+            </p>
+            <div class="ctrl-group">
+              <div class="ctrl-label-row">
+                <label for="slider-pressao" class="ctrl-label">Pressão manual</label>
+                <span class="ctrl-val" id="display-pressao-ctrl">1.00 atm</span>
+              </div>
+              <input type="range" id="slider-pressao" min="0.1" max="25" value="1.0" step="0.1"
+                aria-label="Pressão em atmosferas"/>
+              <div class="ctrl-sublabels" aria-hidden="true">
+                <span>0.1 atm</span>
+                <span>25 atm</span>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="action-btn" id="btn-press-down" type="button">▼ Reduzir</button>
+              <button class="action-btn" id="btn-press-up"   type="button">▲ Aumentar</button>
+            </div>
+            <div class="indicador-faixa">
+              <span class="faixa-ponto" id="ponto-faixa-pressao"></span>
+              <span class="ctrl-note"   id="texto-faixa-pressao">Normal</span>
+              <span class="ctrl-val"    id="display-pressao" style="margin-left:auto">1.00 atm</span>
+            </div>
+          </div>
+ 
+          <!-- ── Bloco 3: VOLUME ── -->
+          <div class="ctrl-block" role="group" aria-labelledby="cb-vol-lbl">
+            <p class="ctrl-block-hd" id="cb-vol-lbl">
+              <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-retort"/></svg></span>
+              <span class="ctrl-block-name">Volume</span>
+              <span class="panel-valor" id="pv-volume">60 %</span>
+            </p>
+            <div class="ctrl-group">
+              <div class="ctrl-label-row">
+                <label for="slider-volume" class="ctrl-label">Posição do êmbolo</label>
+                <span class="ctrl-val" id="display-volume">60 %</span>
+              </div>
+              <input type="range" id="slider-volume" min="20" max="100" value="60" step="1"
+                aria-label="Volume: 20% comprimido a 100% expandido"/>
+              <div class="ctrl-sublabels" aria-hidden="true">
+                <span>20% Comprimido</span>
+                <span>100% Expandido</span>
+              </div>
+            </div>
+          </div>
+ 
+        </div>
+      </section>
+ 
+      <!-- ══════════ PAINEL 3 — ESTADO & MEDIDAS ══════════ -->
+      <section class="panel" data-open="true">
+        <button class="panel-header" id="hdr-medidas" type="button" aria-expanded="true" aria-controls="body-medidas">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-ruler"/></svg></span>
+          <span class="panel-label">Estado &amp; Medidas</span>
+          <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
+        </button>
+        <div class="panel-body" id="body-medidas" role="region" aria-labelledby="hdr-medidas">
+ 
+          <!-- Barra de progresso termico: substitui o termometro SVG.
+               Mostra as tres faixas dimensionadas pelos pontos de fusao e
+               ebulicao EFETIVOS e o cursor na temperatura atual. -->
+          <div class="termometro-progresso" aria-hidden="true">
+            <div class="tp-trilha">
+              <div class="tp-zona tp-zona-solido"  id="tp-zona-solido"><svg class="icon" aria-hidden="true"><use href="#ic-solid"/></svg></div>
+              <div class="tp-divisor" id="tp-div-fusao">
+                <span class="tp-label-divisor" id="tp-lbl-fusao">0°C</span>
+              </div>
+              <div class="tp-zona tp-zona-liquido" id="tp-zona-liquido"><svg class="icon" aria-hidden="true"><use href="#ic-liquid"/></svg></div>
+              <div class="tp-divisor" id="tp-div-ebulicao">
+                <span class="tp-label-divisor" id="tp-lbl-ebulicao">100°C</span>
+              </div>
+              <div class="tp-zona tp-zona-gasoso" id="tp-zona-gasoso"><svg class="icon" aria-hidden="true"><use href="#ic-gas"/></svg></div>
+            </div>
+            <div class="tp-cursor" id="tp-cursor" aria-hidden="true"></div>
+          </div>
+ 
+          <!-- Descricao do estado fisico atual -->
+          <div class="descricao-estado" id="descricao-estado">
+            <p id="texto-descricao-estado">Forma e volume definidos. Não precisa de recipiente.</p>
+          </div>
+ 
+          <!-- Medidas em DUAS COLUNAS: mesma informacao, metade da altura -->
+          <dl class="data-grid data-grid--2col" aria-live="polite">
+            <div class="dr"><dt>Substância</dt>     <dd id="m-substancia">—</dd></div>
+            <div class="dr"><dt>Estado</dt>          <dd id="m-state">—</dd></div>
+            <div class="dr"><dt>Temperatura</dt>     <dd id="m-temp">25 °C</dd></div>
+            <div class="dr"><dt>Pt. fusão ef.</dt>   <dd id="m-fusao">0.0 °C</dd></div>
+            <div class="dr"><dt>Pt. ebulição ef.</dt><dd id="m-ebulicao">100.0 °C</dd></div>
+            <div class="dr"><dt>Pressão</dt>         <dd id="m-pressao">1.00 atm</dd></div>
+            <div class="dr"><dt>P. efetiva</dt>      <dd id="m-pressao-ef">1.00 atm</dd></div>
+            <div class="dr"><dt>Faixa pressão</dt>   <dd id="m-faixa-pressao">Normal</dd></div>
+            <div class="dr"><dt>Volume</dt>          <dd id="m-volume">60 %</dd></div>
+            <div class="dr"><dt>Fator vol.</dt>      <dd id="m-fator-vol">1.00×</dd></div>
+          </dl>
+ 
+        </div>
+      </section>
+ 
+    </aside><!-- /sidebar-right -->
+ 
+  </div><!-- /.app-body -->
+ 
+<div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+ 
+<!-- ════════ MODAL — INFORMAÇÕES DO MÓDULO (1ª ATIVAÇÃO, MOBILE) ════════ -->
+<div class="mode-info-overlay" id="modeInfoOverlay" role="dialog"
+     aria-modal="true" aria-labelledby="modeInfoTitle" aria-hidden="true">
+  <div class="mode-info-modal" id="modeInfoModal">
+    <div class="mode-info-header">
+      <span class="mode-info-icon" id="modeInfoIcon" aria-hidden="true"></span>
+      <h2 class="mode-info-title" id="modeInfoTitle"></h2>
+      <button type="button" class="mode-info-close" id="modeInfoClose"
+              aria-label="Fechar informações do módulo"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+    </div>
+    <div class="mode-info-body" id="modeInfoBody"></div>
+  </div>
+</div>
+
+<div vw class="enabled">
+  <div vw-access-button class="active"></div>
+  <div vw-plugin-wrapper><div class="vw-plugin-top-wrapper"></div></div>
+</div>
+<script>
+  (function(){
+    var s=document.createElement('script');
+    s.src='https://vlibras.gov.br/app/vlibras-plugin.js';
+    s.onload=function(){try{new window.VLibras.Widget('https://vlibras.gov.br/app');}catch(e){}};
+    document.body.appendChild(s);
+  })();
+</script>
+ 
+<!-- ═══ CAMADA DE DADOS (catálogos fixos — não mudam em runtime) ═══ -->
+<script src="js/data/limites.js?v=1"></script>
+<script src="js/data/paleta-cores.js?v=1"></script>
+<script src="js/data/catalogo-substancias.js?v=1"></script>
+<script src="js/data/estados-e-fenomenos.js?v=1"></script>
+<script src="js/data/escalas-visuais.js?v=1"></script>
+
+<!-- ═══ CAMADA DE NÚCLEO (estado da simulação + física) ═══ -->
+<script src="js/core/estado-simulacao.js?v=1"></script>
+<script src="js/core/fisica.js?v=1"></script>
+
+<!-- ═══ ACESSIBILIDADE ═══ -->
+<script src="js/a11y/acessibilidade.js?v=1"></script>
+
+<!-- ═══ CAMADA DE INTERFACE (DOM e renderização) ═══ -->
+<script src="js/ui/dom-cache.js?v=1"></script>
+<script src="js/ui/render-temperatura.js?v=1"></script>
+<script src="js/ui/render-pressao.js?v=1"></script>
+<script src="js/ui/render-cilindro.js?v=1"></script>
+<script src="js/ui/render-medidas.js?v=1"></script>
+
+<!-- ═══ ORQUESTRAÇÃO ═══ -->
+<script src="js/orquestrador.js?v=1"></script>
+
+<!-- ═══ INTERFACE — interação do usuário ═══ -->
+<script src="js/ui/painel-substancias.js?v=1"></script>
+<script src="js/ui/painel-modulos.js?v=1"></script>
+<script src="js/ui/modo-mobile.js?v=1"></script>
+<script src="js/ui/paineis-recolhiveis.js?v=1"></script>
+<script src="js/ui/menu-mobile.js?v=1"></script>
+<script src="js/ui/eventos.js?v=1"></script>
+<script src="js/ui/sidebar-resizer.js?v=1"></script>
+
+<!-- ═══ PONTO DE ENTRADA (deve ser o último) ═══ -->
+<script src="js/main.js?v=1"></script>
+
+<!-- ═══ TOUR GUIADO (COACHMARK) — boas-vindas + por módulo ═══ -->
+<script src="../../coachmark.js"></script>
+<script src="js/a11y/tour.js"></script>
+
+  <!-- ═══ INTERFACE — trilho recolhível das sidebares (só desktop) ═══
+       Carregado por ÚLTIMO de propósito: este módulo e a app se
+       registram em DOMContentLoaded, e o navegador dispara os
+       ouvintes na ordem de registro — então quando o trilho monta,
+       os painéis da app já existem no DOM. -->
+  <script>window.RAIL_CFG = { id: 'sime', bp: 900 };</script>
+  <script src="js/ui/sidebar-rail.js"></script>
+<script>
+// Registra o service worker do PWA (cache/offline + instalação como app).
+// Cada página registra o mesmo sw.js da raiz do projeto; o navegador só
+// instala de verdade uma vez, então repetir isso em cada página é seguro.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../../sw.js')
+      .catch(function (erro) { console.warn('Não consegui registrar o service worker (PWA):', erro); });
+  });
+}
+</script>
+</body>
+</html>

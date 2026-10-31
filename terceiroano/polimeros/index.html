@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="manifest" href="../../manifest.json">
+  <!-- MEMÓRIA DE ACESSIBILIDADE: o primeiro script da página (tema, contraste e leitura que chegam pela URL) -->
+  <script src="../../a11y.js"></script>
+  <meta name="description" content="Simulador de polímeros sintéticos — em construção.">
+  <title>SIPL — Simulador Interativo de Polímeros</title>
+  <!--
+    PÁGINA "EM CONSTRUÇÃO" — o SIPL ainda não foi construído. Esta página
+    substitui a cópia do simulador de Cinética Química do 2º ano que ocupava a
+    pasta (a regra antiga da família: "todo simulador novo nasce copiando um do
+    2º ano"), para quem abre o cartão no hub não cair na cinética. Quando for
+    construído, o SIPL nasce da base atual do 3º ano, como o SIIS.
+  -->
+  <style>
+    :root { --fundo:#0E1320; --painel:#161E30; --texto:#E6EDF7; --suave:#A9B6CC; --acento:#34D399; --borda:#2A3650; }
+    html[data-theme="light"] { --fundo:#EEF2F6; --painel:#FFFFFF; --texto:#14202E; --suave:#44546A; --acento:#064E3B; --borda:#C9D3DF; }
+    html[data-contrast="on"] { --fundo:#000; --painel:#000; --texto:#FFF; --suave:#FFF; --borda:#FFF; }
+    html[data-theme="light"][data-contrast="on"] { --fundo:#FFF; --painel:#FFF; --texto:#000; --suave:#000; --borda:#000; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--fundo); color: var(--texto); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    header { display: flex; align-items: center; gap: 1rem; padding: .8rem 1.2rem; border-bottom: 1px solid var(--borda); }
+    .voltar { color: var(--texto); text-decoration: none; border: 1px solid var(--borda); border-radius: 8px; padding: .35rem .75rem; font-weight: 600; }
+    .marca strong { display: block; color: var(--acento); letter-spacing: .04em; font-size: 1.15rem; }
+    .marca span { color: var(--suave); font-size: .85rem; }
+    main { max-width: 44rem; margin: 3rem auto; padding: 0 1.2rem; }
+    .cartao { background: var(--painel); border: 1px solid var(--borda); border-radius: 14px; padding: 1.6rem 1.8rem; }
+    .selo { display: inline-block; border: 1px solid var(--acento); color: var(--acento); border-radius: 999px; padding: .1rem .75rem; font-size: .8rem; font-weight: 700; letter-spacing: .03em; }
+    h1 { font-size: 1.45rem; margin: .8rem 0 .4rem; }
+    ol { padding-left: 1.3rem; } li { margin: .25rem 0; }
+    .nota { color: var(--suave); font-size: .9rem; }
+    .botao { display: inline-block; margin-top: 1rem; background: var(--acento); color: var(--fundo); text-decoration: none; font-weight: 700; border-radius: 8px; padding: .55rem 1rem; }
+    .voltar:focus-visible, .botao:focus-visible { outline: 3px solid var(--acento); outline-offset: 3px; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="voltar" href="../indexterceiroano.html">← 3º Ano</a>
+    <div class="marca"><strong>SIPL</strong><span>Simulador Interativo de Polímeros</span></div>
+  </header>
+  <main>
+    <section class="cartao" aria-labelledby="titulo">
+      <span class="selo">Em construção</span>
+      <h1 id="titulo">SIPL — Polímeros Sintéticos</h1>
+      <p>Este simulador ainda está sendo desenvolvido. A ideia inicial, ainda em discussão:</p>
+      <ol>
+        <li>Polimerização por adição</li>
+        <li>Polimerização por condensação</li>
+        <li>Descarte e reciclagem</li>
+      </ol>
+      <p class="nota">A mecânica detalhada destes módulos ainda será discutida antes da construção.</p>
+      <a class="botao" href="../indexterceiroano.html">Voltar aos simuladores do 3º ano</a>
+    </section>
+  </main>
+</body>
+</html>

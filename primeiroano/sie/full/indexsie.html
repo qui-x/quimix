@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="" data-contrast="" data-spacing="" data-motion="" data-reading="">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
+<script src="../a11y.js"></script>
+<title>SIE — Simulador Interativo de Estequiometria</title>
+<link rel="stylesheet" href="css/stylesie.css" />
+</head>
+<body>
+<nav class="skip-nav" aria-label="Atalhos de navegação">
+  <a href="#sidebar-left"      class="skip-link">Pular para os módulos</a>
+  <a href="#canvas-area"       class="skip-link">Pular para a simulação</a>
+  <a href="#sidebar-right"     class="skip-link">Pular para os painéis de reação</a>
+  <a href="#modalOverlayMols"  class="skip-link">Pular para a ficha do elemento</a>
+</nav>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="f-protanopia"><feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/></filter>
+    <filter id="f-deuteranopia"><feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/></filter>
+    <filter id="f-tritanopia"><feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/></filter>
+    <filter id="f-acromatopsia"><feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/></filter>
+  </defs>
+</svg>
+
+<!-- Overlay fixo de daltonismo (backdrop-filter, pointer-events:none) —
+     evita aplicar o filtro direto no body, o que quebraria elementos
+     position:fixed/absolute (painéis, tooltips, peças arrastáveis). -->
+<div id="colorblindOverlay" aria-hidden="true"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     BIBLIOTECA DE ÍCONES SVG — substitui todos os emojis do SIE
+     ───────────────────────────────────────────────────────────────
+     Mesmo mecanismo do SIMA/SIME/SIEM/SIFI: um bloco de <symbol>,
+     usado no resto da página como <svg class="icon"><use
+     href="#ic-NOME"/></svg>. stroke/fill:currentColor herda a cor do
+     texto ao redor; width/height:1em (ver .icon em stylesie.css)
+     acompanha o tamanho de fonte do elemento-pai.
+     ═══════════════════════════════════════════════════════════════ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7V5z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 2.34 5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 17v-5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-flask" viewBox="0 0 24 24"><path d="M12 2v7.5L6.2 19a1.8 1.8 0 0 0 1.55 2.7h8.5A1.8 1.8 0 0 0 17.8 19L12 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 2h6M8.3 16h7.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-scale" viewBox="0 0 24 24"><path d="M12 3v18M8 21h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12 6 4 8m8-2 8 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4 8l-2.2 5.2a2.6 2.6 0 0 0 4.9 1L4 8zM20 8l2.2 5.2a2.6 2.6 0 0 1-4.9 1L20 8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-microscope" viewBox="0 0 24 24"><path d="M8 21h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 21v-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6.5 17.5h8a2.3 2.3 0 0 0 0-4.6h-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 12.9 7.4 9.3a2.1 2.1 0 1 1 3-3l4.6 4.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="14" y1="4.5" x2="16.5" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="15.5" y1="15.5" x2="20.5" y2="20.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-barchart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M4 20h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-2.2-1.5L14 21l-2-1.5L10 21l-1.8-1.5L6 21V3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 8h6M9 12h6M9 16h3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="ic-atom" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><ellipse cx="12" cy="12" rx="9" ry="3.2" fill="none" stroke="currentColor" stroke-width="1.3"/><ellipse cx="12" cy="12" rx="9" ry="3.2" fill="none" stroke="currentColor" stroke-width="1.3" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9" ry="3.2" fill="none" stroke="currentColor" stroke-width="1.3" transform="rotate(120 12 12)"/></symbol>
+  </defs>
+</svg>
+<header class="app-header" role="banner">
+    <div class="header-brand">
+      <a class="header-back" href="../indexprimeiroano.html" aria-label="Voltar aos simuladores do 1º Ano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="16" height="16"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>1º Ano</span>
+      </a>
+      <span class="header-logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" xmlns="http://www.w3.org/2000/svg"><line x1="16" y1="4" x2="16" y2="20" stroke-width="1.5"/><polygon points="16,20 13,24 19,24" fill="currentColor" opacity="0.8" stroke="none"/><line x1="10" y1="28" x2="22" y2="28" stroke-width="1.8" stroke-linecap="round"/><line x1="16" y1="24" x2="16" y2="28" stroke-width="1.5"/><line x1="4" y1="12" x2="28" y2="12" stroke-width="1.3"/><line x1="7" y1="12" x2="7" y2="16" stroke-width="1"/><line x1="25" y1="12" x2="25" y2="16" stroke-width="1"/><path d="M3 16 Q7 17.5 11 16" stroke-width="1.2" fill="none"/><path d="M21 16 Q25 17.5 29 16" stroke-width="1.2" fill="none"/><path d="M5.5 16 L5 13 L9 13 L8.5 16" stroke-width="1" fill="none"/><line x1="6" y1="13" x2="8" y2="13" stroke-width="0.9"/><rect x="22.5" y="13.5" width="2.5" height="2.5" rx="0.4" stroke-width="0.9"/><rect x="25.3" y="14.2" width="2" height="1.8" rx="0.4" stroke-width="0.9"/></svg>
+      </span>
+      <div>
+        <h1>SIE</h1>
+        <!-- Sempre o nome por extenso, em qualquer largura. Antes, abaixo
+             de 900px, o nome cedia lugar ao rotulo de navegacao "1º Ano" e
+             virava a versao curta "Estequiometria" — decisao revertida a
+             pedido: agora e o rotulo de navegacao que cede primeiro (ver o
+             media query mais abaixo), porque o nome completo do simulador
+             tem prioridade. -->
+        <p class="header-sub">Simulador Interativo de Estequiometria</p>
+      </div>
+    </div>
+    <!-- Nomes padronizados com os outros 19 simuladores: .header-actions,
+         .mobile-menu-btn, ids mobile-info-btn / mobile-menu-btn, e
+         aria-controls apontando para sidebar-left / sidebar-right. Antes
+         eram .header-toggles / .mobile-toggle / mobileToggleLeft-Right,
+         que funcionavam mas divergiam do resto do projeto. Os icones em
+         SVG foram mantidos: sao melhores que o ☰/🎛 em texto dos outros. -->
+    <div class="header-actions">
+      <button type="button" class="mobile-menu-btn" id="mobile-info-btn"
+        aria-label="Abrir reações prontas" aria-expanded="false" aria-controls="sidebar-left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <button type="button" class="mobile-menu-btn" id="mobile-menu-btn"
+        aria-label="Abrir análise estequiométrica" aria-expanded="false" aria-controls="sidebar-right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+
+  <!-- Landmark principal, ancora do skip-link E moldura da area de jogo.
+       ANTES era um retangulo de 1x1 pixel invisivel (o style inline ficava
+       aqui no HTML). Isso tinha um efeito colateral silencioso: o anel de
+       realce era aplicado neste elemento, entao a regra CSS "funcionava" —
+       o getComputedStyle devolvia o box-shadow certo — mas nada aparecia
+       na tela, porque o elemento media 1 pixel.
+       Agora ele cobre de verdade o espaco entre as duas sidebars, com
+       pointer-events:none para nao roubar nenhum clique do <canvas> que
+       fica atras. A geometria vive no CSS (regra #canvas-area), que usa as
+       mesmas variaveis das sidebars e por isso acompanha o arraste da alca
+       de redimensionar e todos os breakpoints. -->
+  <main id="canvas-area" tabindex="-1" aria-label="Simulação de reações">
+    <!-- O <canvas> agora e filho do <main>: o skip link #canvas-area passa
+         a entregar o foco na moldura que realmente contem a simulacao.
+         Geometria inalterada — #scene continua position:fixed, so muda
+         o lugar na arvore do documento. -->
+    <canvas id="scene" aria-hidden="true"></canvas>
+    <!-- Mesmo elemento do #canvas-hint do SIMA, copiado com a mesma
+         estrutura: aria-hidden porque o aviso de verdade para quem usa
+         leitor de tela já vem do anunciar() ao trocar de módulo — este
+         texto é só reforço visual, decorativo. -->
+    <div id="canvas-hint" class="canvas-hint" aria-hidden="true" hidden>
+      Ative um módulo na barra lateral esquerda para iniciar a simulação.
+    </div>
+
+    <!-- Mesma peça do #mode-indicator do SIMA/SISOL: pílula flutuante no
+         topo do canvas, some por completo enquanto nenhum módulo está
+         ativo (.mode-on controla isso, não [hidden]). Compartilhada
+         pelos DOIS módulos — antes só o Mols tinha uma pílula própria;
+         o SISOL usa uma só #mode-indicator pra todos os modos, com
+         ícone/texto/cor trocando por atributo data-mode, e é esse
+         padrão que replicamos aqui. O ✕ desativa o módulo ativo
+         (qualquer um dos dois) e devolve o canvas ao branco. -->
+    <div class="canvas-overlay" id="mode-indicator">
+      <span class="overlay-label" id="overlay-label">
+        <span class="overlay-icon" id="overlay-icon" aria-hidden="true"></span>
+        <span class="overlay-text" id="overlay-text"></span>
+        <button type="button" class="overlay-clear" id="overlay-clear"
+                aria-label="Desativar o módulo ativo" title="Desativar o módulo ativo"><svg class="icon" aria-hidden="true"><use href="#ic-close"/></svg></button>
+      </span>
+    </div>
+  </main>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       MODAL DE ELEMENTO — módulo Mols
+       Mesma estrutura do modal do SITP (dados reais dos 118 elementos,
+       via dadossitp.js), sem a seção de Raio Atômico — não tem relação
+       com massa molar e o motor de 5 vistas (Bohr/Lewis/Nuvem/Grade)
+       sozinho passa de 700 linhas. Estado físico fica fixo em 25°C —
+       o Mols não tem slider de temperatura.
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay-mols" id="modalOverlayMols" role="dialog" aria-modal="true"
+       aria-labelledby="modalNameMols" aria-hidden="true">
+    <div class="modal-mols" id="modalMols">
+      <div class="modal-header-mols">
+        <div class="modal-top-row-mols">
+          <div class="modal-sym-col-mols" aria-hidden="true">
+            <span class="modal-symbol-mols" id="modalSymbolMols"></span>
+            <span class="modal-number-mols" id="modalNumberMols"></span>
+          </div>
+          <div class="modal-info-col-mols">
+            <div class="modal-name-mols" id="modalNameMols"></div>
+            <div class="modal-mass-mols" id="modalMassMols"></div>
+            <div class="modal-meta-mols" id="modalMetaMols"></div>
+            <div class="modal-badges-mols" id="modalBadgesMols"></div>
+          </div>
+          <button class="modal-close-btn-mols" id="btnCloseMols" aria-label="Fechar detalhes do elemento"><span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-close"/></svg></span></button>
+        </div>
+      </div>
+      <div class="modal-body-mols">
+        <section class="info-card" id="stateCardMols" aria-labelledby="stateCardTitleMols">
+          <h4 id="stateCardTitleMols">Estado físico (25 °C, 1 atm)</h4>
+          <p id="modalStateMols">—</p>
+          <div class="particles-grid" id="modalParticlesMols" aria-label="Partículas subatômicas"></div>
+        </section>
+        <section class="info-card" aria-labelledby="configTitleMols">
+          <h4 id="configTitleMols">Distribuição Eletrônica (Pauling)</h4>
+          <div class="electron-config" id="modalConfigMols"></div>
+        </section>
+        <section class="info-card" aria-labelledby="obtencaoTitleMols">
+          <h4 id="obtencaoTitleMols">Como é obtido</h4>
+          <p id="modalObtencaoMols">—</p>
+        </section>
+        <section class="info-card" aria-labelledby="curiosidadeTitleMols">
+          <h4 id="curiosidadeTitleMols">Curiosidades</h4>
+          <p id="modalCuriosidadeMols">—</p>
+        </section>
+        <!-- Cards de eletronegatividade/energia de ionização — preenchidos
+             por renderCardsPropriedadeMols() a partir de PROPRIEDADES
+             (dadossitp.js). Vazio de propósito. -->
+        <div id="modalPropriedadesMols"></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Live region para leitores de tela (status da simulação e seleções) -->
+  <div id="a11yAnnouncer" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SIDEBAR ESQUERDA — MÓDULOS
+       Estrutura portada do SIMA (modelos atômicos Dalton/Thomson/...):
+       cada MÓDULO é um .panel--mode com cor própria (--mod), um
+       botão "Ativar Módulo X" (.mode-activate-btn, mesma peça que já
+       existia como .bond-mode-btn desde o SILQ) e um selo "Ativo" no
+       cabeçalho que aparece sozinho via CSS (:has()), sem JS dedicado.
+
+       Duas coisas importantes sobre esse padrão, copiadas do SIMA:
+         1. ABRIR/FECHAR o painel (o cabeçalho, panel-header) e ATIVAR o
+            módulo (o botão de dentro) são ações INDEPENDENTES. Dá pra
+            abrir os dois painéis ao mesmo tempo para ler; só um módulo
+            fica ATIVO por vez.
+         2. Só um módulo ativo por vez: ativar um desativa o outro
+            automaticamente (mutuamente exclusivo).
+
+       Reações Prontas SAIU desta coluna — foi para a direita, junto da
+       Análise Estequiométrica, num acordeão compacto (ver comentário
+       da sidebar direita). Aqui ficam só os dois módulos, cada um com
+       sua descrição, fatos rápidos, nota de como o canvas funciona,
+       bons exemplos e uma curiosidade. O Inventário Molecular (lista
+       de moléculas/mols/massa montadas no canvas) foi removido por
+       redundância — "Dados da Reação", na direita, já cobre a mesma
+       informação (razão, reagente limitante, produtos).
+  ══════════════════════════════════════════════════════════════ -->
+  <aside class="sidebar sidebar--left" id="sidebar-left" tabindex="-1">
+
+    <div class="accordion accordion--exclusive" id="module-accordion">
+
+      <!-- ═══ MÓDULO 1: ESTEQUIOMETRIA ═══ -->
+      <section class="panel panel--mode" aria-labelledby="hdr-mod-estequiometria" data-open="false" data-modulo="estequiometria">
+        <button class="panel-header" id="hdr-mod-estequiometria" type="button"
+                aria-expanded="false" aria-controls="body-mod-estequiometria">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-flask"/></svg></span>
+          <span class="panel-label">Estequiometria</span>
+          <span class="mode-active-tag">Ativo</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <div class="panel-body collapsed" id="body-mod-estequiometria" role="region" aria-labelledby="hdr-mod-estequiometria">
+
+          <button type="button" class="mode-activate-btn" data-modulo="estequiometria"
+                  aria-pressed="false" aria-describedby="def-mod-estequiometria"
+                  title="Ativar o módulo Estequiometria">
+            <span class="mode-dot mode-dot--estequiometria" aria-hidden="true"></span>
+            <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-play"/></svg></span> Ativar módulo <span class="model-name">Estequiometria</span>
+          </button>
+
+          <p class="mode-define" id="def-mod-estequiometria">
+            <strong>Contabilidade atômica</strong>: reagentes e produtos reagem numa proporção
+            fixa, dada pelos coeficientes da equação balanceada — todo átomo que entra tem que
+            sair, em outra substância, sem sumir nem se multiplicar.
+          </p>
+
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Lei</span><span class="fact-value">Lavoisier</span></div>
+            <div class="fact-cell"><span class="fact-label">Conservação</span><span class="fact-value">Σm reag. = Σm prod.</span></div>
+            <div class="fact-cell"><span class="fact-label">Reagente limitante</span><span class="fact-value">menor razão molar</span></div>
+            <div class="fact-cell"><span class="fact-label">Grau de avanço</span><span class="fact-value">ξ (xi)</span></div>
+          </div>
+
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Como o canvas monta os produtos</p>
+            <p>Os <strong>reagentes</strong> aparecem já posicionados quando você escolhe uma reação —
+               presos no lugar até você fornecer energia de ativação. Depois de reagirem, os
+               <strong>produtos</strong> nascem no centro do canvas nas quantidades calculadas a
+               partir do reagente limitante: é esse resultado que "Dados da Reação", na coluna da
+               direita, registra assim que a reação acontece.</p>
+          </div>
+
+          <div class="recommended">
+            <p class="recommended-title">Bons exemplos</p>
+            <div class="chip-row">
+              <span class="chip">H₂O</span><span class="chip">NaCl</span><span class="chip">CH₄</span>
+              <span class="chip">CO₂</span><span class="chip">NH₃</span>
+            </div>
+          </div>
+
+          <p class="mode-note">
+            <span class="mode-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-scale"/></svg></span>
+            <span>A Lei de Lavoisier vale pra toda reação química: nenhum átomo nasce nem desaparece, só troca de parceiro.</span>
+          </p>
+
+        </div>
+      </section>
+
+      <!-- ═══ MÓDULO 2: MOLS ═══
+           Conteúdo em desenvolvimento: cálculo interativo de massa
+           molar (o aluno clica em cada elemento da fórmula e monta a
+           conta). Por enquanto só o card existe, com um aviso — o
+           desenho dessa tela vem numa próxima etapa. -->
+      <section class="panel panel--mode" aria-labelledby="hdr-mod-mols" data-open="false" data-modulo="mols">
+        <button class="panel-header" id="hdr-mod-mols" type="button"
+                aria-expanded="false" aria-controls="body-mod-mols">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-scale"/></svg></span>
+          <span class="panel-label">Mols</span>
+          <span class="mode-active-tag">Ativo</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <!-- Mesmo padrão do SIMA: a coluna esquerda só descreve o módulo
+             e ativa/desativa. A ESCOLHA de substância e a interação de
+             contagem moraram aqui antes — agora vivem na sidebar direita,
+             no mesmo papel que a Tabela Periódica tem no SIMA (é lá que
+             se escolhe o que aparece no canvas, nunca na esquerda). -->
+        <div class="panel-body collapsed" id="body-mod-mols" role="region" aria-labelledby="hdr-mod-mols">
+
+          <button type="button" class="mode-activate-btn" data-modulo="mols"
+                  aria-pressed="false" aria-describedby="def-mod-mols"
+                  title="Ativar o módulo Mols">
+            <span class="mode-dot mode-dot--mols" aria-hidden="true"></span>
+            <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-play"/></svg></span> Ativar módulo <span class="model-name">Mols</span>
+          </button>
+
+          <p class="mode-define" id="def-mod-mols">
+            <strong>Ponte entre fórmula e balança</strong>: a massa molar liga o que está escrito
+            no papel (a fórmula) ao que se pesa de verdade (gramas) — descoberta átomo por átomo,
+            não decorada de um número pronto.
+          </p>
+
+          <div class="fact-grid">
+            <div class="fact-cell"><span class="fact-label">Constante</span><span class="fact-value">Nₐ = 6,022×10²³ /mol</span></div>
+            <div class="fact-cell"><span class="fact-label">Relação</span><span class="fact-value">n = m / M</span></div>
+            <div class="fact-cell"><span class="fact-label">Unidade SI</span><span class="fact-value">mol</span></div>
+            <div class="fact-cell"><span class="fact-label">ΔEN (Pauling)</span><span class="fact-value">&gt; 1,7 = iônica</span></div>
+          </div>
+
+          <div class="canvas-interactions">
+            <p class="canvas-interactions-title">Como o canvas mostra a reação</p>
+            <p>Ao escolher uma reação em <strong>Investigar Reação</strong> (coluna da direita), reagentes e
+               produtos são desenhados <strong>juntos</strong> no canvas — reagentes à esquerda, produtos à direita —
+               parados, sem reagir de verdade. É assim que estão numa solução real: coexistindo, não isolados um de
+               cada vez. Clique em qualquer átomo, de qualquer substância, para descobrir sua massa.</p>
+          </div>
+
+          <div class="recommended">
+            <p class="recommended-title">Bons exemplos</p>
+            <div class="chip-row">
+              <span class="chip">H₂</span><span class="chip">O₂</span><span class="chip">NaCl</span>
+              <span class="chip">CO₂</span><span class="chip">NH₃</span>
+            </div>
+          </div>
+
+          <p class="mode-note">
+            <span class="mode-note-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-microscope"/></svg></span>
+            <span>Massa molar é propriedade de cada <strong>substância</strong>, não do elemento isolado — H em H₂ e H em HCl contam separado.</span>
+          </p>
+
+        </div>
+      </section>
+
+    </div>
+
+  </aside>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SIDEBAR DIREITA — "ler e controlar"
+       Remodelada para caber SEM barra de rolagem. Tres mecanismos:
+
+         1. A equacao aparece UMA vez, e editavel (#eqBuilder). Antes a
+            mesma equacao ocupava altura quatro vezes: card da reacao,
+            <h2> como texto, "Equacao Global" na outra coluna, e os
+            campos de coeficiente soltos no #ratioGrid.
+         2. Abertura EXCLUSIVA (.accordion--exclusive): abrir um painel
+            fecha os outros.
+         3. O painel aberto cresce (flex:1) para ocupar a altura que
+            sobra; se o conteudo dele ainda passar, e o CORPO DELE que
+            rola — nunca a coluna inteira.
+  ══════════════════════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════════════════════════
+       SIDEBAR DIREITA — "escolher e ler"
+       Reações Prontas MUDOU-SE para cá (antes ficava na esquerda,
+       sozinha). Agora ela e Análise Estequiométrica dividem o mesmo
+       acordeão de abertura EXCLUSIVA (.accordion--exclusive) que a
+       Análise já usava sozinha — abrir uma fecha a outra, e é o painel
+       ABERTO que cresce e rola por dentro, nunca a coluna inteira. É
+       esse mecanismo, mais o espaçamento compacto (.accordion--compact,
+       inspirado nos cards de modelo do SIMA), que evita a barra de
+       rolagem extensa: a coluna nunca precisa mostrar as duas listas
+       longas ao mesmo tempo.
+  ══════════════════════════════════════════════════════════════ -->
+  <aside class="sidebar sidebar--right" id="sidebar-right" tabindex="-1">
+
+    <div class="accordion accordion--exclusive accordion--compact" id="right-accordion">
+
+      <!-- REAÇÕES PRONTAS (vinda da sidebar esquerda) -->
+      <section class="panel" aria-labelledby="hdr-reactions" id="panel-reactions" data-open="true">
+        <button class="panel-header" id="hdr-reactions" type="button" aria-expanded="true" aria-controls="body-reactions">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-flask"/></svg></span>
+          <span class="panel-label">Reações Prontas</span>
+          <span class="panel-badge" id="reactionsBadge">0</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <div class="panel-body" id="body-reactions" role="region" aria-labelledby="hdr-reactions">
+          <p class="mode-define">Reações prontas com estequiometria real. Ativar uma delas <strong>monta os reagentes no canvas</strong> nas proporções corretas — depois é só disparar e observar.</p>
+          <input type="search" id="reactionSearch" class="pt-search-input" placeholder="Buscar reação (nome, fórmula, tipo)…" autocomplete="off" />
+          <div class="rc-filter-row">
+            <button type="button" class="rc-filter-chip is-active" data-tipo="todas">Todas</button>
+            <button type="button" class="rc-filter-chip" data-tipo="covalente">Covalente</button>
+            <button type="button" class="rc-filter-chip" data-tipo="ionico">Iônica</button>
+            <button type="button" class="rc-filter-chip" data-tipo="metalico">Metálica</button>
+          </div>
+          <div class="reaction-menu" id="reactionMenu"><!-- preenchido via JS --></div>
+        </div>
+      </section>
+
+      <!-- ANÁLISE ESTEQUIOMÉTRICA -->
+      <section class="panel" aria-labelledby="hdr-analysis" id="panel-analysis" data-open="false">
+        <button class="panel-header" id="hdr-analysis" type="button"
+                aria-expanded="false" aria-controls="body-analysis">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-barchart"/></svg></span>
+          <span class="panel-label">Análise Estequiométrica</span>
+          <!-- Antes mostrava o reagente limitante ("O₂") — pouco útil
+               como identificador do painel, já que só faz sentido depois
+               de calcular. Agora mostra qual reação está selecionada,
+               a mesma informação que "Reações Prontas" já destaca. -->
+          <span class="panel-badge panel-badge--reacao" id="analysisBadge">—</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <div class="panel-body collapsed" id="body-analysis" role="region" aria-labelledby="hdr-analysis">
+
+          <!-- SEÇÃO 1 — Ajustar e reagir: equação editável (sempre, sem
+               botão pra "ligar" a edição — mudar um coeficiente já
+               reformula a equação na hora), fornecimento de energia,
+               validação. Tudo que precisa de INTERAÇÃO fica aqui. -->
+          <h2 class="sb-title">Ajustar e Reagir</h2>
+          <p class="mode-define" id="eqEditHint">Os números abaixo nascem sorteados — quase nunca já balanceados de propósito. Ajuste cada um até o indicador dizer "Equação Balanceada".</p>
+
+          <!-- Equação em linha reta, como na literatura química
+               (2 H₂ + O₂ → 2 H₂O): reagentes num grupo, produtos noutro,
+               cada grupo flexível — se a reação for grande demais pra
+               caber numa linha só, quebra exatamente entre reagentes e
+               produtos, nunca no meio de um grupo. -->
+          <div class="eq-line" id="eqLine" role="group" aria-label="Equação com coeficientes editáveis"><!-- preenchido via JS --></div>
+
+          <p class="eq-balance" id="eqBalance" role="status" aria-live="polite"></p>
+          <!-- Sem equacao estatica na tela nao existe copia de referencia:
+               este botao devolve os coeficientes do catalogo. -->
+          <button type="button" class="eq-restore" id="restoreCoeffBtn"><svg class="icon" aria-hidden="true"><use href="#ic-reset"/></svg> Restaurar coeficientes</button>
+
+          <div class="ctrl-block">
+            <p class="mode-define">Nenhuma reação começa sozinha: é preciso vencer a barreira de energia.</p>
+            <!-- Sem width/height aqui de proposito: ajustarCanvasOnda() ja
+                 dimensiona o buffer por getBoundingClientRect(). -->
+            <canvas id="waveform" role="img"
+                    aria-label="Onda da energia fornecida. Os valores numéricos estão anunciados por voz."></canvas>
+            <div class="ctrl-row">
+              <button id="energyBtn" class="btn btn-energy" disabled>
+                <span class="btn-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-bolt"/></svg></span><span class="btn-label"> Fornecer Energia</span>
+              </button>
+              <button id="validateBtn" class="btn btn-validate" disabled>Validar</button>
+              <button id="resetBtn" class="btn btn-ghost">Reiniciar</button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- DADOS DA REAÇÃO — painel próprio, separado da Análise
+           Estequiométrica: um é sobre EDITAR e REAGIR (interação), o
+           outro é só LEITURA (caráter da ligação, reagente limitante,
+           razões, produtos). Fica no mesmo acordeão de abertura
+           exclusiva que os outros painéis da direita — abrir este fecha
+           os demais, como já acontecia entre Reações Prontas e Análise.
+           Massa em gramas não aparece mais aqui — é o módulo Mols que
+           calcula isso (Investigar Reação já faz essa conta, elemento
+           por elemento, sem duplicar o mesmo número em dois lugares
+           diferentes do simulador). -->
+      <section class="panel" aria-labelledby="hdr-reaction-data" id="panel-reaction-data" data-open="false">
+        <button class="panel-header" id="hdr-reaction-data" type="button"
+                aria-expanded="false" aria-controls="body-reaction-data">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-receipt"/></svg></span>
+          <span class="panel-label">Dados da Reação</span>
+          <span class="panel-badge panel-badge--reacao" id="reactionDataBadge">—</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <div class="panel-body collapsed" id="body-reaction-data" role="region" aria-labelledby="hdr-reaction-data">
+          <p class="mode-define">Só leitura: caráter da ligação, reagente limitante e o que a reação produz — nada aqui se edita, é o resultado de "Ajustar e Reagir".</p>
+          <dl class="calc-panel" id="calcPanel"><!-- preenchido via JS --></dl>
+        </div>
+      </section>
+
+      <!-- INVESTIGAR SUBSTÂNCIA (módulo Mols) — mesmo papel que a Tabela
+           Periódica tem na sidebar direita do SIMA: é AQUI que se escolhe
+           o que aparece no canvas, nunca no painel de descrição à
+           esquerda. Só fica visível com o módulo Mols ativo — o JS
+           alterna o [hidden] deste painel e dos dois de cima. -->
+      <section class="panel" aria-labelledby="hdr-mols-investigar" id="panel-mols-investigar" data-open="true" hidden>
+        <button class="panel-header" id="hdr-mols-investigar" type="button"
+                aria-expanded="true" aria-controls="body-mols-investigar">
+          <span class="panel-icon" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-search"/></svg></span>
+          <span class="panel-label">Investigar Reação</span>
+          <svg class="chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <polyline points="5,8 10,13 15,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <div class="panel-body" id="body-mols-investigar" role="region" aria-labelledby="hdr-mols-investigar">
+
+          <!-- 1. Escolher a REAÇÃO já desenha reagentes E produtos juntos
+               no canvas — como estão de fato numa solução real, não um
+               de cada vez. Reaproveita o mesmo catálogo REACTIONS que
+               "Reações Prontas" usa (mesma fonte de dados, não uma lista
+               paralela). Não existe mais uma etapa separada de "escolher
+               substância": a reação inteira já é o objeto de
+               investigação.
+
+               O <select> nativo saiu daqui — nenhum outro lugar do
+               projeto usa <select> (conferido no SIEM: zero ocorrências
+               em todo o HTML), porque o menu suspenso é desenhado pelo
+               navegador/SO, fora do alcance do CSS — por isso destoava
+               do resto do tema. Trocado pela mesma lista clicável
+               (.reaction-card/.rc-dot) que "Reações Prontas" já usa, só
+               que num container PRÓPRIO (#molsReactionMenu), pra buscar
+               e escolher aqui não interferir na lista da Estequiometria. -->
+          <div class="mols-picker">
+            <span class="mols-picker-label" id="molsReactionLabel">Reação</span>
+            <input type="search" id="molsReactionSearch" class="pt-search-input" disabled
+                   placeholder="Buscar reação (nome, fórmula, tipo)…" autocomplete="off"
+                   aria-labelledby="molsReactionLabel">
+            <div class="reaction-menu mols-reaction-menu" id="molsReactionMenu" role="listbox" aria-labelledby="molsReactionLabel"></div>
+            <!-- Legenda só de leitura — mostra o que é reagente e o que é
+                 produto, sem precisar clicar em nada: o clique de
+                 verdade é no átomo, lá no canvas. -->
+            <div class="mols-substance-row" id="molsSubstanceRow" hidden>
+              <span class="mols-picker-label">Substâncias na reação</span>
+              <div class="mols-substance-legend" id="molsSubstanceLegend"></div>
+            </div>
+          </div>
+
+          <p class="mode-define" id="molsInstrucaoCanvas" hidden>
+            Reagentes à esquerda, produtos à direita — clique nos átomos desenhados no canvas
+            para descobrir a massa de cada elemento em cada substância.
+          </p>
+
+          <!-- 2. Tabela de contagem — agrupada por SUBSTÂNCIA (não mais
+               uma lista achatada de elementos): cada substância tem seu
+               cabeçalho, suas linhas de elemento, e a massa molar
+               aparece sozinha assim que aquela substância é concluída —
+               sem precisar de um botão "Pronto" por substância. -->
+          <table class="mols-tally" id="molsTally" hidden>
+            <caption class="sr-only">Massa e contagem de cada elemento, por substância da reação</caption>
+            <thead>
+              <tr><th scope="col">Elemento</th><th scope="col">Massa (u)</th><th scope="col">Contagem</th></tr>
+            </thead>
+            <tbody id="molsTallyBody"></tbody>
+          </table>
+
+          <!-- 3. Resumo final — aparece sozinho quando TODAS as
+               substâncias da reação já tiverem massa molar calculada. -->
+          <div class="mols-resultado" id="molsResultado" role="status" aria-live="polite" hidden></div>
+
+        </div>
+      </section>
+
+    </div><!-- /.accordion -->
+  </aside>
+
+  <!-- Motor de física 2D — única dependência externa, build clássico estável. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <!-- dadossitp.js: importado direto do SITP, sem copiar nada. É dado
+       puro (zero referência a document/DOM), então carregar aqui é
+       seguro — os 118 elementos (massa, config eletrônica, fusão,
+       ebulição, curiosidades, propriedades) ficam disponíveis para o
+       módulo Mols usar, exatamente como o SITP usa. -->
+  <script src="dadossitp.js"></script>
+
+  <!-- ═══ ACESSIBILIDADE (preferências de tema/URL) ═══ -->
+  <script src="js/a11y/preferencias.js"></script>
+
+  <!-- ═══ DADOS (locais deste simulador — a tabela periódica completa
+       vem de dadossitp.js, acima) ═══ -->
+  <script src="js/data/elementos-reacao.js"></script>
+  <script src="js/data/geometria-2d.js"></script>
+  <script src="js/data/moleculas-templates.js"></script>
+  <script src="js/data/reacoes.js"></script>
+
+  <!-- ═══ NÚCLEO: ESTADO, MOTOR FÍSICO, ÁUDIO, CANVAS ═══ -->
+  <script src="js/core/estado-reacao.js"></script>
+  <script src="js/core/motor-fisico.js"></script>
+  <script src="js/core/audio.js"></script>
+  <script src="js/core/canvas-setup.js"></script>
+
+  <!-- ═══ ÁTOMOS E MOLÉCULAS ═══ -->
+  <script src="js/atoms/atomos-ligacoes-crud.js"></script>
+  <script src="js/molecules/instanciar.js"></script>
+
+  <!-- ═══ MÓDULO ESTEQUIOMETRIA: montagem de reagentes ═══ -->
+  <script src="js/reactions/montar-reagentes.js"></script>
+
+  <!-- ═══ INTERFACE: ENERGIA DE ATIVAÇÃO E RUPTURA DE LIGAÇÕES ═══ -->
+  <script src="js/ui/energia-carga.js"></script>
+  <script src="js/bonds/ruptura.js"></script>
+
+  <!-- ═══ INTERAÇÃO: ARRASTAR ÁTOMOS ═══ -->
+  <script src="js/interaction/arrastar.js"></script>
+  <script src="js/bonds/ruptura-avancada.js"></script>
+
+  <!-- ═══ FÍSICA: MAGNETISMO, LIMITES, LIGAÇÃO METÁLICA ═══ -->
+  <script src="js/physics/magnetismo-limites.js"></script>
+  <script src="js/physics/congelar-metalico.js"></script>
+
+  <!-- ═══ LIGAÇÕES: FORMAÇÃO ═══ -->
+  <script src="js/bonds/formar-ligacao.js"></script>
+
+  <!-- ═══ ESTEQUIOMETRIA: ANÁLISE E VALIDAÇÃO ═══ -->
+  <script src="js/reactions/analise-grupos.js"></script>
+  <script src="js/reactions/validacao.js"></script>
+
+  <!-- ═══ RENDERIZAÇÃO: OSCILOSCÓPIO ═══ -->
+  <script src="js/render/osciloscopio.js"></script>
+
+  <!-- ═══ INTERFACE: MENU DE REAÇÕES E COEFICIENTES ═══ -->
+  <script src="js/ui/status-menu-reacoes.js"></script>
+  <script src="js/reactions/selecionar-reacao.js"></script>
+  <script src="js/reactions/coeficientes-ui.js"></script>
+
+  <!-- ═══ INTERFACE: MÓDULOS ATIVOS E PAINÉIS ═══ -->
+  <script src="js/ui/modulos-ativos.js"></script>
+  <script src="js/ui/paineis-acordeao.js"></script>
+
+  <!-- ═══ ESTEQUIOMETRIA: FÓRMULAS E CALCULADORA ═══ -->
+  <script src="js/reactions/formula-utils.js"></script>
+  <script src="js/a11y/anunciar.js"></script>
+  <script src="js/reactions/calculadora.js"></script>
+
+  <!-- ═══ RENDERIZAÇÃO: DESENHO DOS ÁTOMOS E LOOP PRINCIPAL ═══ -->
+  <script src="js/render/desenho-atomos.js"></script>
+  <script src="js/render/loop-principal.js"></script>
+
+  <!-- ═══ INTERFACE: MENU MOBILE (inclui o disparo inicial da simulação) ═══ -->
+  <script src="js/ui/menu-mobile.js"></script>
+
+  <!-- ═══ INTERFACE: SIDEBARS REDIMENSIONÁVEIS ═══ -->
+  <script src="js/ui/sidebar-resizer.js"></script>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       MÓDULO MOLS — depende dos 118 elementos completos de dadossitp.js
+       (carregado no topo desta seção de scripts)
+       ═══════════════════════════════════════════════════════════════ -->
+  <script src="js/mols/dados-elementos-locais.js"></script>
+  <script src="js/mols/config-eletronica.js"></script>
+  <script src="js/mols/estado-fisico.js"></script>
+  <script src="js/mols/cores-escalas.js"></script>
+  <script src="js/mols/painel-propriedades.js"></script>
+  <script src="js/mols/modal-elemento.js"></script>
+  <script src="js/mols/reacao-investigar.js"></script>
+  <script src="js/mols/canvas-reacao.js"></script>
+  <script src="js/mols/interacao-atomos.js"></script>
+  <script src="js/mols/tally-resultado.js"></script>
+
+<div vw class="enabled">
+  <div vw-access-button class="active"></div>
+  <div vw-plugin-wrapper>
+    <div class="vw-plugin-top-wrapper"></div>
+  </div>
+</div>
+<script>
+  (function() {
+    var script = document.createElement('script');
+    script.src = 'https://vlibras.gov.br/app/vlibras-plugin.js';
+    script.onload = function() {
+      try { new window.VLibras.Widget('https://vlibras.gov.br/app'); } catch(e) {}
+    };
+    script.onerror = function() {};
+    document.body.appendChild(script);
+  })();
+</script>
+</body>
+</html>

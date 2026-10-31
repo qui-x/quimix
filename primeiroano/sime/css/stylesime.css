@@ -1,0 +1,1523 @@
+
+/* =====================================================================
+   ALTO CONTRASTE — CONTRAPARTE PARA O TEMA CLARO
+   ---------------------------------------------------------------------
+   BUG: as regras de alto contraste deste arquivo usam #ff0 (amarelo) para
+   texto/borda e #000 para o fundo do estado ativo. Isso funciona sobre
+   fundo escuro (19.56:1), mas o alto contraste tambem pode ser ligado
+   JUNTO com o tema claro — e ai o amarelo cai para 1.03:1 sobre o fundo
+   claro. Ficava literalmente invisivel. Medido no Chromium: a combinacao
+   claro+contraste tinha MAIS texto abaixo de 3:1 do que o tema claro
+   sozinho, ou seja, o modo de acessibilidade piorava a legibilidade.
+
+   SOLUCAO: as duas cores viram variaveis. No tema escuro seguem amarelo
+   e preto; no tema claro viram azul-escuro (#0000cc) e branco, que
+   cumprem o mesmo papel com 10.15:1 sobre o fundo claro. O azul saturado
+   e a escolha classica de alto contraste em fundo claro, equivalente ao
+   amarelo em fundo escuro.
+
+   As regras abaixo desta secao passam a usar var(--hc-fg) e var(--hc-bg)
+   em vez dos valores fixos.
+   ===================================================================== */
+body.high-contrast                { --hc-fg:#ff0;     --hc-bg:#000;     }
+/* CLARO + ALTO CONTRASTE: o bloco body.high-contrast deste arquivo
+   redefine a paleta de fundo para tons ESCUROS (--bg0: #000) — ou seja,
+   o alto contraste sobrepoe o tema claro de proposito, porque e um
+   esquema visual proprio. Por isso NAO invertemos para azul aqui: o
+   fundo continua escuro, e azul-escuro sobre preto daria 1.68:1.
+   Amarelo sobre preto (19.56:1) segue sendo o par correto. */
+body.high-contrast.light-mode     { --hc-fg:#ff0;     --hc-bg:#000;     }
+/* =====================================================================
+   ALTURA DE VIEWPORT: dvh com fallback vh
+   ---------------------------------------------------------------------
+   PROBLEMA: no Safari do iOS e no Chrome do Android, 100vh e a altura da
+   tela COM a barra de endereco escondida — a maior possivel. Quando a
+   barra esta visivel (o estado normal ao abrir a pagina), a casca do app
+   fica mais alta que a area visivel e o rodape do canvas cai abaixo da
+   dobra. Como .app-main tem overflow:hidden, nao ha rolagem para
+   alcancar o pedaco perdido: ele simplesmente desaparece. E como 100vh e
+   estatico, nao reage quando a barra aparece ou some.
+
+   SOLUCAO: dvh (dynamic viewport height) acompanha a barra do navegador.
+   Cada altura aparece DUAS vezes neste arquivo:
+
+       height: calc(100vh  - var(--header-h));   <- fallback
+       height: calc(100dvh - var(--header-h));   <- navegadores modernos
+
+   Navegador que nao entende dvh simplesmente ignora a segunda declaracao
+   e fica com a primeira. Navegador moderno usa a segunda, que vem
+   depois. Nenhum @supports e necessario: e a cascata normal do CSS.
+
+   Por que dvh e nao svh: estes simuladores tem overflow:hidden e nao
+   rolam, entao o dvh nao causa o tremor de reflow que provoca em paginas
+   rolaveis — e o canvas aproveita a tela inteira quando a barra some.
+   ===================================================================== */
+
+/* ═══════════════════════════════════════════════════════
+   stylesime.css — SIME: Design System "Deep Space Lab"
+   Responsivo: mobile (320px) → 4K (2560px+)
+   Estratégia:
+     • Larguras via CSS custom props + clamp()
+     • Alturas via dvh com fallback vh
+     • Nenhum height/width fixo em px nos componentes de layout
+     • Painéis: flex + overflow-y:auto — crescem até o espaço disponível
+═══════════════════════════════════════════════════════ */
+
+/* ── Tokens ─────────────────────────────────────────── */
+:root {
+  /* Cores */
+  --bg0:#080C14; --bg1:#0D1526; --bg2:#121D33; --bg3:#1A2744;
+  --bdr:#1F3461; --bdr2:#5C9498; --bdr-a:#9AF7FE;
+  --cyan:#9AF7FE; --green:#4ADE80; --amber:#FF8C00;
+  --red:#F87171; --violet:#8B5CF6;
+  --header-accent: var(--cyan); /* cor oficial do SIME na Central — usada na identidade visual */
+  --tx1:#CCE0F5; --tx2:#6899B8; --tx3:#2D4F6A;
+  --solid-col:#60a5fa; --liquid-col:#00e696; --gas-col:#ffb020;
+
+  /* Tipografia */
+  --font:'Segoe UI',system-ui,sans-serif;
+  --mono:'Consolas','JetBrains Mono',monospace;
+  --a11y-font-scale: 1;
+
+  /* Layout */
+  --hh: 54px;                            /* altura do header */
+  --sl: clamp(280px, 26vw, 420px);       /* sidebar esquerda */
+  --sr: clamp(280px, 26vw, 420px);       /* sidebar direita  */
+  --r: 10px; --rs: 5px;
+
+  /* Altura útil — dvh com fallback vh (ver bloco no topo do arquivo).
+     O SIME já usava este mecanismo com svh antes dos outros arquivos;
+     trocado para dvh para o comportamento ser o mesmo em todo o projeto. */
+  --vh100: 100vh;
+  --body-h: calc(var(--vh100) - var(--hh));
+}
+@supports (height: 100dvh) {
+  :root { --vh100: 100dvh; }
+}
+
+/* ── Reset ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* =====================================================================
+   ÍCONES SVG (substituem os emojis) — ver <defs> de <symbol> no topo
+   do indexsime.html. stroke/fill:currentColor herda a cor do texto ao
+   redor (por isso os ícones de estado físico ficam azul/verde/âmbar
+   automaticamente ao herdar de .solido/.liquido/.gasoso, sem precisar
+   de uma regra de cor própria por ícone); width/height:1em acompanha
+   o tamanho de fonte do elemento-pai.
+   ===================================================================== */
+.icon{
+  width:1em; height:1em; display:inline-block;
+  vertical-align:-.125em; flex-shrink:0;
+}
+.panel-icon .icon,
+.mode-note-icon .icon,
+.ctrl-block-hd .icon{ width:1.05em; height:1.05em; vertical-align:-.15em; }
+
+html, body {
+  height: 100%; overflow: hidden;
+  background: var(--bg0); color: var(--tx1);
+  font-family: var(--font); font-size: 13px; line-height: 1.5;
+}
+body { display: flex; flex-direction: column; }
+/* .a11y-content foi removida junto com o #app-wrapper. As DUAS escalas de
+   fonte (--font-scale, escrita pelo hub via postMessage, e a legada
+   --a11y-font-scale) foram fundidas na regra do <body>, mais abaixo.
+   Motivo: uma classe vence um seletor de tipo por especificidade, entao
+   .a11y-content no <body> apagaria silenciosamente a --font-scale — a
+   escala que realmente funciona. */
+/* O layout em coluna vive no proprio <body>: o antigo #app-wrapper era
+   uma <div> intermediaria que so repetia estas declaracoes. --vh100 ja
+   resolve para 100dvh quando o navegador suporta (ver @supports acima),
+   entao a barra de endereco do iOS nao corta mais o rodape. */
+body { flex: 1; overflow: hidden; height: var(--vh100); }
+*:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.skip-link {
+  position: absolute; left: -9999px; top: 0;
+  background: var(--cyan); color: #04101a;
+  padding: .5rem 1rem; font-weight: 700; z-index: 999;
+  border-radius: 0 0 var(--rs) 0;
+}
+.skip-link:focus { left: 0; }
+
+/* ── Cabeçalho ──────────────────────────────────────── */
+.app-header {
+  height: var(--hh); background: var(--bg1); border-bottom: 1px solid var(--bdr);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 1.1rem; flex-shrink: 0;
+}
+.header-brand { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.header-brand > div { min-width: 0; }
+.header-back {
+  display: flex; align-items: center; gap: .3rem;
+  color: var(--tx2); text-decoration: none;
+  font-size: .78rem; font-weight: 600; letter-spacing: .02em;
+  border: 1px solid var(--bdr); border-radius: var(--rs);
+  padding: .3rem .55rem; margin-right: .5rem; flex-shrink: 0;
+}
+.header-back:hover { color: var(--tx1); border-color: var(--header-accent); }
+.header-logo {
+  font-size: 1.4rem; color: var(--header-accent); animation: pulse-logo 3s ease-in-out infinite; display: flex;
+  border: none; background: transparent; padding: .15rem; border-radius: 8px; cursor: pointer;
+  align-items: center; justify-content: center; transition: transform .15s, background .15s;
+}
+.header-logo svg { width: 1.4rem; height: 1.4rem; }
+.header-logo:hover { background: rgba(154,247,254,.1); transform: scale(1.08); }
+.header-logo:focus-visible { outline: 2px solid var(--header-accent); outline-offset: 1px; }
+@keyframes pulse-logo {
+  0%,100% { filter: drop-shadow(0 0 5px var(--header-accent)); }
+  50%      { filter: drop-shadow(0 0 14px var(--header-accent)); }
+}
+.header-brand h1 {
+  font-size: 1rem; font-weight: 700; letter-spacing: .06em; color: var(--header-accent);
+  animation: pulse-txt 3s ease-in-out infinite;
+}
+@keyframes pulse-txt {
+  0%,100% { text-shadow: 0 0 5px var(--header-accent); }
+  50%      { text-shadow: 0 0 14px var(--header-accent); }
+}
+.header-sub {
+  font-size: .62rem; color: var(--tx2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.header-actions { display: flex; align-items: center; gap: .4rem; }
+.state-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: .65rem; font-weight: 700;
+  padding: .18rem .6rem; border-radius: 20px;
+  border: 1px solid var(--bdr); color: var(--tx3); transition: all .3s;
+}
+.state-pill.solido  { background: rgba(96,165,250,.12); color: var(--solid-col);  border-color: var(--solid-col); }
+.state-pill.liquido { background: rgba(0,230,150,.12);  color: var(--liquid-col); border-color: var(--liquid-col); }
+.state-pill.gasoso  { background: rgba(255,176,32,.12); color: var(--gas-col);    border-color: var(--gas-col); }
+
+/* Botão mobile */
+.mobile-menu-btn {
+  display: none; background: var(--bg2); border: 1px solid var(--bdr);
+  color: var(--tx2); border-radius: var(--rs); padding: 4.8px 8.8px;
+  font-size: 14.4px; cursor: pointer;
+}
+.mobile-menu-btn:hover { color: var(--tx1); border-color: var(--header-accent); }
+
+/* ── Layout principal ───────────────────────────────── */
+.app-body {
+  display: flex;
+  flex-direction: row;          /* painéis lado a lado */
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+  height: var(--body-h);
+}
+
+/* ── Sidebars ───────────────────────────────────────── */
+.sidebar {
+  /* position:relative aqui, e nao no JS.
+     A alca de redimensionar (.sidebar-resizer) e absoluta e precisa de um
+     ancestral posicionado. O JS resolvia isso com
+        if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+     executado uma vez no DOMContentLoaded. Consequencia: quem abrisse a
+     pagina numa janela larga ganhava style="position:relative" INLINE, e
+     estilo inline vence media query — ao estreitar a janela, o
+     position:fixed do modo gaveta (@media max-width:900px) era ignorado,
+     as sidebars continuavam ocupando espaco no flex e a area central
+     colapsava. Medido: 784px -> 18px.
+     Declarando relative aqui, a condicao do JS nunca e verdadeira, nada
+     inline e escrito, e a media query volta a mandar. */
+  position: relative;
+
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;             /* scroll interno */
+  overflow-x: hidden;
+  height: 100%;
+  padding: .5rem;
+  gap: .4rem;
+  background: var(--bg1);
+  scrollbar-width: thin;
+  scrollbar-color: var(--bdr) transparent;
+}
+/* Cartão FLUTUANTE (barra recolhida, um cartão aberto pelo ícone do trilho): a coluna tem só a
+   altura do cartão, como nos outros simuladores. Sem isto, o height:100% acima esticava a coluna
+   até o pé da tela, e ela aparecia como um painel inteiro atrás do cartão. A barra fixada
+   continua com a altura toda. */
+.sidebar.is-collapsed.has-solo { height: auto; }
+.sidebar--left  { width: var(--sl); border-right: 1px solid var(--bdr); }
+.sidebar--right { width: var(--sr); border-left:  1px solid var(--bdr); }
+.sidebar::-webkit-scrollbar,
+
+.sidebar::-webkit-scrollbar-thumb,
+
+
+/* ── Painéis recolhíveis ─────────────────────────────── */
+.panel {
+  background: var(--bg2); border: 1px solid var(--bdr);
+  border-radius: var(--r); overflow: hidden;
+  display: flex; flex-direction: column;
+  flex-shrink: 0;
+  transition: border-color .2s, box-shadow .2s;
+}
+/* BUG CORRIGIDO: display:flex acima vale pra QUALQUER .panel,
+   inclusive os marcados com o atributo hidden — que por padrão do
+   navegador ganhariam display:none sozinhos, mas author-CSS com
+   display explícito sempre vence a folha de estilo padrão. Sem esta
+   regra, painel.hidden=true no JS não escondia nada visualmente. */
+.panel[hidden] { display: none; }
+[data-open="true"].panel {
+  border-color: rgba(154,247,254,.4);
+  box-shadow: 0 0 0 1px rgba(154,247,254,.12);
+}
+.panel-header {
+  width: 100%; display: flex; align-items: center; gap: .5rem;
+  padding: .56rem .7rem;
+  background: transparent; border: none; border-bottom: 1px solid var(--bdr);
+  color: var(--tx1); font-size: .8rem; font-weight: 700;
+  cursor: pointer; transition: background .15s, color .15s;
+  user-select: none; flex-shrink: 0;
+}
+.panel-header:hover { background: rgba(154,247,254,.08); color: var(--cyan); }
+[data-open="false"] .panel-header { border-bottom-color: transparent; }
+[data-open="true"]  .panel-header {
+  background: linear-gradient(135deg,rgba(154,247,254,.14),rgba(154,247,254,.05));
+  color: var(--cyan);
+}
+.panel-icon  { font-size: .95rem; flex-shrink: 0; }
+.panel-label { flex: 1; min-width: 0; }
+.chevron {
+  font-size: .68rem; color: var(--tx3); flex-shrink: 0;
+  transition: transform .22s cubic-bezier(.4,0,.2,1);
+}
+[data-open="false"] .chevron { transform: rotate(-90deg); }
+[data-open="true"]  .chevron { color: var(--cyan); }
+
+/* panel-body: altura máxima relativa ao viewport disponível */
+.panel-body {
+  padding: 0 .7rem .65rem;
+  display: flex; flex-direction: column; gap: .48rem;
+  overflow-y: auto;
+  /* Máximo: ocupa até 65% da altura útil do body */
+  max-height: calc(var(--body-h) * 0.75);
+  transition: max-height .26s ease, padding .22s ease, opacity .18s;
+  opacity: 1;
+  scrollbar-width: thin; scrollbar-color: var(--bdr) transparent;
+}
+.panel-body::-webkit-scrollbar { width: 3px; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--bdr); border-radius: 2px; }
+[data-open="false"] .panel-body {
+  max-height: 0; padding-top: 0; padding-bottom: 0;
+  opacity: 0; overflow: hidden;
+}
+
+/* ── Controles ──────────────────────────────────────── */
+.ctrl-group { display: flex; flex-direction: column; gap: .22rem; }
+.ctrl-label-row { display: flex; justify-content: space-between; align-items: baseline; }
+.ctrl-label { font-size: .68rem; color: var(--tx2); }
+.ctrl-val   { font-family: var(--mono); font-size: .82rem; color: var(--amber); font-weight: 600; }
+.ctrl-sublabels { display: flex; justify-content: space-between; font-size: .62rem; color: var(--tx3); font-family: var(--mono); }
+.ctrl-note  { font-size: .65rem; color: var(--tx3); line-height: 1.45; }
+
+/* Range inputs */
+input[type="range"] {
+  width: 100%; -webkit-appearance: none; appearance: none;
+  height: 4px; background: var(--bdr); border-radius: 2px;
+  outline: none; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--cyan);
+  box-shadow: 0 0 6px var(--cyan); cursor: pointer; transition: transform .12s;
+}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+input[type="range"]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--cyan); border: none; cursor: pointer;
+}
+
+/* Botões de ação */
+.btn-row { display: flex; gap: .28rem; }
+.action-btn {
+  flex: 1; padding: .32rem .4rem;
+  border: 1px solid var(--cyan); background: rgba(154,247,254,.12);
+  color: var(--cyan); border-radius: var(--rs); cursor: pointer;
+  font-size: .65rem; font-family: var(--font); transition: all .14s;
+}
+.action-btn:hover  { background: rgba(154,247,254,.26); box-shadow: 0 0 10px rgba(154,247,254,.3); }
+.action-btn:active { transform: scale(.96); }
+
+/* Indicador de faixa */
+.indicador-faixa { display: flex; align-items: center; gap: 7px; }
+.faixa-ponto {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--green); flex-shrink: 0; transition: background .3s;
+}
+
+/* ── Painel de Substância ───────────────────────────── */
+/* Lista de substâncias: altura relativa ao painel */
+.sub-lista {
+  list-style: none; display: flex; flex-direction: column; gap: .15rem;
+  max-height: clamp(160px, 30vh, 360px); max-height: clamp(160px, 30dvh, 360px);
+  overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--bdr) transparent;
+}
+.sub-lista::-webkit-scrollbar { width: 3px; }
+.sub-lista::-webkit-scrollbar-thumb { background: var(--bdr); }
+.sub-item {
+  display: flex; align-items: center; gap: .4rem;
+  padding: .28rem .48rem;
+  border: 1px solid var(--bdr); border-radius: var(--rs);
+  cursor: pointer; transition: background .12s, border-color .12s; user-select: none;
+}
+.sub-item:hover  { background: var(--bg3); border-color: var(--bdr2); }
+.sub-item.ativa  { background: rgba(154,247,254,.07); border-color: var(--bdr-a); }
+.sub-formula-tag { font-family: var(--mono); font-size: .75rem; color: var(--cyan); font-weight: 600; min-width: 46px; }
+.sub-estado-pill {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: .58rem; font-weight: 700; padding: 1px 5px; border-radius: 8px;
+  flex-shrink: 0; border: 1px solid transparent;
+}
+.sub-estado-pill.solido  { color: var(--solid-col);  background: rgba(96,165,250,.12);  border-color: var(--solid-col); }
+.sub-estado-pill.liquido { color: var(--liquid-col); background: rgba(0,230,150,.12);   border-color: var(--liquid-col); }
+.sub-estado-pill.gasoso  { color: var(--gas-col);    background: rgba(255,176,32,.12);  border-color: var(--gas-col); }
+.sub-lista-vazia{
+  list-style:none; padding:.5rem .3rem; text-align:center;
+  font-size:.68rem; color:var(--tx3); line-height:1.5;
+}
+
+/* ── Termômetro SVG ─────────────────────────────────── */
+.termometro-wrap {
+  display: flex; align-items: stretch; justify-content: center;
+  gap: 8px;
+  /* altura fluida: min 130px, ideal 20vh, máx 200px */
+  height: clamp(130px, 20vh, 200px); height: clamp(130px, 20dvh, 200px);
+}
+.termometro-svg { width: 60px; flex-shrink: 0; }
+.termometro-labels {
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 12px 0 16px;
+  font-family: var(--mono); font-size: .62rem; color: var(--tx2); line-height: 1;
+}
+.termometro-labels .lbl-ebulicao { color: var(--gas-col); }
+.termometro-labels .lbl-fusao    { color: var(--solid-col); }
+#mercurio-coluna, #mercurio-bulbo { transition: fill .5s, y .5s, height .5s; }
+
+/* Descrição do estado */
+#descricao-estado {
+  padding: 8px 10px; background: var(--bg3);
+  border-radius: var(--rs); border-left: 3px solid var(--bdr-a);
+  font-size: .74rem; color: var(--tx2); line-height: 1.5;
+  transition: border-left-color .3s;
+}
+#texto-descricao-estado { margin: 0; }
+
+/* ── Barra de progresso térmico ─────────────────────── */
+.termometro-progresso { position: relative; margin-bottom: 4px; }
+.tp-trilha {
+  display: flex; height: 20px; border-radius: 10px;
+  overflow: hidden; border: 1px solid var(--bdr);
+}
+.tp-zona {
+  flex: 1; display: flex; align-items: center; justify-content: center; font-size: .7rem;
+}
+.tp-zona-solido  { background: rgba(96,165,250,.18); }
+.tp-zona-liquido { background: rgba(0,230,150,.15); }
+.tp-zona-gasoso  { background: rgba(255,176,32,.13); }
+.tp-divisor { width: 2px; background: var(--bdr2); position: relative; flex-shrink: 0; }
+.tp-label-divisor {
+  position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+  font-size: .58rem; color: var(--tx3); white-space: nowrap; font-family: var(--mono);
+}
+.tp-cursor {
+  position: absolute; top: -3px; left: 0%; width: 6px; height: 26px;
+  background: var(--cyan); border-radius: 3px; transform: translateX(-50%);
+  box-shadow: 0 0 8px var(--cyan);
+  transition: left .25s cubic-bezier(.4,0,.2,1);
+  pointer-events: none;
+}
+
+/* ── Área central (sim-area) ─────────────────────────── */
+.sim-area {
+  flex: 1; min-width: 0; min-height: 0;
+  position: relative; overflow: hidden;
+  background: var(--bg0);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 12px 0;
+  /* Borda tracejada, mesmo padrão do SILQ/SIFI/SIMA — transparente
+     em repouso, colorida quando há substância ativa (ver regras
+     logo abaixo, que antes usavam box-shadow sólido). */
+  border: 2px dashed transparent; border-radius: 13px;
+  transition: border-color .2s;
+}
+
+/* SVG do cilindro — responsivo via clamp em largura + aspect-ratio */
+.seringa-svg {
+  width: clamp(120px, calc(100vw - var(--sl) - var(--sr) - 40px), 320px);
+  height: auto;
+  aspect-ratio: 220 / 460;
+  max-height: calc(var(--body-h) - 24px);
+  filter: drop-shadow(0 6px 24px rgba(0,0,0,.55));
+  overflow: visible;
+  transition: width .2s ease;
+}
+
+/* ── Animações SVG ──────────────────────────────────── */
+@keyframes sv-flutua { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+@keyframes sv-onda1  { 0%{transform:scaleX(1) translateX(0)} 50%{transform:scaleX(1.05) translateX(4px)} 100%{transform:scaleX(1) translateX(0)} }
+@keyframes sv-onda2  { 0%{transform:scaleX(1) translateX(0)} 50%{transform:scaleX(.96) translateX(-5px)} 100%{transform:scaleX(1) translateX(0)} }
+@keyframes sv-gas-blob {
+  0%  { opacity:0;   transform:translate(0,8px) scale(.85); }
+  25% { opacity:.9;  transform:translate(4px,0) scale(1); }
+  60% { opacity:.7;  transform:translate(-6px,-10px) scale(1.08); }
+  100%{ opacity:0;   transform:translate(2px,8px) scale(.85); }
+}
+#sv-solido { animation: sv-flutua 4s ease-in-out infinite; }
+.onda-svg.o-svg-1 { animation: sv-onda1 3s ease-in-out infinite; transform-origin: 110px 200px; }
+.onda-svg.o-svg-2 { animation: sv-onda2 4s ease-in-out infinite; transform-origin: 110px 200px; }
+.gas-blob.gb-1 { animation: sv-gas-blob  7s ease-in-out infinite 0s; }
+.gas-blob.gb-2 { animation: sv-gas-blob  9s ease-in-out infinite 2s; }
+.gas-blob.gb-3 { animation: sv-gas-blob  8s ease-in-out infinite 4s; }
+.gas-blob.gb-4 { animation: sv-gas-blob 10s ease-in-out infinite 1.5s; }
+#sv-solido, #sv-liquido, #sv-gasoso { transition: opacity .5s ease; }
+#sv-embolo { transition: transform .28s cubic-bezier(.4,0,.2,1); will-change: transform; }
+
+/* ── Manômetro ──────────────────────────────────────── */
+.manometro-wrap { display: flex; justify-content: center; margin-bottom: 6px; }
+.manometro-svg {
+  /* fluido: ocupa o espaço do sidebar sem exceder */
+  width: clamp(160px, calc(var(--sr) - 40px), 260px);
+  height: auto;
+  aspect-ratio: 1;
+  filter: drop-shadow(0 4px 18px rgba(0,0,0,.55));
+}
+#arco-pressao { transition: stroke .3s ease; }
+
+/* ── Tabela de medidas ──────────────────────────────── */
+.data-grid { display: flex; flex-direction: column; }
+.dr {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: .26rem 0; border-bottom: 1px solid var(--bdr); gap: .5rem;
+}
+.dr:last-child { border-bottom: none; }
+.dr dt { font-size: .66rem; color: var(--tx2); }
+.dr dd { font-family: var(--mono); font-size: .7rem; color: var(--cyan); font-weight: 600; text-align: right; }
+
+/* ── Acessibilidade: ver blocos body.high-contrast / .simple-read /
+   .reduce-motion / .wide-spacing mais abaixo — aplicados via classes
+   no <body> pelo receptor inline em indexsime.html, não via atributos
+   data-* no <html>. ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  .header-logo, .header-brand h1 { animation:pulse-logo-txt 3s ease-in-out infinite; }
+}
+
+/* ════════════════════════════════════════════════════════
+   RESPONSIVIDADE
+   Estratégia: mobile-first via max-width + ajuste dos
+   tokens --sl, --sr e clamp do SVG em cada breakpoint
+════════════════════════════════════════════════════════ */
+
+/* ── ≤1100px: sidebars reduzem, SVG ganha mais espaço ── */
+@media (max-width: 960px) {
+  :root { --sl: clamp(260px, 24vw, 380px); --sr: clamp(260px, 24vw, 380px); }
+  .seringa-svg { width: clamp(120px, calc(100vw - var(--sl) - var(--sr) - 40px), 300px); }
+}
+
+.mode-tabs-mobile { display: none; }
+/* ── ≤900px: sidebars off-canvas, SVG ocupa tudo ─────── */
+@media (max-width: 900px) {
+  :root { --sl: 0px; --sr: 0px; }
+  .mobile-menu-btn { display: flex; }
+  .sidebar {
+    position: fixed; top: var(--hh); bottom: 0;
+    width: clamp(260px, 82vw, 360px);
+    z-index: 100; height: auto;
+    transform: translateX(-110%);
+    transition: transform .25s ease;
+    box-shadow: 4px 0 20px rgba(0,0,0,.5);
+    overflow-y: auto;
+  }
+  /* sidebar esquerda (módulos) fica ESCONDIDA no mobile — a barra de
+     modos rolável (.mode-tabs-mobile, logo abaixo do cabeçalho) assume
+     essa função. */
+  .sidebar--left { display: none; }
+  .sidebar--right {
+    left: 0; right: 0; top: auto; bottom: 0;
+    width: auto; max-width: none; min-width: 0;
+    height: auto; max-height: 75vh;
+    transform: translateY(105%);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,.55);
+    padding-top: .35rem;
+  }
+  .sidebar--right.mobile-open { transform: translateY(0); }
+  .sidebar--right::before {
+    content: ''; display: block; width: 36px; height: 4px; border-radius: 2px;
+    background: var(--bdr); margin: .5rem auto .25rem;
+  }
+
+  .mobile-backdrop {
+    position: fixed; inset: 0; z-index: 90;
+    background: rgba(0,0,0,.55); backdrop-filter: blur(1px);
+  }
+  .mobile-backdrop[hidden] { display: none; }
+  body.reduce-motion .sidebar { transition: none; }
+  /* SVG maior quando sem sidebars */
+  .seringa-svg { width: clamp(150px, 55vw, 380px); }
+  /* Painéis off-canvas: max-height maior */
+  .panel-body { max-height: calc(var(--body-h) * 0.75); }
+  .sub-lista { max-height: clamp(150px, 30vh, 320px); max-height: clamp(150px, 30dvh, 320px); }
+  .manometro-svg { width: clamp(150px, 55vw, 220px); }
+
+  .mode-tabs-mobile {
+    display: flex; gap: .4rem; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: .5rem .6rem; background: var(--bg1); border-bottom: 1px solid var(--bdr);
+    scrollbar-width: thin;
+  }
+  .mode-tab {
+    flex: none; display: flex; align-items: center; gap: .3rem;
+    padding: .4rem .7rem; border-radius: 999px; border: 1px solid var(--bdr);
+    background: transparent; color: var(--tx2);
+    font-size: .78rem; white-space: nowrap; cursor: pointer; min-height: 36px;
+  }
+  .mode-tab .icon { width: 1em; height: 1em; }
+  .mode-tab[aria-selected="true"] {
+    border-color: var(--bdr-a); color: var(--tx1);
+    background: color-mix(in srgb, var(--bdr-a) 18%, transparent);
+  }
+}
+
+.mode-info-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.72); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+  opacity: 0; visibility: hidden; transition: opacity .2s, visibility .2s;
+}
+.mode-info-overlay.aberto { opacity: 1; visibility: visible; }
+.mode-info-modal {
+  background: var(--bg2); border: 1px solid var(--bdr); border-radius: var(--r);
+  width: min(420px, 94vw); max-height: 80vh; max-height: 80dvh; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 56px rgba(0,0,0,.6);
+  transform: scale(.94) translateY(10px);
+  transition: transform .22s cubic-bezier(.34,1.56,.64,1);
+}
+.mode-info-overlay.aberto .mode-info-modal { transform: scale(1) translateY(0); }
+.mode-info-header {
+  display: flex; align-items: center; gap: .6rem; padding: .9rem 1rem;
+  background: var(--bg1); border-bottom: 1px solid var(--bdr); flex-shrink: 0;
+}
+.mode-info-icon { font-size: 1.3rem; color: var(--bdr-a); flex-shrink: 0; display: flex; }
+.mode-info-icon .icon { width: 1.2em; height: 1.2em; }
+.mode-info-title { flex: 1; margin: 0; font-size: 1.02rem; color: var(--tx1); }
+.mode-info-close {
+  background: transparent; border: 1px solid var(--bdr); border-radius: 8px; color: var(--tx2);
+  min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+.mode-info-close:hover, .mode-info-close:focus-visible {
+  background: var(--bg3); color: var(--tx1); border-color: var(--bdr-a);
+  outline: 2px solid var(--bdr-a); outline-offset: 2px;
+}
+.mode-info-body { padding: 1rem; overflow-y: auto; font-size: .88rem; color: var(--tx2); }
+.mode-info-body .mode-define { color: var(--tx1); margin: 0 0 .6rem; line-height: 1.5; }
+@media (pointer: coarse) { .mode-info-close { min-width: 44px; min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .mode-info-modal { transition: none; } }
+
+/* ── ≤640px: celulares médios ────────────────────────── */
+@media (max-width: 640px) {
+  input[type="range"] { height: 6px; }
+  input[type="range"]::-webkit-slider-thumb { width: 18px; height: 18px; }
+  .btn-row   { flex-wrap: wrap; }
+  .action-btn { min-height: 36px; }
+  .seringa-svg { width: clamp(140px, 58vw, 300px); }
+  .termometro-wrap { height: clamp(110px, 18vh, 170px); height: clamp(110px, 18dvh, 170px); }
+}
+
+/* ── ≤480px: celulares pequenos ─────────────────────── */
+@media (max-width: 480px) {
+  .state-pill { display: none; }
+  .seringa-svg { width: clamp(130px, 70vw, 280px); }
+  .panel-body { max-height: calc(var(--body-h) * 0.80); }
+  .sub-lista { max-height: clamp(100px, 22vh, 200px); max-height: clamp(100px, 22dvh, 200px); }
+}
+
+/* ── ≤360px: telas muito pequenas ───────────────────── */
+@media (max-width: 360px) {
+  .sidebar { width: 92vw; }
+  .seringa-svg { width: clamp(120px, 72vw, 240px); }
+}
+
+/* ── Landscape mobile: altura limitada ──────────────── */
+@media (max-height: 420px) and (orientation: landscape) {
+  .seringa-svg {
+    width: auto;
+    height: clamp(150px, 70vh, 320px); height: clamp(150px, 70dvh, 320px);
+    max-height: calc(var(--body-h) - 16px);
+  }
+  .sim-area  { padding: 4px 0; }
+  .panel-body  { max-height: calc(var(--body-h) * 0.85); }
+  .termometro-wrap { height: clamp(100px, 15vh, 140px); height: clamp(100px, 15dvh, 140px); }
+}
+
+/* ── ≥1400px: telas grandes ─────────────────────────── */
+@media (min-width: 1400px) {
+  :root { --sl: clamp(300px, 22vw, 460px); --sr: clamp(300px, 22vw, 460px); }
+  .seringa-svg { width: clamp(150px, calc(100vw - var(--sl) - var(--sr) - 40px), 380px); }
+}
+
+/* ── ≥1800px: ultra-wide ────────────────────────────── */
+@media (min-width: 1800px) {
+  :root { --sl: clamp(340px, 20vw, 520px); --sr: clamp(340px, 20vw, 520px); }
+  .seringa-svg { width: clamp(180px, calc(100vw - var(--sl) - var(--sr) - 40px), 460px); }
+  .manometro-svg { width: clamp(200px, calc(var(--sr) - 40px), 300px); }
+}
+
+/* ── ≥2400px: 4K ─────────────────────────────────────── */
+@media (min-width: 2400px) {
+  :root { --sl: clamp(380px, 18vw, 580px); --sr: clamp(380px, 18vw, 580px); }
+  .seringa-svg { width: clamp(200px, calc(100vw - var(--sl) - var(--sr) - 40px), 540px); }
+  .panel-body { max-height: calc(var(--body-h) * 0.70); }
+}
+
+/* Valor inline no cabeçalho do painel */
+.panel-valor {
+  font-family: var(--mono);
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--amber);
+  margin-left: auto;
+  margin-right: .4rem;
+  white-space: nowrap;
+}
+/* Separador visual entre grupos de medidas */
+.dr-sep { border-top: 1px solid var(--bdr2); margin-top: .2rem; padding-top: .2rem; }
+
+/* ═══════════════════════════════════════════════════════
+   ACESSIBILIDADE — mesma técnica do SIMA
+   WCAG 2.1 AA: contrastes ≥4.5:1, foco 3px, skip-links,
+   alto contraste, tema claro, leitura simples, daltonismo
+═══════════════════════════════════════════════════════ */
+
+/* Escala de fonte dinâmica */
+:root { --font-scale: 1; }
+body { font-size: calc(13px * var(--font-scale) * var(--a11y-font-scale)); }
+
+/* ── Skip-nav ── */
+.skip-nav { position: absolute; top: 0; left: 0; z-index: 9999; }
+.skip-link {
+  position: absolute; transform: translateY(-100%);
+  background: var(--cyan); color: #04101a;
+  padding: .4rem .9rem; border-radius: 0 0 var(--r) 0;
+  font-weight: 700; font-size: .85rem; text-decoration: none;
+  transition: transform .15s;
+}
+.skip-link:focus { transform: translateY(0); outline: 3px solid #fff; outline-offset: 2px; }
+.skip-link:focus ~ .keyboard-hints,
+.keyboard-hints:focus-within { top: var(--hh); }
+
+/* ── Região visualmente oculta (leitores de tela) ── */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
+}
+
+/* ── Foco visível ── */
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+*:focus:not(:focus-visible) { outline: none; }
+
+/* ── Dicas de teclado ── */
+.keyboard-hints {
+  position: absolute; top: -100%; left: 0; right: 0;
+  background: var(--bg2); border-bottom: 1px solid var(--bdr);
+  padding: .3rem .8rem; font-size: .65rem; color: var(--tx3);
+  display: flex; gap: .8rem; flex-wrap: wrap; z-index: 200;
+  transition: top .15s;
+}
+kbd {
+  background: var(--bg3); border: 1px solid var(--bdr);
+  border-radius: 3px; padding: .05rem .3rem;
+  font-family: var(--mono); font-size: .6rem; color: var(--tx2);
+}
+
+/* ── Botão de pausa ── */
+.a11y-bar { display: flex; align-items: center; gap: .22rem; }
+.a11y-btn {
+  padding: .28rem .55rem;
+  border: 1px solid var(--bdr); background: var(--bg2);
+  color: var(--tx2); cursor: pointer;
+  font-size: .72rem; font-weight: 500;
+  border-radius: var(--rs);
+  white-space: nowrap; transition: all .15s; line-height: 1;
+}
+.a11y-btn:hover { background: var(--bg3); color: var(--tx1); border-color: var(--bdr2); }
+.a11y-btn[aria-pressed="true"] {
+  background: rgba(139,92,246,.18); color: var(--violet);
+  border-color: var(--violet);
+}
+.a11y-btn--icon {
+  width: 32px; padding: .28rem 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .85rem;
+}
+
+/* ── Overlay de daltonismo ── */
+#colorblindOverlay {
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 9999;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ── Tema claro (body.light-mode) ── */
+/* BUG CORRIGIDO: a regra `html, body` (linha ~100) pinta o fundo com
+   var(--bg0), mas as variaveis do tema claro estavam declaradas apenas em
+   `body.light-mode`. Variavel definida no <body> nao sobe para o <html>,
+   entao o elemento raiz ficava com o #07 0c 18 do tema escuro. Medido no
+   Chromium: html background = rgb(7,12,24) com a pagina clara.
+   Isso aparece como faixa escura nas bordas quando o body nao preenche
+   toda a viewport, e no overscroll do navegador.
+   A regra abaixo aplica as mesmas variaveis no <html>, usando :has()
+   para ler a classe que o a11y.js liga no <body>. */
+html:has(body.light-mode) {
+  --bg0: #f0f4f8; --bg1: #e4eaf2; --bg2: #d8e2ee; --bg3: #ccd6e6;
+  --tx1: #0d1a2e;
+}
+
+body.light-mode {
+  --bg0: #f0f4f8; --bg1: #e4eaf2; --bg2: #d8e2ee; --bg3: #ccd6e6;
+  --bdr: #9badc4; --bdr2: #8EBFBF; --bdr-a: #037070;
+  --cyan: #037070; --green: #1a8a5a; --amber: #92400e;
+  --red: #b91c1c; --violet: #5b21b6;
+  --tx1: #0d1a2e; --tx2: #2c4a6e; --tx3: #5a7898;
+  --solid-col: #1d4ed8; --liquid-col: #047857; --gas-col: #92400e;
+}
+body.light-mode .app-header    { background: var(--bg1); }
+body.light-mode .sidebar { background: var(--bg1); }
+body.light-mode .panel         { background: var(--bg2); }
+body.light-mode .sim-area      { background: #f0f4f8; }   /* o tom da área central do SIMA */
+body.light-mode .header-brand h1,
+body.light-mode .header-logo   { animation:pulse-logo 3s ease-in-out infinite; }
+
+/* ── Alto contraste (body.high-contrast) ── */
+body.high-contrast {
+  --bg0: #000; --bg1: #000; --bg2: #111; --bg3: #222;
+  --bdr: #fff; --bdr2: #fff; --bdr-a: var(--hc-fg);
+  --cyan: #0ff; --green: #0f0; --amber: var(--hc-fg);
+  --red: #f00; --violet: #f0f;
+  --tx1: #fff; --tx2: #fff; --tx3: #ccc;
+}
+body.high-contrast .panel-header:hover { background: #333; }
+body.high-contrast .panel          { border-width: 2px; }
+body.high-contrast .header-brand h1,
+body.high-contrast .header-logo    { animation:pulse-logo 3s ease-in-out infinite; }
+body.high-contrast .sub-item.ativa { border-color: var(--hc-fg); box-shadow: 0 0 0 2px var(--hc-fg); }
+
+/* ── Leitura simples (body.simple-read) ── */
+body.simple-read *,
+body.simple-read *::before,
+body.simple-read *::after { animation: none !important; transition: none !important; }
+body.simple-read {
+  --font-scale: 1.08;
+  --tx1: #e8f4ff; --tx2: #a0c0e0;
+}
+body.simple-read .seringa-svg { filter: contrast(1.15) brightness(1.05); }
+
+/* ── Redução de movimento ── */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after { animation: none !important; transition-duration: .01ms !important; }
+
+/* ── Espaçamento ampliado (body.wide-spacing) ── */
+body.wide-spacing,
+body.wide-spacing * {
+  letter-spacing: 0.12em !important;
+  word-spacing:   0.16em !important;
+  line-height:    1.7    !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  .header-logo, .header-brand h1 { animation:pulse-logo-txt 3s ease-in-out infinite; }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .a11y-bar { gap: .1rem; }
+  .a11y-btn { padding: .25rem .4rem; font-size: .65rem; }
+  .keyboard-hints { display: none; }
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   SIDEBARS REDIMENSIONÁVEIS
+   Alça (criada via JS) na borda interna de cada sidebar; arrastar
+   ajusta a variável CSS de largura. Desativada quando a sidebar
+   vira gaveta mobile (breakpoint abaixo) — nesse modo a largura é
+   controlada pelo CSS da gaveta, não pelo usuário.
+════════════════════════════════════════════════════════════════ */
+.sidebar-resizer{
+  position:absolute; top:0; bottom:0; width:7px;
+  cursor:col-resize; z-index:40; background:transparent;
+  transition:background .15s; touch-action:none;
+}
+.sidebar-resizer--left{ right:-3px; }
+.sidebar-resizer--right{ left:-3px; }
+.sidebar-resizer:hover,
+.sidebar-resizer.dragging{ background:rgba(154,247,254,.45); }
+@media(max-width:900px){ .sidebar-resizer{ display:none; } }
+
+
+/* =====================================================================
+   PADRÃO SILQ — DESCRIÇÃO BREVE E FATOS DO MÓDULO
+   ---------------------------------------------------------------------
+   Mesmas primitivas do menu de módulos do SILQ e dos módulos do
+   2º/3º ano, para que a aparência dos painéis seja igual em todo o
+   ecossistema. Só as VARIÁVEIS deste simulador são usadas, então a
+   identidade de cor (azul-ciano) continua intacta.
+
+     .mode-define          descrição breve, no topo do painel
+     .fact-grid/.fact-cell fatos-chave em pares rótulo/valor
+     .mode-note            dica (variante --warning para ressalva)
+   ===================================================================== */
+
+.mode-define{
+  margin:0 0 .5rem; padding-left:.5rem;
+  border-left:2px solid var(--cyan);
+  font-size:.7rem; line-height:1.5; color:var(--tx2);
+}
+.mode-define strong{ color:var(--tx1); }
+
+.fact-grid{ display:grid; grid-template-columns:1fr 1fr; gap:.3rem; margin:.5rem 0; }
+.fact-cell{
+  display:flex; flex-direction:column; gap:.1rem;
+  padding:6px 8px; border-radius:7px;
+  background:var(--bg2); border:1px solid var(--bdr);
+}
+.fact-label{
+  font-size:.58rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--tx3);
+}
+.fact-value{ font-size:.72rem; font-weight:700; color:var(--tx1); line-height:1.25; }
+
+.mode-note{
+  display:flex; gap:.35rem; align-items:flex-start;
+  margin:.5rem 0 0; padding:.38rem .45rem; border-radius:var(--rs);
+  border:1px solid var(--bdr); background:var(--bg2);
+  font-size:.66rem; line-height:1.45; color:var(--tx2);
+}
+.mode-note strong{ color:var(--tx1); }
+.mode-note-icon{ flex-shrink:0; font-size:.75rem; line-height:1.3; }
+.mode-note--warning{ border-color:var(--amber); background:rgba(255,170,68,.08); }
+
+@media (max-width:520px){ .fact-grid{ grid-template-columns:1fr; } }
+
+body.high-contrast .fact-cell,
+body.high-contrast .mode-note{ border:2px solid var(--hc-fg) !important; background:var(--hc-bg) !important; }
+body.high-contrast .fact-label{ color:var(--hc-fg) !important; }
+body.high-contrast .mode-define{ border-left-color:var(--hc-fg) !important; }
+
+/* CORRECAO: estas regras foram escritas com "body.simple-read",
+   nome copiado do SILQ antigo. O a11y.js liga "body.simple-read"
+   (sem o "ing"). Estavam inertes. */
+body.simple-read .mode-define,
+body.simple-read .mode-note{ line-height:1.75; font-size:.74rem; }
+
+/* =====================================================================
+   MÓDULOS DE ESTADO FÍSICO — Gases / Líquidos / Sólidos
+   ---------------------------------------------------------------------
+   Réplica do padrão .panel--mode do SIMA (cartão de módulo ativável na
+   coluna esquerda), adaptado às primitivas que o SIME já usa:
+     • o SIME abre/fecha painéis via atributo [data-open] no .panel
+       (paineis-recolhiveis.js), não via [aria-expanded] no header como
+       o SIMA — por isso os seletores abaixo usam .panel--mode[data-open]
+       em vez de .panel-header[aria-expanded]; o COMPORTAMENTO visual
+       (cabeçalho tingido da cor do módulo quando aberto, chevron que
+       gira, badge que reforça a cor) é o mesmo.
+     • cada módulo (Gasoso/Líquido/Sólido) ganha sua cor a partir das
+       variáveis --gas-col/--liquid-col/--solid-col que este arquivo já
+       definia no :root, em vez de cores novas — a identidade visual dos
+       3 estados físicos já usada no pill do cabeçalho e nas zonas da
+       barra térmica passa a valer também para o menu de módulos.
+   ===================================================================== */
+.panel--mode{ --mod:var(--cyan); --mod-rgb:154,247,254; }
+.panel--mode[data-modulo="gasoso"] { --mod:var(--gas-col);    --mod-rgb:255,176,32; }
+.panel--mode[data-modulo="liquido"]{ --mod:var(--liquid-col); --mod-rgb:0,230,150;  }
+.panel--mode[data-modulo="solido"] { --mod:var(--solid-col);  --mod-rgb:96,165,250; }
+
+/* BUG CORRIGIDO: o .panel-body genérico usa display:flex + gap:.48rem
+   (pensado para os painéis "normais" da direita, cujo conteúdo não tem
+   margem própria). Dentro de um cartão de módulo, porém, cada filho
+   (botão Ativar, definição, fact-grid, interações, chips, nota) já traz
+   sua própria margem — copiada do SIMA de propósito, para o espaçamento
+   vertical bater exatamente com o de lá. Manter o gap do flex JUNTO
+   dessas margens somava os dois, deixando tudo mais espaçado do que no
+   SIMA (o botão "Ativar módulo" ficava colado no cabeçalho porque a
+   margem própria dele tinha sido zerada por engano, e o restante do
+   corpo ficava com espaço extra por causa do gap). Zerar o gap aqui
+   devolve o controle de espaçamento inteiramente para as margens, como
+   no SIMA. */
+.panel--mode .panel-body{ gap:0; }
+
+.panel--mode[data-open="true"]{
+  border-color:rgba(var(--mod-rgb),.4);
+  box-shadow:0 0 0 1px rgba(var(--mod-rgb),.12);
+}
+.panel--mode .panel-header:hover{ background:rgba(var(--mod-rgb),.08); color:var(--mod); }
+.panel--mode[data-open="true"] .panel-header{
+  background:linear-gradient(135deg, rgba(var(--mod-rgb),.14), rgba(var(--mod-rgb),.05));
+  color:var(--mod);
+  border-bottom-color:rgba(var(--mod-rgb),.2);
+}
+.panel--mode[data-open="true"] .chevron{ color:var(--mod); }
+.panel--mode .panel-badge{
+  font-size:.6rem; font-weight:700;
+  background:rgba(var(--mod-rgb),.2); color:var(--mod);
+  border-radius:10px; padding:1px 6px; min-width:18px;
+  text-align:center; flex-shrink:0;
+}
+.panel--mode[data-open="true"] .panel-badge{ background:rgba(var(--mod-rgb),.35); }
+.panel--mode .mode-define{
+  margin:0 0 10px; padding:6px 8px;
+  background:var(--bg1);
+  border-left:3px solid var(--mod);
+  border-radius:0 6px 6px 0;
+}
+.panel--mode .fact-grid{ margin:0 0 10px; gap:5px; }
+.panel--mode .canvas-interactions{ margin:10px 0 6px; }
+.panel--mode .recommended{ margin-top:8px; }
+.panel--mode .mode-note{
+  gap:6px; margin:8px 0 0; padding:6px 8px; border-radius:6px;
+  background:rgba(var(--mod-rgb),.06); border-color:rgba(var(--mod-rgb),.18);
+}
+
+/* selo "Ativo" no cabeçalho — só aparece quando o módulo está ativado */
+.mode-active-tag{
+  display:none;
+  font-size:.55rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  padding:1px 5px; border-radius:10px;
+  background:rgba(var(--mod-rgb),.25); color:var(--mod); flex-shrink:0;
+}
+.panel--mode:has(.mode-activate-btn[aria-pressed="true"]) .mode-active-tag{ display:inline-block; }
+
+/* botão Ativar/Desativar módulo */
+.mode-activate-btn{
+  display:flex; align-items:center; gap:8px; width:100%;
+  padding:.5rem .75rem; margin:8px 0 10px;
+  border-radius:var(--rs);
+  border:1.5px solid var(--bdr);
+  background:var(--bg3);
+  color:var(--tx1);
+  font-size:.75rem; font-weight:700; font-family:var(--font);
+  cursor:pointer; transition:all .18s; text-align:left;
+}
+.mode-activate-btn:hover{ border-color:var(--mod); background:rgba(var(--mod-rgb),.08); color:var(--mod); }
+.mode-activate-btn[aria-pressed="true"]{
+  background:rgba(var(--mod-rgb),.15); border-color:var(--mod); color:var(--mod);
+  box-shadow:0 0 0 3px rgba(var(--mod-rgb),.2);
+}
+/* sufixo "· ativo" / "· desativar" — texto simples, sem símbolo de check */
+.mode-activate-btn[aria-pressed="true"]::after{
+  content:' · ativo'; font-size:.65rem; font-weight:600; opacity:.8; margin-left:auto;
+}
+.mode-activate-btn[aria-pressed="true"]:hover::after{ content:' · desativar'; opacity:1; }
+.mode-activate-btn:focus-visible{ outline:2px solid var(--mod); outline-offset:2px; }
+
+.mode-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; background:var(--mod); box-shadow:0 0 6px var(--mod); }
+
+/* interações do cilindro (= .canvas-interactions do SIMA) */
+.canvas-interactions{ margin:.5rem 0 .3rem; border:1px solid var(--bdr); border-radius:var(--rs); overflow:hidden; }
+.canvas-interactions-title{
+  margin:0; font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+  color:var(--tx3); padding:.3rem .5rem; background:var(--bg3); border-bottom:1px solid var(--bdr);
+}
+.canvas-interactions p:not(.canvas-interactions-title){ margin:0; padding:.4rem .5rem; font-size:.68rem; line-height:1.5; color:var(--tx2); }
+.canvas-interactions strong{ color:var(--tx1); }
+
+/* exemplos recomendados — chips CLICÁVEIS (diferente do SIMA: aqui cada
+   chip seleciona a substância diretamente, funcionando como atalho) */
+.recommended{ margin-top:.3rem; }
+.recommended-title{ margin:0 0 .2rem; font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--tx3); }
+.chip-row{ display:flex; flex-wrap:wrap; gap:.3rem; }
+.chip{
+  font-size:.68rem; font-weight:700; padding:3px 8px; border-radius:12px;
+  background:rgba(var(--mod-rgb),.12); color:var(--mod);
+  border:1px solid rgba(var(--mod-rgb),.3); cursor:pointer; font-family:var(--font);
+  transition:background .15s, transform .1s;
+}
+.chip:hover{ background:rgba(var(--mod-rgb),.25); }
+.chip:active{ transform:scale(.95); }
+.chip:focus-visible{ outline:2px solid var(--mod); outline-offset:2px; }
+
+body.high-contrast .panel--mode{ border:2px solid var(--hc-fg) !important; }
+body.high-contrast .canvas-interactions,
+body.high-contrast .chip{ border:2px solid var(--hc-fg) !important; background:var(--hc-bg) !important; color:#fff !important; }
+body.high-contrast .canvas-interactions-title,
+body.high-contrast .recommended-title{ color:var(--hc-fg) !important; }
+body.high-contrast .mode-activate-btn{ border:2px solid var(--hc-fg) !important; color:var(--hc-fg) !important; }
+body.high-contrast .mode-activate-btn[aria-pressed="true"]{ background:var(--hc-fg) !important; color:var(--hc-bg) !important; }
+body.high-contrast .mode-active-tag{ background:var(--hc-fg) !important; color:var(--hc-bg) !important; }
+body.high-contrast .mode-dot{ background:var(--hc-fg) !important; }
+
+body.simple-read .canvas-interactions p{ line-height:1.75; font-size:.74rem; }
+
+/* ---------------------------------------------------------------------
+   FOCO NO MÓDULO ATIVO — mesma regra :has() do SIMA: ao ativar um
+   módulo, os outros dois cartões somem da coluna esquerda (display:none,
+   não visibility/opacity, para tirá-los também do foco por teclado e da
+   leitura de tela). Sem módulo ativo, os três voltam a aparecer.
+   --------------------------------------------------------------------- */
+#sidebar-left:has(.mode-activate-btn[aria-pressed="true"])
+  .panel--mode:not(:has(.mode-activate-btn[aria-pressed="true"])) {
+  display: none;
+}
+
+/* =====================================================================
+   SIDEBAR DIREITA TRANCADA ATÉ ATIVAR UM MÓDULO
+   ---------------------------------------------------------------------
+   Pedido explícito: substância, controles e medidas só ficam disponíveis
+   depois que o usuário escolhe um módulo de estado físico à esquerda.
+   Duas camadas, cada uma com seu papel:
+     • ESTE CSS cuida da APARÊNCIA (opacidade + pointer-events:none) e
+       reage sozinho, via :has(), ao mesmo aria-pressed que os botões
+       "Ativar módulo" já mantêm — sem precisar de nenhuma classe extra
+       controlada por JS.
+     • o atributo `inert` (ligado/desligado via JS em
+       ui/painel-modulos.js, função atualizarTrancaSidebarDireita) cuida
+       do BLOQUEIO de verdade: enquanto ativo, tira os 3 painéis do foco
+       por Tab e da leitura de tela — pointer-events:none sozinho impede
+       o clique do mouse, mas não o teclado nem o leitor de tela.
+   ===================================================================== */
+.sidebar-lock-hint{
+  display: none;
+  align-items: flex-start; gap: .5rem;
+  padding: .6rem .65rem;
+  border: 1px dashed var(--bdr2); border-radius: var(--r);
+  background: var(--bg2); color: var(--tx2);
+  font-size: .72rem; line-height: 1.55;
+}
+.sidebar-lock-hint .icon{ width: 1.3em; height: 1.3em; flex-shrink: 0; margin-top: .1em; color: var(--cyan); }
+.sidebar-lock-hint strong{ color: var(--tx1); }
+
+body:not(:has(.mode-activate-btn[aria-pressed="true"])) .sidebar-lock-hint{
+  display: flex;
+}
+body:not(:has(.mode-activate-btn[aria-pressed="true"])) #sidebar-right > .panel{
+  opacity: .4;
+  filter: grayscale(.35);
+  pointer-events: none;
+  transition: opacity .25s ease, filter .25s ease;
+}
+body.high-contrast:not(:has(.mode-activate-btn[aria-pressed="true"])) #sidebar-right > .panel{
+  opacity: 1; filter: none; border-style: dashed;
+}
+body.high-contrast .sidebar-lock-hint{ border: 2px solid var(--hc-fg) !important; color: var(--hc-fg) !important; }
+body.simple-read .sidebar-lock-hint{ font-size: .78rem; line-height: 1.75; }
+
+
+/* ---------------------------------------------------------------------
+   SKIP-LINK — contraste corrigido
+   ---------------------------------------------------------------------
+   Medido no Chromium com o link em foco (ele vive em left:-9999px e so
+   aparece ao receber foco, por isso a medicao exige focus()).
+
+   O fundo do skip-link vem do acento do simulador, e o acento MUDA no
+   tema claro — normalmente escurecendo. Com o texto fixo, o par deixava
+   de contrastar em um dos dois temas. As regras abaixo declaram o texto
+   por tema, com o valor que a medicao mostrou ser o melhor.
+   --------------------------------------------------------------------- */
+body.light-mode .skip-link{ color:#fff; }   /* 5.03:1 */
+
+/* =====================================================================
+   CLARO + ALTO CONTRASTE — PRECEDENCIA CORRIGIDA
+   ---------------------------------------------------------------------
+   BUG: `body.high-contrast` e `body.light-mode` tem a MESMA
+   especificidade (0,1,1). Quando os dois estao ativos, vence o que
+   aparece por ultimo no arquivo — e neste CSS o bloco do tema claro vem
+   DEPOIS do bloco de alto contraste. Resultado medido no Chromium:
+
+       contraste        body bg = rgb(0,0,0)        -> 0 textos <3:1
+       claro+contraste  body bg = rgb(240,244,248)  -> varios <3:1
+
+   Ou seja: com os dois ligados, o fundo voltava a ser CLARO enquanto os
+   acentos continuavam amarelos (#ff0), que existem para fundo escuro.
+   O modo de acessibilidade piorava a legibilidade.
+
+   CORRECAO: reafirmar a paleta de alto contraste num seletor de
+   especificidade maior (0,2,1). Assim o alto contraste vence o tema
+   claro, que e o comportamento correto — alto contraste e um esquema
+   visual proprio, nao um ajuste sobre o tema.
+   ===================================================================== */
+
+/* Reafirma a paleta de alto contraste com especificidade (0,2,1),
+   para ela vencer body.light-mode (0,1,1), que neste arquivo aparece
+   DEPOIS e por isso ganhava no empate. */
+body.high-contrast.light-mode {
+  --bg0: #000; --bg1: #000; --bg2: #111; --bg3: #222;
+  --bdr: #fff; --bdr2: #fff; --bdr-a: var(--hc-fg);
+  --cyan: #0ff; --green: #0f0; --amber: var(--hc-fg);
+  --red: #f00; --violet: #f0f;
+  --tx1: #fff; --tx2: #fff; --tx3: #ccc;
+}
+
+/* =====================================================================
+   ESTADO VAZIO E REALCE DA AREA CENTRAL
+   ---------------------------------------------------------------------
+   O SIME agora abre sem substancia (scriptsime.js nao chama mais
+   selecionarSubstancia(agua) na inicializacao). Duas consequencias
+   visuais, ambas resolvidas so com CSS:
+
+   1. Enquanto nada esta escolhido, a .sim-hint orienta a escolha e o
+      cilindro aparece vazio.
+   2. Ao escolher, a lista recebe .sub-item.ativa e o :has() liga o anel
+      de 2px na area central — mesmo padrao do anel do canvas do SICQ.
+
+   Por que o :has() sai do <body>: a #sim-area e IRMA da coluna da
+   esquerda, nao filha. Nao da para atravessar de lado com seletor CSS,
+   so subindo ate o ancestral comum e descendo de novo.
+   ===================================================================== */
+.sim-hint{
+  /* no ALTO da área (não no centro): no centro, o cilindro é desenhado por cima e a cortava */
+  position:absolute; top:2.2rem; left:50%; transform:translateX(-50%);
+  pointer-events:none; text-align:center; max-width:80%;
+  /* --tx2 e nao --tx3: medido no Chromium, --tx3 da 2,27:1 sobre o fundo
+     escuro e 4,15:1 sobre o claro — reprova nos dois. --tx2 marca 6,36:1
+     no escuro, 8,22:1 no claro e 21:1 no alto contraste. */
+  font-size:.82rem; font-style:italic; color:var(--tx2); line-height:1.5;
+}
+body:has(#sub-lista .sub-item.ativa) .sim-hint{ display:none; }
+
+body:has(#sub-lista .sub-item.ativa) #sim-area{
+  border-color: color-mix(in srgb, var(--cyan) 45%, transparent);
+}
+body.light-mode:has(#sub-lista .sub-item.ativa) #sim-area{
+  border-color: color-mix(in srgb, var(--cyan) 55%, transparent);
+}
+/* empata em especificidade com a regra do tema claro e vence pela ordem
+   no arquivo; o !important tira a dependencia dessa ordem. */
+body.high-contrast:has(#sub-lista .sub-item.ativa) #sim-area{
+  border-color: var(--hc-fg) !important;
+}
+
+/* Badge de estado sem conteudo: tom apagado e sem cor de fase, para nao
+   parecer que ha um estado ativo. O rotulo .sr-only dentro dele continua
+   sendo lido pelo leitor de tela. */
+.state-pill--vazio{
+  color:var(--tx2); border-color:var(--bdr); background:none;
+  font-style:italic; opacity:.85;
+}
+
+/* PADRONIZAÇÃO SIMA: o cabeçalho não tem mais nenhuma regra de
+   estreitamento por media query — nem encolher fonte, nem esconder o
+   rótulo "1º Ano", nem ocultar o subtítulo. Mesmo mecanismo do SIMA:
+   .header-brand > div tem min-width:0 e .header-sub trunca sozinho com
+   reticências (overflow:hidden + text-overflow:ellipsis) — o botão de
+   voltar (.header-back) tem flex-shrink:0 e por isso nunca encolhe nem
+   precisa de proteção extra. Um histórico de duas versões anteriores
+   deste bloco (uma que escondia o rótulo de navegação por engano, outra
+   que escondia o subtítulo via clip-path) foi removido — nenhuma das
+   duas existe no SIMA, então nenhuma delas deveria existir aqui. */
+
+
+/* ═══ BARRA DE ROLAGEM — estilo consistente (auto-inserido) ═══ */
+/* Troca a barra de rolagem padrão do sistema (cinza, quadrada) por uma
+   fina e na cor do tema — aplicado de forma GERAL (seletor *) pra
+   cobrir sidebars, bottom sheet, barras de aba e qualquer área com
+   rolagem que ainda não tinha estilo próprio. Onde já existe uma regra
+   mais específica em algum lugar do arquivo (ex.: .modal-body::-webkit-
+   scrollbar), ela continua valendo — seletor de classe é mais
+   específico que o universal, então nada muda para quem já tinha
+   estilo. As cores usam var(--bdr)/var(--bdr-a): como essas
+   variáveis já mudam sozinhas por tema (claro/escuro/alto contraste),
+   a barra de rolagem acompanha automaticamente, sem regra extra. */
+* { scrollbar-width: thin; scrollbar-color: var(--bdr) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--bdr); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--bdr-a); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* ════════════════════════════════════════════════════════════════
+   COACHMARK — balão flutuante do tour guiado (ver js/coachmark.js e
+   js/a11y/tour.js). Mesma estética já usada no SILQ/SIQI/SITP,
+   adaptada aos tokens do SIME (--bg2, --bdr, --bdr-a, --tx1/--tx2).
+   ════════════════════════════════════════════════════════════════ */
+.coach-overlay{ position:fixed; inset:0; z-index:500; }
+.coach-spot{
+  position:fixed; z-index:501; border-radius:10px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.65);
+  border:2px solid var(--bdr-a);
+  pointer-events:none;
+  transition:top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+}
+.coach-overlay:has(.coach-spot[hidden])::before{
+  content:''; position:fixed; inset:0; z-index:501; background:rgba(0,0,0,.65);
+}
+.coach-balao{
+  position:fixed; z-index:502; width:min(320px, 88vw);
+  background:var(--bg2); border:1px solid var(--bdr); border-radius:var(--r,10px);
+  padding:18px 18px 14px; box-shadow:0 20px 48px rgba(0,0,0,.5);
+  transition:top .25s ease, left .25s ease;
+}
+.coach-balao--centro{ position:fixed; top:50% !important; left:50% !important; transform:translate(-50%,-50%); }
+.coach-pular{
+  position:absolute; top:10px; right:12px;
+  background:none; border:none; color:var(--tx2); font-size:12px; cursor:pointer;
+  padding:4px 6px; border-radius:6px;
+}
+.coach-pular:hover{ color:var(--tx1); background:var(--bg3); }
+.coach-titulo{ font-weight:700; font-size:16px; color:var(--tx1); margin:4px 30px 8px 0; }
+.coach-texto{ font-size:13.5px; color:var(--tx2); line-height:1.55; margin:0 0 16px; }
+.coach-rodape{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.coach-pontos{ display:flex; gap:5px; }
+.coach-ponto{ width:6px; height:6px; border-radius:50%; background:var(--bdr); }
+.coach-ponto--ativo{ background:var(--bdr-a); width:16px; border-radius:3px; }
+.coach-botoes{ display:flex; gap:8px; }
+.coach-btn{ font-weight:600; font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer; transition:filter .2s, background .2s; }
+.coach-btn--voltar{ background:transparent; border:1px solid var(--bdr); color:var(--tx2); }
+.coach-btn--voltar:hover{ background:var(--bg3); }
+.coach-btn--avancar{ background:var(--bdr-a); border:1px solid var(--bdr-a); color:#04141A; }
+.coach-btn--avancar:hover{ filter:brightness(1.1); }
+@media (max-width:480px){
+  .coach-balao{ padding:16px 16px 12px; }
+  .coach-rodape{ flex-direction:column; align-items:stretch; gap:12px; }
+  .coach-botoes{ justify-content:space-between; }
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   TRILHO RECOLHÍVEL DAS SIDEBARS  ·  somente desktop (> 900px)
+   ────────────────────────────────────────────────────────────────
+   Bloco acrescentado por ferramenta; nenhuma regra acima foi tocada.
+   Tudo aqui vive dentro de @media (min-width: 901px). Abaixo
+   disso vale o layout mobile que já existia — bottom sheet para os
+   controles, barra de modos rolável no lugar da sidebar esquerda —
+   e nada daqui chega a ser aplicado.
+
+   Três estados por sidebar:
+     (1) fixada    → como sempre foi, no fluxo
+     (2) recolhida → sai do fluxo; um trilho de 56px fica no lugar
+     (3) flutuante → volta por cima do canvas, SEM empurrá-lo
+
+   O estado (3) é position:absolute de propósito: elemento absoluto
+   não participa do flex, então o canvas não muda de largura ao abrir
+   um painel — e nada é remedido nem reconstruído no meio de uma
+   simulação em andamento.
+
+   Cores, raios e sombras saem de variáveis já definidas no topo
+   deste arquivo, então tema claro e leitura simplificada valem sem
+   regra extra. As exceções de alto contraste vêm no fim, no mesmo
+   padrão do resto da folha.
+   ════════════════════════════════════════════════════════════════ */
+@media (min-width: 901px) {
+
+  /* Âncora do flutuante: a classe é posta pelo JS no pai REAL de cada
+     sidebar. Não dá para fixar em .app-main — em parte dos simuladores
+     do 1º ano o #main-content é o próprio canvas e as sidebars são
+     irmãs dele, e num deles não existe container nomeado nenhum. */
+  .rail-host { position: relative; }
+
+  /* ── o trilho ─────────────────────────────────────────────── */
+  .rail {
+    display: flex; flex-direction: column; align-items: center;
+    gap: .3rem; width: 56px; flex-shrink: 0; padding: .5rem 0;
+    background: var(--rail-bg, var(--bg-panel, #0c1520));
+    overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar { width: 0; }
+  .rail[hidden] { display: none; }
+  .rail--left  { border-right: 1px solid var(--rail-borda, var(--border, #1c2e44)); }
+  .rail--right { border-left:  1px solid var(--rail-borda, var(--border, #1c2e44)); }
+  .rail-sep {
+    width: 24px; height: 1px; flex-shrink: 0;
+    background: var(--rail-borda, var(--border, #1c2e44)); margin: .15rem 0 .25rem;
+  }
+
+  /* ── botões ───────────────────────────────────────────────── */
+  .rail-btn {
+    position: relative; width: 40px; height: 40px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid transparent; border-radius: var(--radius, 10px);
+    background: transparent; color: var(--rail-fg-suave, var(--text-secondary, #9ab));
+    cursor: pointer; padding: 0;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .rail-btn[hidden] { display: none; }
+  .rail-btn:hover { background: var(--rail-hover, var(--bg-hover, #16263a)); color: var(--rail-fg, var(--text-primary, #eaf2fb)); }
+  .rail-btn:focus-visible { outline: 2px solid var(--rail-acento, var(--accent-main, #7AE9FF)); outline-offset: 2px; }
+  .rail-btn[aria-expanded="true"] {
+    color: var(--rail-acento, var(--accent-main, #7AE9FF));
+    border-color: var(--rail-acento, var(--border-active, var(--accent-main, #7AE9FF)));
+    background: var(--rail-hover, var(--bg-panel2, #101c2b));
+  }
+  .rail-ico { display: flex; font-size: 1.05rem; }
+  /* reserva para painéis sem desenho de ícone (ver preencherIcone) */
+  .rail-ico--letra {
+    font: 600 .82rem/1 system-ui, sans-serif; letter-spacing: .02em;
+    align-items: center; justify-content: center;
+    width: 1.15em; height: 1.15em;
+  }
+  .rail-ico svg, .rail-ico .icon { width: 1.15em; height: 1.15em; }
+  .rail-btn--expand { color: var(--rail-fg-suave, var(--text-muted, #7a9ab8)); }
+
+  /* ── etiqueta: ícone sozinho não se explica ───────────────── */
+  .rail-tip {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    white-space: nowrap; pointer-events: none;
+    background: var(--rail-bg, var(--bg-panel2, #101c2b)); color: var(--rail-fg, var(--text-primary, #eaf2fb));
+    border: 1px solid var(--rail-borda, var(--border, #1c2e44));
+    border-radius: var(--radius-sm, 6px);
+    padding: .25rem .5rem; font-size: .72rem; line-height: 1.2;
+    box-shadow: 0 4px 14px rgba(0,0,0,.45);
+    opacity: 0; visibility: hidden; transition: opacity .12s ease; z-index: 70;
+  }
+  .rail--left  .rail-tip { left: calc(100% + 6px); }
+  .rail--right .rail-tip { right: calc(100% + 6px); }
+  .rail-btn:hover .rail-tip, .rail-btn:focus-visible .rail-tip {
+    opacity: 1; visibility: visible;
+  }
+
+  /* ── botão de recolher, dentro da sidebar ─────────────────── */
+  .rail-toggle {
+    flex-shrink: 0; width: 26px; height: 26px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--rail-borda, var(--border, #1c2e44)); border-radius: var(--radius-sm, 6px);
+    background: var(--rail-bg, var(--bg-panel2, #101c2b)); color: var(--rail-fg-suave, var(--text-secondary, #9ab));
+    cursor: pointer; transition: background .15s ease, color .15s ease;
+  }
+  .rail-toggle:hover { background: var(--rail-hover, var(--bg-hover, #16263a)); color: var(--rail-fg, var(--text-primary, #eaf2fb)); }
+  .rail-toggle:focus-visible { outline: 2px solid var(--rail-acento, var(--accent-main, #7AE9FF)); outline-offset: 2px; }
+  .sidebar--left  .rail-toggle { align-self: flex-end; }
+  .sidebar--right .rail-toggle { align-self: flex-start; }
+  .sidebar.is-collapsed .rail-toggle { display: none; }
+
+  /* ── recolhida: fora do fluxo, canvas cresce ──────────────────
+     O !important NÃO é enfeite. O sidebar-resizer.js grava
+     `style="position:relative"` INLINE em cada sidebar, para ancorar a
+     alça de arrastar (só quando o CSS base deixa a sidebar static — é o
+     caso de todo o 2º e 3º ano). Inline vence qualquer regra de folha,
+     então sem o !important a sidebar "recolhida" continuava relative,
+     ocupando os 300px dela no fluxo: o trilho aparecia, mas o canvas
+     não crescia. Medido em navegador: 15 dos 23 simuladores. O SIMA
+     escapou no piloto só porque é o único que não carrega o resizer.
+     Vale apenas no estado recolhido; fixada, a sidebar volta a
+     obedecer o inline e a alça continua funcionando. */
+  .sidebar.is-collapsed {
+    position: absolute !important; top: 0; bottom: 0; z-index: 60;
+    width: var(--swl, 300px);
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    visibility: hidden; opacity: 0;
+    transition: opacity .18s ease, transform .18s ease, visibility .18s;
+  }
+  .sidebar--left.is-collapsed {
+    left: 56px; transform: translateX(-10px);
+    border-radius: 0 var(--radius, 10px) var(--radius, 10px) 0;
+  }
+  .sidebar--right.is-collapsed {
+    right: 56px; width: var(--swr, 330px); transform: translateX(10px);
+    border-radius: var(--radius, 10px) 0 0 var(--radius, 10px);
+  }
+  .sidebar.is-collapsed.is-floating {
+    visibility: visible; opacity: 1; transform: translateX(0);
+    border-color: var(--border-active, var(--accent-main, #7AE9FF));
+  }
+
+  /* ── flutuante mostra UM card só ──────────────────────────────
+     POR QUE ESTAS REGRAS DEPENDEM DE .has-solo E NÃO DE .is-floating:
+     ao fechar, o JS tira .is-floating e o opacity leva 180ms até zero.
+     Se o formato compacto dependesse dessa classe, display:none e
+     bottom:auto parariam de valer no PRIMEIRO quadro — todos os cards
+     reapareciam e a sidebar voltava a esticar de topo a base, à vista,
+     desbotando. Era a sidebar inteira piscando ao fechar. Com
+     .has-solo, o compacto sobrevive ao fade; o JS tira a classe só
+     depois que a transição acaba.
+     .rail-oculto é posto pelo JS nos irmãos do card, nível a nível
+     até a raiz da sidebar — funciona tanto com o card solto (1º ano)
+     quanto embrulhado em #model-list (2º/3º ano). */
+  .sidebar.is-collapsed.has-solo .rail-oculto { display: none; }
+  .sidebar.is-collapsed.has-solo {
+    bottom: auto; max-height: calc(100% - 1rem); padding: .5rem; gap: 0;
+  }
+
+  /* ── ícone do modo ATIVO ──────────────────────────────────── */
+  .rail-btn.is-active { color: var(--rail-acento, var(--accent-main, #7AE9FF)); }
+  .rail-btn.is-active::before {
+    content: ''; position: absolute; left: 2px; top: 50%;
+    width: 3px; height: 18px; border-radius: 2px;
+    transform: translateY(-50%); background: var(--rail-acento, var(--accent-main, #7AE9FF));
+  }
+  .rail--right .rail-btn.is-active::before { left: auto; right: 2px; }
+
+  body.reduce-motion .sidebar.is-collapsed,
+  body.reduce-motion .rail-btn,
+  body.reduce-motion .rail-toggle,
+  body.reduce-motion .rail-tip { transition: none !important; }
+
+  /* alto contraste: mesmas variáveis vestidas — a sidebar já está no
+     esquema de alto contraste quando o trilho lê as cores dela, e isso
+     vale também para sie e sitp, cujos esquemas são diferentes */
+  body.high-contrast .rail { background: var(--rail-bg, var(--hc-bg, #000)) !important; }
+  body.high-contrast .rail--left  { border-right: 2px solid var(--rail-acento, var(--hc-fg, #fff)) !important; }
+  body.high-contrast .rail--right { border-left:  2px solid var(--rail-acento, var(--hc-fg, #fff)) !important; }
+  body.high-contrast .rail-btn,
+  body.high-contrast .rail-toggle,
+  body.high-contrast .rail-tip {
+    background: var(--rail-bg, var(--hc-bg, #000)) !important; color: var(--rail-fg, var(--hc-fg, #fff)) !important;
+    border: 2px solid var(--rail-acento, var(--hc-fg, #fff)) !important;
+  }
+  body.high-contrast .rail-btn[aria-expanded="true"] {
+    background: var(--rail-acento, var(--hc-fg, #fff)) !important; color: var(--rail-bg, var(--hc-bg, #000)) !important;
+  }
+  body.high-contrast .rail-btn.is-active::before { background: var(--rail-acento, var(--hc-fg, #fff)); }
+  body.high-contrast .sidebar.is-collapsed.is-floating {
+    border: 2px solid var(--hc-fg, #fff) !important;
+  }
+}
+
+/* ALTO CONTRASTE — o link "Pular para…" usa o acento como fundo, e no
+   alto contraste o acento é amarelo (--hc-fg). O texto precisa ser a cor
+   de FUNDO do esquema (--hc-bg, preto). Especificidade (0,2,2) de
+   propósito: as regras por tema acima — body.light-mode .skip-link e
+   body:not(.light-mode) .skip-link, ambas (0,2,1) — também casam com o
+   alto contraste e, vindo depois, deixavam branco sobre amarelo (1,07:1). */
+body.high-contrast a.skip-link { color: var(--hc-bg, #000); }
+
+/* Título do cabeçalho no ALTO CONTRASTE. O h1 usa var(--header-accent), e
+   os blocos de alto contraste redefinem --accent-main e companhia mas
+   esqueciam este token: no claro + alto contraste o título ficava com o
+   acento do tema claro (vinho, verde-escuro) sobre o fundo PRETO do
+   esquema — medido de 1,67:1 a 3,74:1. Especificidade (0,1,2) para vencer
+   body.light-mode (0,1,1), que também o redefine. */
+html body.high-contrast { --header-accent: var(--hc-fg, #ff0); }
+
+/* --header-accent é declarado em :root como var(--cyan), e propriedade
+   customizada resolve o var() no elemento onde é DECLARADA: o valor fica
+   congelado com o --cyan do tema escuro. O tema claro redefine --cyan
+   no <body>, mas o token do título nunca via a mudança — o título do
+   tema claro saía com o acento do escuro (medido 1,01:1: invisível).
+   Redeclarado no tema claro para resolver contra o --cyan de lá. */
+body.light-mode { --header-accent: var(--cyan); }
+
+/* ── A MÁSCARA acima do êmbolo (o <rect> do #sv-embolo) esconde o que fica acima dele: tem a
+   cor da área central em cada modo. Antes, o #070C18 escrito no desenho aparecia como um
+   bloco preto no tema claro. ── */
+.sv-mascara-embolo                                  { fill: var(--bg0); }
+body.light-mode .sv-mascara-embolo                  { fill: #f0f4f8; }
+body.high-contrast.light-mode .sv-mascara-embolo    { fill: var(--bg0); }
+
+/* ── CLARO + ALTO CONTRASTE: a área fica preta, como no SIMA e como manda a paleta deste modo
+   (--bg0:#000). Antes, a regra do tema claro vencia e a dica branca sumia no fundo claro. ── */
+body.high-contrast.light-mode .sim-area             { background: var(--bg0); }
+
+/* ═══ A ÁREA LIVRE (ver js/ui/sidebar-rail.js · Oclusao) ═══════════════
+   Um card flutuante cobre uma faixa da área da simulação sem mudar o tamanho
+   da janela. A cena do SIME é um SVG centrado por flexbox, sem geometria em
+   JS e sem clique: basta dar à área um padding do lado do card para a
+   seringa se recentrar na parte que se vê (e encolher, se não couber — a
+   largura dela vem da janela, por isso o max-width). A dica se recentra.
+   Mesmo deslizamento da cena (280 ms). Sem card, --oc-* valem 0. */
+@media (min-width: 901px) {
+  #sim-area { padding-left: var(--oc-esq, 0px); padding-right: var(--oc-dir, 0px); transition: padding .28s ease, border-color .2s; }
+  #sim-area .seringa-svg { max-width: 100%; }
+  #sim-area .sim-hint { left: calc(50% + (var(--oc-esq, 0px) - var(--oc-dir, 0px)) / 2); max-width: calc((100% - var(--oc-esq, 0px) - var(--oc-dir, 0px)) * .8); transition: left .28s ease; }
+  body.reduce-motion #sim-area, body.reduce-motion #sim-area .sim-hint { transition: none; }
+}

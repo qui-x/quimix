@@ -1,0 +1,482 @@
+/* =====================================================================
+   ALTURA DE VIEWPORT: dvh com fallback vh
+   ---------------------------------------------------------------------
+   PROBLEMA: no Safari do iOS e no Chrome do Android, 100vh e a altura da
+   tela COM a barra de endereco escondida — a maior possivel. Quando a
+   barra esta visivel (o estado normal ao abrir a pagina), a casca do app
+   fica mais alta que a area visivel e o rodape do canvas cai abaixo da
+   dobra. Como .app-main tem overflow:hidden, nao ha rolagem para
+   alcancar o pedaco perdido: ele simplesmente desaparece. E como 100vh e
+   estatico, nao reage quando a barra aparece ou some.
+
+   SOLUCAO: dvh (dynamic viewport height) acompanha a barra do navegador.
+   Cada altura aparece DUAS vezes neste arquivo:
+
+       height: calc(100vh  - var(--header-h));   <- fallback
+       height: calc(100dvh - var(--header-h));   <- navegadores modernos
+
+   Navegador que nao entende dvh simplesmente ignora a segunda declaracao
+   e fica com a primeira. Navegador moderno usa a segunda, que vem
+   depois. Nenhum @supports e necessario: e a cascata normal do CSS.
+
+   Por que dvh e nao svh: estes simuladores tem overflow:hidden e nao
+   rolam, entao o dvh nao causa o tremor de reflow que provoca em paginas
+   rolaveis — e o canvas aproveita a tela inteira quando a barra some.
+   ===================================================================== */
+
+/* ================================================================
+   CENTRAL DO 3º ANO — styleterceiroano.css
+   ================================================================
+   Mesma arquitetura do painel do 2º ano (stylesegundoano.css):
+   tokens em :root, variantes para tema claro e alto contraste, e uma
+   cor de acento por simulador, em paleta sequencial.
+
+   A paleta já tem NOVE lugares reservados (01 a 09). Os módulos 06,
+   07, 08 e 09 estão definidos mas ainda sem simulador — quando os
+   arquivos existirem, basta descomentar o bloco correspondente no
+   indexterceiroano.html: as cores já estão prontas aqui.
+   ================================================================ */
+
+/* ============ TOKENS ============ */
+  :root{
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --dur: .22s;
+    --font-scale: 1;
+  }
+
+  :root[data-theme="dark"]{
+    --bg: #0E1320;
+    --bg-grid: #131A2C;
+    --surface: #161D2E;
+    --surface-2: #1E2740;
+    --ink: #EDEFF5;
+    --ink-soft: #C7CCDC;
+    --muted: #8C93A8;
+    --border: #2A3450;
+    --border-strong: #3A4568;
+    --focus-ring: #FFD166;
+    /* ── Identificação dos cards: PALETA VERDE (tema escuro) ──
+       Antes era um arco-íris (anil→ciano→verde→amarelo→…→violeta).
+       Agora os nove são tons de verde, varrendo de verde-limão claro a
+       verde-oliva fechado, passando pelo esmeralda e pelo verde-azulado
+       (teal), na ordem SIQC→SIFO→SIRO→SIQA→SIQB→SIM06→SIM07→
+       SIM08→SIATIV. Mesmo critério do 1º ano: contraste ≥4,5:1 de cada
+       cor contra a superfície do card (mínimo medido 4,62:1) E do ink
+       contra o ícone (mínimo 4,91:1), e ΔE (CIELAB) ≥14 entre TODOS os
+       36 pares — não só os vizinhos, porque num grid o aluno compara
+       cards distantes. O verde tem mais espaço de matiz que o vermelho,
+       por isso a rampa alcança o mesmo ΔE do 1º ano. */
+    --accent-siqc:   #EAFBDC; --accent-siqc-ink:  #031C0C;
+    --accent-sifo:   #BDF2A4; --accent-sifo-ink:  #031C0C;
+    --accent-siro:   #87EBA8; --accent-siro-ink:  #031C0C;
+    --accent-siqa:   #45E2B0; --accent-siqa-ink:  #031C0C;
+    --accent-siqb:   #22D3C6; --accent-siqb-ink:  #031C0C;
+    --accent-sim06:   #99CC48; --accent-sim06-ink:  #031C0C;
+    --accent-sim07:   #17C266; --accent-sim07-ink:  #031C0C;
+    --accent-sim08:   #3B9880; --accent-sim08-ink:  #031C0C;
+    --accent-siativ:  #728F55; --accent-siativ-ink: #031C0C;
+    --shadow: 0 1px 0 rgba(0,0,0,.4);
+  }
+
+  :root[data-theme="light"]{
+    --bg: #EEF1F6;
+    --bg-grid: #E4E9F1;
+    --surface: #FFFFFF;
+    --surface-2: #F4F6FA;
+    --ink: #181C29;
+    --ink-soft: #3B4256;
+    --muted: #5B6478;
+    --border: #D8DEEA;
+    --border-strong: #BFC8DC;
+    --focus-ring: #B5790A;
+    /* ── PALETA VERDE (tema claro) ──
+       Sobre fundo branco a rampa inverte: verdes escuros o bastante para
+       contrastar. Três famílias de matiz (oliva, verde, teal) em três
+       níveis de luminosidade — é esse cruzamento que segura ΔE ≥13,8
+       entre os 36 pares num intervalo de luminosidade apertado.
+       Contraste mínimo medido 4,75:1. */
+    --accent-siqc:   #547F0E; --accent-siqc-ink:  #FFFFFF;
+    --accent-sifo:   #167F41; --accent-sifo-ink:  #FFFFFF;
+    --accent-siro:   #06776F; --accent-siro-ink:  #FFFFFF;
+    --accent-siqa:   #3C5B0A; --accent-siqa-ink:  #FFFFFF;
+    --accent-siqb:   #0E5C2E; --accent-siqb-ink:  #FFFFFF;
+    --accent-sim06:   #05564F; --accent-sim06-ink:  #FFFFFF;
+    --accent-sim07:   #243807; --accent-sim07-ink:  #FFFFFF;
+    --accent-sim08:   #06371A; --accent-sim08-ink:  #FFFFFF;
+    --accent-siativ:  #02332B; --accent-siativ-ink: #FFFFFF;
+    --shadow: 0 1px 0 rgba(0,0,0,.06);
+  }
+
+  /* Alto contraste sobrepõe qualquer tema (claro ou escuro) */
+  :root[data-contrast="on"]{
+    --bg: #000000;
+    --bg-grid: #000000;
+    --surface: #000000;
+    --surface-2: #0A0A0A;
+    --ink: #FFFFFF;
+    --ink-soft: #FFFFFF;
+    --muted: #DDDDDD;
+    --border: #FFFFFF;
+    --border-strong: #FFFF00;
+    --focus-ring: #FFFF00;
+    /* ── PALETA VERDE (alto contraste) ──
+       Sobre preto puro, verdes claros. Contraste mínimo 8,59:1, bem
+       acima do exigido; ΔE mínimo 15,6. */
+    --accent-siqc:   #EDFBDA; --accent-siqc-ink:  #000000;
+    --accent-sifo:   #BDF29E; --accent-sifo-ink:  #000000;
+    --accent-siro:   #84EBA6; --accent-siro-ink:  #000000;
+    --accent-siqa:   #40E4B4; --accent-siqa-ink:  #000000;
+    --accent-siqb:   #1FD8CE; --accent-siqb-ink:  #000000;
+    --accent-sim06:   #A8D849; --accent-sim06-ink:  #000000;
+    --accent-sim07:   #18CC66; --accent-sim07-ink:  #000000;
+    --accent-sim08:   #57B79A; --accent-sim08-ink:  #000000;
+    --accent-siativ:  #8FB06A; --accent-siativ-ink: #000000;
+    --shadow: none;
+  }
+  :root[data-contrast="on"] .tile{ border-width:2px; }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--bg-grid) 1px, transparent 1px) 0 0/100% 38px,
+      var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    min-height:100vh; min-height:100dvh;
+    transition: background-color var(--dur) ease, color var(--dur) ease;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important;}
+  }
+
+  a.skip-link{
+    position:absolute; left:50%; top:-60px; transform:translateX(-50%);
+    background:var(--accent-siro); color:var(--accent-siro-ink);
+    padding:10px 18px; border-radius:0 0 var(--radius-md) var(--radius-md);
+    font-family:var(--font-mono); font-size:13px; font-weight:600;
+    z-index:200; transition: top var(--dur) ease;
+  }
+  a.skip-link:focus{ top:0; }
+
+  :focus-visible{
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* ============ CAMADA DE SIMULAÇÃO DE DALTONISMO ============ */
+  /* Overlay fixo em vez de filter no body/html: assim ele não vira
+     "containing block" de elementos position:fixed/absolute da página
+     (o que quebraria peças arrastáveis, painéis flutuantes, tooltips
+     etc. nos simuladores). pointer-events:none deixa o clique
+     atravessar normalmente até o conteúdo abaixo. */
+  #colorblindOverlay{
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* ============ SHELL ============ */
+  .shell{
+    max-width:1080px; margin:0 auto; padding: 28px 24px 64px;
+  }
+
+  header.top{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    gap:20px; flex-wrap:wrap; margin-bottom:34px;
+  }
+
+  .brand{
+    display:flex; align-items:flex-end; gap:2px; flex-wrap:wrap;
+  }
+
+  /* Marca "QuímiX" — mesma logo da Central raiz (index.html): "Quími"
+     + o ícone X funcionando como a letra final do nome. Documentado
+     com mais detalhe lá no style.css da raiz; aqui só o resumo. */
+  .brand-name{
+    margin:0; font-family:var(--font-display); font-weight:700; font-size:1.9rem;
+    line-height:1; color:var(--ink); letter-spacing:-0.01em;
+  }
+  .qm-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+  .i-bond{position:relative;display:inline-block;}
+  .i-bond-accent{position:absolute;top:-0.5em;left:50%;transform:translateX(-15%);width:0.85em;height:0.85em;overflow:visible;pointer-events:none;}
+  .brand-mark-icon{
+    position:relative; top:6px; display:inline-block; height:44px; width:auto;
+    line-height:0; color:var(--ink); overflow:hidden;
+  }
+  .brand-mark-icon svg{ display:block; height:100%; width:auto; overflow:hidden; }
+  .brand-mark-icon svg [stroke="#4a5568"]{ stroke:var(--muted); }
+
+  /* "— Nº Ano": identifica a seção, ao lado da marca — mais discreto
+     que o wordmark, pra não competir com ele. */
+  .brand-suffix{
+    font-family:var(--font-body); font-size:15px; font-weight:500;
+    color:var(--muted); margin-left:8px; white-space:nowrap;
+  }
+
+  /* ============ LINK "← CENTRAL" (painéis de ano) ============ */
+  /* Volta ao painel de seleção de ano (index.html) — aqui não há
+     painel de acessibilidade próprio, ele fica só na seleção de ano. */
+  .back-link{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--font-mono); font-size:13px; font-weight:600;
+    color:var(--ink-soft); text-decoration:none;
+    background:var(--surface); border:1px solid var(--border);
+    padding:9px 14px; border-radius:var(--radius-md);
+    transition: border-color var(--dur), background var(--dur), color var(--dur);
+  }
+  .back-link:hover{ border-color:var(--border-strong); background:var(--surface-2); color:var(--ink); }
+  .back-link svg{ width:15px; height:15px; flex-shrink:0; }
+
+  .top-nav{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; flex-wrap:wrap; margin-bottom:26px;
+  }
+
+  /* ============ GREETING ============ */
+  .greeting{
+    margin-bottom:30px;
+  }
+  .greeting h2{
+    font-family:var(--font-display); font-weight:600;
+    font-size: calc(clamp(22px, 3vw, 30px) * var(--font-scale));
+    margin:0 0 8px; line-height:1.25;
+  }
+  .greeting p{
+    font-size:calc(15px * var(--font-scale)); color:var(--muted); margin:0; max-width:520px;
+  }
+
+  /* ============ TILE GRID ============ */
+  .grid{
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap:16px;
+  }
+
+  .tile{
+    text-align:left; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-lg); padding:0; cursor:pointer; color:var(--ink);
+    font-family:inherit; display:flex; flex-direction:column;
+    transition: border-color var(--dur), transform var(--dur);
+    position:relative; overflow:hidden;
+    text-decoration:none;
+  }
+  .tile:link, .tile:visited{ color:var(--ink); }
+  .tile:hover{ border-color:var(--border-strong); transform:translateY(-2px); }
+  .tile:active{ transform:translateY(0); }
+
+  .tile-band{ height:4px; width:100%; }
+  .tile-head{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:16px 16px 0;
+  }
+  .tile-index{
+    font-family:var(--font-mono); font-size:11px; color:var(--muted);
+  }
+  .tile-icon{
+    width:30px; height:30px; border-radius:var(--radius-sm);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .tile-icon svg{ width:18px; height:18px; }
+
+  .tile-symbol{
+    font-family:var(--font-mono); font-weight:700; font-size:30px;
+    padding: 6px 16px 0; line-height:1;
+  }
+  .tile-name{
+    font-family:var(--font-display); font-weight:600; font-size:calc(15px * var(--font-scale));
+    padding: 8px 16px 0; line-height:1.35;
+  }
+  .tile-desc{
+    font-size:calc(13px * var(--font-scale)); color:var(--muted); line-height:1.55;
+    padding: 6px 16px 16px; flex:1;
+  }
+  .tile-cta{
+    display:flex; align-items:center; gap:6px;
+    font-family:var(--font-mono); font-size:calc(12px * var(--font-scale)); font-weight:600;
+    padding:12px 16px; border-top:1px solid var(--border);
+  }
+  .tile-cta svg{ width:14px; height:14px; transition: transform var(--dur); }
+  .tile:hover .tile-cta svg{ transform:translateX(3px); }
+
+  /* ============ COR DE ACENTO POR SIMULADOR ============ */
+  .tile[data-sim="siqc"] .tile-band, .tile[data-sim="siqc"] .tile-cta{ color:var(--accent-siqc); }
+  .tile[data-sim="siqc"] .tile-band{ background:var(--accent-siqc); }
+  .tile[data-sim="siqc"] .tile-icon{ background:var(--accent-siqc); color:var(--accent-siqc-ink); }
+  .tile[data-sim="siqc"] .tile-symbol{ color:var(--accent-siqc); }
+
+  .tile[data-sim="sifo"] .tile-band, .tile[data-sim="sifo"] .tile-cta{ color:var(--accent-sifo); }
+  .tile[data-sim="sifo"] .tile-band{ background:var(--accent-sifo); }
+  .tile[data-sim="sifo"] .tile-icon{ background:var(--accent-sifo); color:var(--accent-sifo-ink); }
+  .tile[data-sim="sifo"] .tile-symbol{ color:var(--accent-sifo); }
+
+  .tile[data-sim="siro"] .tile-band, .tile[data-sim="siro"] .tile-cta{ color:var(--accent-siro); }
+  .tile[data-sim="siro"] .tile-band{ background:var(--accent-siro); }
+  .tile[data-sim="siro"] .tile-icon{ background:var(--accent-siro); color:var(--accent-siro-ink); }
+  .tile[data-sim="siro"] .tile-symbol{ color:var(--accent-siro); }
+
+  .tile[data-sim="siqa"] .tile-band, .tile[data-sim="siqa"] .tile-cta{ color:var(--accent-siqa); }
+  .tile[data-sim="siqa"] .tile-band{ background:var(--accent-siqa); }
+  .tile[data-sim="siqa"] .tile-icon{ background:var(--accent-siqa); color:var(--accent-siqa-ink); }
+  .tile[data-sim="siqa"] .tile-symbol{ color:var(--accent-siqa); }
+
+  .tile[data-sim="siqb"] .tile-band, .tile[data-sim="siqb"] .tile-cta{ color:var(--accent-siqb); }
+  .tile[data-sim="siqb"] .tile-band{ background:var(--accent-siqb); }
+  .tile[data-sim="siqb"] .tile-icon{ background:var(--accent-siqb); color:var(--accent-siqb-ink); }
+  .tile[data-sim="siqb"] .tile-symbol{ color:var(--accent-siqb); }
+
+  /* ── Reservados: módulos 06, 07 e 08 (a definir) ── */
+  .tile[data-sim="sim06"] .tile-band, .tile[data-sim="sim06"] .tile-cta{ color:var(--accent-sim06); }
+  .tile[data-sim="sim06"] .tile-band{ background:var(--accent-sim06); }
+  .tile[data-sim="sim06"] .tile-icon{ background:var(--accent-sim06); color:var(--accent-sim06-ink); }
+  .tile[data-sim="sim06"] .tile-symbol{ color:var(--accent-sim06); }
+
+  .tile[data-sim="sim07"] .tile-band, .tile[data-sim="sim07"] .tile-cta{ color:var(--accent-sim07); }
+  .tile[data-sim="sim07"] .tile-band{ background:var(--accent-sim07); }
+  .tile[data-sim="sim07"] .tile-icon{ background:var(--accent-sim07); color:var(--accent-sim07-ink); }
+  .tile[data-sim="sim07"] .tile-symbol{ color:var(--accent-sim07); }
+
+  .tile[data-sim="sim08"] .tile-band, .tile[data-sim="sim08"] .tile-cta{ color:var(--accent-sim08); }
+  .tile[data-sim="sim08"] .tile-band{ background:var(--accent-sim08); }
+  .tile[data-sim="sim08"] .tile-icon{ background:var(--accent-sim08); color:var(--accent-sim08-ink); }
+  .tile[data-sim="sim08"] .tile-symbol{ color:var(--accent-sim08); }
+
+  /* ── Reservado: módulo 09, atividades (SIATIV) ── */
+  .tile[data-sim="siativ"] .tile-band, .tile[data-sim="siativ"] .tile-cta{ color:var(--accent-siativ); }
+  .tile[data-sim="siativ"] .tile-band{ background:var(--accent-siativ); }
+  .tile[data-sim="siativ"] .tile-icon{ background:var(--accent-siativ); color:var(--accent-siativ-ink); }
+  .tile[data-sim="siativ"] .tile-symbol{ color:var(--accent-siativ); }
+
+  /* ============ ESPAÇAMENTO DE LETRAS ============ */
+  html[data-spacing="on"] body,
+  html[data-spacing="on"] body *{
+    letter-spacing: 0.12em !important;
+    word-spacing: 0.16em !important;
+    line-height: 1.7 !important;
+  }
+
+  /* ============ REDUÇÃO DE ANIMAÇÕES (forçada pelo toggle) ============ */
+  html[data-motion="on"] *,
+  html[data-motion="on"] *::before,
+  html[data-motion="on"] *::after{
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* ============ READING MODE ============ */
+  html[data-reading="on"] body{ background:var(--bg); }
+  html[data-reading="on"] .greeting h2{ font-size: calc(clamp(24px,3vw,30px) * var(--font-scale)); }
+  html[data-reading="on"] .greeting p, html[data-reading="on"] .tile-desc{
+    font-size:calc(16px * var(--font-scale)); line-height:1.85; letter-spacing:.005em;
+  }
+  html[data-reading="on"] .tile-name{ font-size:calc(17px * var(--font-scale)); }
+  html[data-reading="on"] .tile-symbol{ display:none; }
+  html[data-reading="on"] body{ font-size:calc(16px * var(--font-scale)); }
+  html[data-reading="on"] .grid{ grid-template-columns: 1fr; max-width:640px; }
+  html[data-reading="on"] .tile-band{ height:6px; }
+
+  /* ============ VLIBRAS — sempre visível, sem condição ============ */
+
+  footer.foot{
+    margin-top:46px; padding-top:18px; border-top:1px solid var(--border);
+    font-size:12px; color:var(--muted); display:flex; justify-content:space-between;
+    flex-wrap:wrap; gap:8px;
+  }
+  footer.foot kbd{
+    font-family:var(--font-mono); background:var(--surface-2); border:1px solid var(--border);
+    border-radius:4px; padding:1px 6px; font-size:11px;
+  }
+
+  @media (max-width:600px){
+    header.top{ flex-direction:column; }
+  }
+
+/* ---------------------------------------------------------------------
+   SKIP-LINK — contraste corrigido
+   ---------------------------------------------------------------------
+   Medido no Chromium com o link em foco (ele vive em left:-9999px e so
+   aparece ao receber foco, por isso a medicao exige focus()).
+
+   O fundo do skip-link vem do acento do simulador, e o acento MUDA no
+   tema claro — normalmente escurecendo. Com o texto fixo, o par deixava
+   de contrastar em um dos dois temas. As regras abaixo declaram o texto
+   por tema, com o valor que a medicao mostrou ser o melhor.
+   --------------------------------------------------------------------- */
+body.light-mode .skip-link{ color:#FFF; }   /* 5.42:1 sobre #06776F */
+
+/* ════════════════════════════════════════════════════════════════
+   YEAR-CARD — cards com prévia AO VIVO dos simuladores (substituem
+   os .tile antigos, mesmo estilo dos cards "Alguns exemplos" da
+   Central). Reaproveita .grid (grid responsivo já existente).
+   ════════════════════════════════════════════════════════════════ */
+.year-card{
+  display:flex; flex-direction:column; align-items:flex-start; gap:8px;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:16px 16px 18px; text-decoration:none; color:var(--ink);
+  transition:border-color var(--dur), transform var(--dur);
+}
+.year-card:hover{ border-color:var(--border-strong); transform:translateY(-2px); }
+.year-card-preview{
+  width:100%; aspect-ratio:16/10; border-radius:var(--radius-md);
+  overflow:hidden; background:var(--bg); border:1px solid var(--border);
+  position:relative; margin-bottom:2px;
+}
+.year-card-preview-frame{
+  /* BUG CORRIGIDO (2ª volta): 800%/scale(.125) resolvia o layout
+     cair pra mobile, mas deixava o texto ilegível — em 12,5% de
+     escala qualquer letra vira uma mancha cinza, e a prévia parece
+     uma miniatura quebrada, não um recorte real do simulador. A
+     largura mínima do card também subiu de ~220px pra 300px (ver
+     minmax() do grid) — com essa base maior, 500%/scale(.2) já
+     garante 300×5=1500px de largura interna (ainda folgado acima do
+     maior breakpoint do projeto, 1100px) COM uma escala bem menos
+     agressiva (20% em vez de 12,5%) — texto grande ainda não fica
+     lendo, mas a interface se reconhece de verdade, não vira só
+     manchas cinzas. */
+  position:absolute; top:0; left:0; width:650%; height:650%;
+  transform:scale(.1538); transform-origin:top left;
+  border:none; pointer-events:none;
+}
+.year-card-sigla{
+  font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.04em;
+  color:var(--ink); background:var(--surface-2); border-radius:999px; padding:3px 10px;
+}
+.year-card-nome{ font-family:var(--font-display); font-size:15.5px; color:var(--ink); margin:2px 0 0; line-height:1.3; }
+.year-card-desc{ font-size:13px; color:var(--ink-soft); line-height:1.5; margin:0; }
+.year-card-cta{
+  display:flex; align-items:center; gap:6px; margin-top:auto; padding-top:6px;
+  font-size:13px; font-weight:600; color:var(--ink);
+}
+.year-card-cta svg{ width:15px; height:15px; }
+
+
+/* ── marca de simulador ainda em construção ──────────────────────
+   Isomeria, Petróleo e Polímeros já existem como página e já abrem,
+   mas o conteúdo ainda é o da Cinética de onde foram copiados. A
+   marca evita que a grade prometa uma coisa e entregue outra. Some
+   sozinha quando a classe .year-card--wip sair do card. */
+.year-card--wip .year-card-preview { opacity: .55; }
+.year-card-wip {
+  display: inline-block; margin-left: .5rem;
+  padding: .12rem .45rem; border-radius: 999px;
+  font-size: .68rem; font-weight: 600; letter-spacing: .02em;
+  color: var(--text-muted, #8aa); border: 1px solid var(--border, #345);
+  background: transparent; vertical-align: middle;
+}
+
+/* ALTO CONTRASTE — o link "Pular para…" usa o acento como fundo, e no
+   alto contraste o acento é amarelo (--hc-fg). O texto precisa ser a cor
+   de FUNDO do esquema (--hc-bg, preto). Especificidade (0,2,2) de
+   propósito: as regras por tema acima — body.light-mode .skip-link e
+   body:not(.light-mode) .skip-link, ambas (0,2,1) — também casam com o
+   alto contraste e, vindo depois, deixavam branco sobre amarelo (1,07:1). */
+body.high-contrast a.skip-link { color: var(--hc-bg, #000); }

@@ -1,0 +1,2222 @@
+
+/* =====================================================================
+   ALTO CONTRASTE — CONTRAPARTE PARA O TEMA CLARO
+   ---------------------------------------------------------------------
+   BUG: as regras de alto contraste deste arquivo usam #ff0 (amarelo) para
+   texto/borda e #000 para o fundo do estado ativo. Isso funciona sobre
+   fundo escuro (19.56:1), mas o alto contraste tambem pode ser ligado
+   JUNTO com o tema claro — e ai o amarelo cai para 1.03:1 sobre o fundo
+   claro. Ficava literalmente invisivel. Medido no Chromium: a combinacao
+   claro+contraste tinha MAIS texto abaixo de 3:1 do que o tema claro
+   sozinho, ou seja, o modo de acessibilidade piorava a legibilidade.
+
+   SOLUCAO: as duas cores viram variaveis. No tema escuro seguem amarelo
+   e preto; no tema claro viram azul-escuro (#0000cc) e branco, que
+   cumprem o mesmo papel com 10.15:1 sobre o fundo claro. O azul saturado
+   e a escolha classica de alto contraste em fundo claro, equivalente ao
+   amarelo em fundo escuro.
+
+   As regras abaixo desta secao passam a usar var(--hc-fg) e var(--hc-bg)
+   em vez dos valores fixos.
+   ===================================================================== */
+body.high-contrast                { --hc-fg:#ff0;     --hc-bg:#000;     }
+/* CLARO + ALTO CONTRASTE: o bloco body.high-contrast abaixo (linha ~119)
+   redefine a paleta INTEIRA para preto — ele sobrepoe o tema claro de
+   proposito, porque alto contraste e um esquema visual proprio.
+   Por isso aqui NAO invertemos --hc-fg para azul: o fundo continua
+   preto, e azul-escuro sobre preto daria 1.68:1. O amarelo sobre preto
+   (19.56:1) segue sendo o par certo.
+   Onde a inversao faz sentido e nos arquivos cujo alto contraste NAO
+   forca fundo preto — lá o par claro esta declarado. */
+body.high-contrast.light-mode     { --hc-fg:#ff0;     --hc-bg:#000;     }
+/* =====================================================================
+   TEMA CLARO E LEITURA SIMPLES — SELETORES CORRIGIDOS
+   ---------------------------------------------------------------------
+   BUG: este arquivo usava body.theme-light e body.simple-reading. O
+   a11y.js liga body.light-mode e body.simple-read. Eram nomes
+   diferentes, entao NENHUMA das regras ligava.
+
+   O SILQ tinha (e tem) um tema claro COMPLETO — 14 regras que
+   redefinem 14 das 18 variaveis da paleta. Nada disso aparecia: o
+   aluno escolhia tema claro na Central, entrava no SILQ e o simulador,
+   que e a referencia visual do projeto, continuava escuro.
+
+   Os nomes vinham do painel de acessibilidade local do SILQ, anterior
+   ao a11y.js. Esse painel agora delega ao a11y.js (ver scriptsilq.js),
+   e os seletores aqui usam os nomes do padrao.
+   ===================================================================== */
+
+/* =====================================================================
+   ALTURA DE VIEWPORT: dvh com fallback vh
+   ---------------------------------------------------------------------
+   PROBLEMA: no Safari do iOS e no Chrome do Android, 100vh e a altura da
+   tela COM a barra de endereco escondida — a maior possivel. Quando a
+   barra esta visivel (o estado normal ao abrir a pagina), a casca do app
+   fica mais alta que a area visivel e o rodape do canvas cai abaixo da
+   dobra. Como .app-main tem overflow:hidden, nao ha rolagem para
+   alcancar o pedaco perdido: ele simplesmente desaparece. E como 100vh e
+   estatico, nao reage quando a barra aparece ou some.
+
+   SOLUCAO: dvh (dynamic viewport height) acompanha a barra do navegador.
+   Cada altura aparece DUAS vezes neste arquivo:
+
+       height: calc(100vh  - var(--header-h));   <- fallback
+       height: calc(100dvh - var(--header-h));   <- navegadores modernos
+
+   Navegador que nao entende dvh simplesmente ignora a segunda declaracao
+   e fica com a primeira. Navegador moderno usa a segunda, que vem
+   depois. Nenhum @supports e necessario: e a cascata normal do CSS.
+
+   Por que dvh e nao svh: estes simuladores tem overflow:hidden e nao
+   rolam, entao o dvh nao causa o tremor de reflow que provoca em paginas
+   rolaveis — e o canvas aproveita a tela inteira quando a barra some.
+   ===================================================================== */
+
+/* ============================================================  VARIÁVEIS DE TEMA (modo escuro padrão) */
+:root {
+  --bg-base:       #080c14;
+  --bg-surface:    #0c1520;
+  --bg-surface2:   #101c2b;
+  --bg-surface3:   #172334;
+  --bg-card:       #101c2b;
+  --border-color:  #1c2e44;
+  --text-primary:  #e6edf3;
+  --text-muted:    #9aa7bd;
+  --text-dim:      #94a3b8;
+  --accent:        #47B6FF;
+  --accent-dark:   #3383B8;
+  --scrollbar-thumb: #2f3a52;
+  --scrollbar-track: #11151f;
+  --font-scale:    1;       /* controlado pelo JS da barra */
+  --letter-spacing: normal; /* controlado pelo JS da barra */
+  --header-accent: #47B6FF;
+}
+
+/* Overlay fixo em vez de filter no body/html: assim ele não vira
+   "containing block" de elementos position:fixed/absolute (átomos
+   arrastáveis, painéis flutuantes, tooltips). pointer-events:none
+   deixa o clique atravessar normalmente até o conteúdo abaixo. */
+#colorblindOverlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ============================================================  TEMA CLARO */
+/* BUG CORRIGIDO: a regra `html,body` (linha ~238) pinta o fundo com
+   var(--bg-base), mas as variaveis do tema claro estao declaradas apenas em
+   `body.light-mode`. Variavel definida no <body> nao sobe para o <html>,
+   entao o elemento raiz ficava com o verde-escuro do tema escuro. Medido no
+   Chromium: html = rgb(7,24,13) com o body em rgb(240,248,243).
+   Aparece como faixa escura quando o body nao preenche a viewport e no
+   overscroll. :has() le a classe que o a11y.js liga no <body>. */
+html:has(body.light-mode) {
+  --bg-base:       #f0f4f8;
+  --text-primary:  #111827;
+}
+
+body.light-mode {
+  --bg-base:       #f0f4f8;
+  --bg-surface:    #e4eaf2;
+  --bg-surface2:   #d8e2ee;
+  --bg-surface3:   #ccd6e6;
+  --bg-card:       #d8e2ee;
+  --border-color:  #9badc4;
+  --text-primary:  #111827;
+  --text-muted:    #4b5563;
+  --text-dim:      #6b7280;
+  --accent:        #02436E;
+  --accent-dark:   #023658;
+  --scrollbar-thumb: #c5d0e0;
+  --scrollbar-track: #e8edf5;
+  --header-accent: #02436E;
+}
+
+/* ============================================================  ALTO CONTRASTE */
+body.high-contrast {
+  --bg-base:       #000000;
+  --bg-surface:    #000000;
+  --bg-surface2:   #111111;
+  --bg-surface3:   #222222;
+  --bg-card:       #111111;
+  --border-color:  #ffffff;
+  --text-primary:  #ffffff;
+  --text-muted:    var(--hc-fg);
+  --text-dim:      var(--hc-fg);
+  --accent:        var(--hc-fg);
+  --accent-dark:   #ffd600;
+  --header-accent: var(--hc-fg);
+}
+body.high-contrast .pt-cell {
+  border: 2px solid var(--hc-fg) !important;
+  color: #fff !important;
+  filter: contrast(1.5) brightness(1.2);
+}
+body.high-contrast .atom {
+  border: 3px solid var(--hc-fg) !important;
+  filter: contrast(1.5) brightness(1.2);
+}
+body.high-contrast .btn,
+body.high-contrast .bond-order-btn {
+  border: 2px solid var(--hc-fg) !important;
+  color: var(--hc-fg) !important;
+}
+body.high-contrast .bond-order-btn.active-order {
+  background: var(--hc-fg) !important;
+  color: var(--hc-bg) !important;
+}
+body.high-contrast .energy-curve { stroke: var(--hc-fg); }
+body.high-contrast .axis text   { fill: var(--hc-fg); }
+body.high-contrast .axis-label  { fill: var(--hc-fg); }
+
+/* ============================================================  BARRA SUPERIOR — VOLTAR PARA A CENTRAL
+   Mesma estética usada no SIMA/SIME/SITP: botão "Central" transparente
+   com borda, ícone com brilho pulsante, sigla + nome completo no mesmo
+   tamanho/peso de fonte dos outros simuladores. */
+.app-header{
+  display:flex; align-items:center; justify-content:space-between;
+  height:54px;
+  padding:0 1.1rem;
+  background: var(--bg-surface);
+  border-bottom:1px solid var(--border-color);
+  flex-shrink:0;
+}
+.header-brand{ display:flex; align-items:center; gap:.6rem; min-width:0; }
+.header-actions{ display:flex; align-items:center; gap:.4rem; flex-shrink:0; }
+.header-back{
+  display:inline-flex; align-items:center; gap:.3rem;
+  background:transparent; border:1px solid var(--border-color); color: var(--text-muted);
+  border-radius:6px; padding:.3rem .55rem; margin-right:.5rem;
+  font-size:12.48px; font-weight:600; letter-spacing:.02em;
+  text-decoration:none; white-space:nowrap; flex-shrink:0;
+  transition:color .15s, border-color .15s;
+}
+.header-back:hover, .header-back:focus-visible{
+  color: var(--text-primary); border-color: var(--accent);
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+.header-back svg{ width:16px; height:16px; flex-shrink:0; }
+.header-logo{ font-size:22.4px; line-height:1; flex-shrink:0; color:var(--header-accent); display:flex; animation: pulse-logo-silq 3s ease-in-out infinite; }
+.header-logo svg{ width:22.4px; height:22.4px; }
+
+/* Botão de menu mobile (abre a sidebar como gaveta em telas estreitas) */
+.mobile-menu-btn {
+  display:none; align-items:center; justify-content:center;
+  background:var(--bg-card); border:1px solid var(--border-color);
+  color:var(--text-muted); border-radius:6px; padding:4.8px 8.8px;
+  font-size:14.4px; cursor:pointer;
+}
+.mobile-menu-btn:hover, .mobile-menu-btn:focus-visible {
+  color:var(--text-primary); border-color:var(--accent);
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+
+/* Backdrop escurecido atrás da gaveta mobile */
+.mobile-backdrop {
+  position:fixed; inset:0; z-index:90;
+  background:rgba(0,0,0,.58); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);
+}
+.mobile-backdrop[hidden] { display:none; }
+
+@keyframes pulse-logo-silq{
+  0%,100%{ filter:drop-shadow(0 0 5px var(--header-accent)); }
+  50%     { filter:drop-shadow(0 0 14px var(--header-accent)); }
+}
+@media(prefers-reduced-motion:reduce){ .header-logo{ animation:pulse-logo-silq 3s ease-in-out infinite; } .header-brand h1{ animation:pulse-logo-silq-txt 3s ease-in-out infinite; } }
+.header-brand > div{ display:flex; flex-direction:column; min-width:0; line-height:1.2; }
+.header-brand h1{
+  margin:0; font-size:16px; font-weight:700; letter-spacing:.06em;
+  color: var(--header-accent); animation:pulse-text-silq 3s ease-in-out infinite;
+}
+@keyframes pulse-text-silq{
+  0%,100%{ text-shadow:0 0 5px var(--header-accent); }
+  50%     { text-shadow:0 0 14px var(--header-accent); }
+}
+.header-sub{ margin:0; font-size:9.92px; color: var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+body.high-contrast .app-header{ border-bottom-color:var(--hc-fg); }
+body.high-contrast .header-back{ border-color:var(--hc-fg); color:var(--hc-fg); }
+body.high-contrast .header-back:hover{ background:var(--hc-fg); color:var(--hc-bg); }
+body.high-contrast .header-brand h1{ color:var(--header-accent); text-shadow:none; animation:pulse-logo-silq-txt 3s ease-in-out infinite; }
+
+
+/* ============================================================  RESET  */
+*{box-sizing:border-box;}
+
+/* =====================================================================
+   ÍCONES SVG (substituem os emojis) — ver <defs> de <symbol> no topo
+   do indexsilq.html. stroke/fill:currentColor herda a cor do texto ao
+   redor; width/height:1em acompanha o tamanho de fonte do elemento-pai.
+   ===================================================================== */
+.icon{
+  width:1em; height:1em; display:inline-block;
+  vertical-align:-.125em; flex-shrink:0;
+}
+.panel-icon .icon,
+.bond-type-note-icon .icon{ width:1.05em; height:1.05em; vertical-align:-.15em; }
+
+html {
+  font-size: calc(16px * var(--font-scale));
+}
+html,body{
+  margin:0;height:100%;
+  font-family:'Segoe UI',Roboto,Arial,sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  transition: background .25s, color .25s;
+}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-thumb{background: var(--scrollbar-thumb);border-radius:3px;}
+::-webkit-scrollbar-track{background: var(--scrollbar-track);}
+
+/* ============================================================  ACESSIBILIDADE — UTILITÁRIOS  */
+
+/* Classe utilitária: visível apenas para leitores de tela */
+.sr-only{
+  position:absolute;
+  width:1px;height:1px;
+  padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0,0,0,0);
+  white-space:nowrap;border:0;
+}
+
+/* Skip links — aparecem ao receber foco.
+   O <nav class="skip-nav"> agrupa os 4 atalhos num unico landmark de
+   navegacao (WCAG 1.3.1): o leitor de tela anuncia "navegacao, Atalhos
+   de navegacao" uma vez, em vez de 4 links soltos antes do header.
+   Nao ocupa espaco: os proprios links sao position:fixed. */
+.skip-nav{ position:absolute; top:0; left:0; z-index:10000; }
+.skip-link{
+  position:fixed;
+  top:-100px;left:16px;
+  z-index:10000;
+  /* seguia o verde da paleta antiga (#29f674) mesmo depois de o acento
+     do SILQ virar azul. Agora acompanha o token — e o texto usa --bg-base,
+     que inverte junto com o tema: no escuro o acento e claro e o texto
+     fica escuro (8,76:1); no claro o acento e escuro e o texto fica claro
+     (9,36:1). Um par so, correto nos dois temas. */
+  background:var(--accent);color:var(--bg-base);
+  font-size:.85rem;font-weight:700;
+  padding:8px 14px;border-radius:0 0 8px 8px;
+  text-decoration:none;
+  transition:top .2s ease;
+  outline:none;
+}
+.skip-link:focus{top:0;}
+
+/* Anel de foco visível e consistente em toda a aplicação
+   (era #29f674 fixo — o verde da paleta antiga do card) */
+:focus-visible{
+  outline:3px solid var(--accent);
+  outline-offset:3px;
+  border-radius:4px;
+}
+
+/* Garante que elementos interativos sempre mostrem foco visível */
+button:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible,
+.pt-cell:focus-visible,
+.bond-order-btn:focus-visible,
+.btn:focus-visible{
+  outline:3px solid var(--accent) !important;
+  outline-offset:3px !important;
+}
+
+/* ============================================================  LAYOUT  */
+.app-container{display:flex;height:calc(100vh - 54px); height:calc(100dvh - 54px);width:100%;overflow:hidden;}
+
+:root{ --sl:clamp(270px,27vw,360px); --sr:clamp(330px,34vw,480px); }
+
+.sidebar{
+  /* position:relative aqui, e nao no JS.
+     A alca de redimensionar (.sidebar-resizer) e absoluta e precisa de um
+     ancestral posicionado. O JS resolvia isso com
+        if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+     executado uma vez no DOMContentLoaded. Consequencia: quem abrisse a
+     pagina numa janela larga ganhava style="position:relative" INLINE, e
+     estilo inline vence media query — ao estreitar a janela, o
+     position:fixed do modo gaveta (@media max-width:900px) era ignorado,
+     as sidebars continuavam ocupando espaco no flex e a area central
+     colapsava. Medido: 540px -> 34px.
+     Declarando relative aqui, a condicao do JS nunca e verdadeira, nada
+     inline e escrito, e a media query volta a mandar. */
+  position: relative;
+
+  background: var(--bg-surface);
+  padding:10px 10px 14px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:0;
+  transition: background .25s, border-color .25s;
+  flex-shrink:0;
+}
+.sidebar--left{ width:var(--sl); border-right:1px solid var(--border-color); }
+.sidebar--right{ width:var(--sr); border-left:1px solid var(--border-color); }
+
+/* ============================================================  SEARCH  */
+.pt-search-bar{margin:6px 0 5px;}
+.pt-search-input{
+  width:100%;padding:5px 10px;border-radius:7px;
+  border:1px solid var(--border-color);
+  background: var(--bg-surface3);
+  color: var(--text-primary);
+  font-size:.78rem;outline:none;transition:border-color .2s;
+}
+.pt-search-input:focus{border-color: var(--accent);}
+.pt-search-input::placeholder{color: var(--text-dim); opacity:.7;}
+.pt-legend-row{display:flex;flex-wrap:wrap;gap:3px 7px;margin-top:6px;font-size:.58rem;color: var(--text-dim);}
+.pt-legend-item{
+  display:flex;align-items:center;gap:3px;
+  cursor:pointer;transition:opacity .2s;
+  min-height:24px;padding:2px 4px;border-radius:4px;
+}
+.pt-legend-item:hover{background:rgba(71,182,255,.12);}
+.pt-legend-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.pt-legend-dot{width:8px;height:8px;border-radius:2px;border:1px solid rgba(255,255,255,.2);flex-shrink:0;}
+.pt-legend-item.dimmed{opacity:.3;}
+
+/* ============================================================  PERIODIC TABLE  */
+.pt-wrapper{margin:2px 0 4px;}
+.pt-grid{display:grid;grid-template-columns:repeat(18,1fr);gap:2px;width:100%;}
+.pt-fblock-label{
+  display:grid;grid-template-columns:1fr 1fr;
+  font-size:.5rem;color: var(--text-dim);
+  padding:2px 0 1px 0;gap:2px;
+}
+.pt-fblock-label span{text-align:center;}
+.pt-fblock{
+  display:grid;grid-template-columns:repeat(15,1fr);
+  gap:2px;width:100%;
+  padding-left:calc(2*(100%/18 + 2px));
+}
+
+.pt-cell{
+  aspect-ratio:1;border-radius:3px;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  cursor:pointer;
+  border:1px solid rgba(255,255,255,.15);
+  transition:transform .12s,box-shadow .12s,opacity .2s;
+  user-select:none;position:relative;min-width:0;overflow:hidden;
+  outline:none;
+}
+.pt-cell:hover{
+  transform:scale(1.28);
+  box-shadow:0 0 12px 2px rgba(255,255,255,.35);
+  z-index:20;border-color:rgba(255,255,255,.75);
+}
+.pt-cell:focus-visible{
+  transform:scale(1.28);
+  box-shadow:0 0 0 3px var(--accent), 0 0 12px 2px rgba(71,182,255,.5) !important;
+  z-index:20;border-color: var(--accent) !important;
+}
+.pt-cell:active{transform:scale(1.12);}
+.pt-cell.dimmed{opacity:.15;}
+.pt-cell.highlighted{opacity:1!important;box-shadow:0 0 8px 2px var(--accent);border-color: var(--accent);}
+.pt-cell .c-num{font-size:.44rem;line-height:1;opacity:.7;font-weight:400;}
+.pt-cell .c-sym{font-size:.72rem;line-height:1.05;font-weight:800;}
+.pt-cell .c-name{font-size:.37rem;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.pt-spacer{aspect-ratio:1;}
+
+/* ============================================================  TOOLTIP  */
+.el-tooltip{
+  display:none;position:fixed;z-index:999;
+  background: var(--bg-surface);
+  border:1px solid var(--accent);border-radius:8px;
+  padding:8px 11px;font-size:.72rem;color: var(--text-primary);
+  pointer-events:none;max-width:185px;
+  box-shadow:0 4px 20px rgba(0,0,0,.6);line-height:1.5;
+}
+.el-tooltip strong{font-size:.85rem;}
+.el-tooltip .tt-cat{font-size:.6rem;opacity:.7;margin-top:2px;}
+
+/* ============================================================  CONTROLS  */
+.controls-row{display:flex;gap:6px;}
+.controls-row .btn{
+  flex:1;font-weight:600;font-size:.75rem;padding:4px 6px;
+  min-height:36px;
+}
+/* Botão freeze geometria */
+#btn-freeze-geo.active-a11y {
+  background: linear-gradient(135deg,#065f46,#10b981);
+  color: #fff;
+  border-color: #10b981;
+  box-shadow: 0 0 8px rgba(16,185,129,.4);
+}
+body.light-mode #btn-freeze-geo { color: #374151; border-color: #9ca3af; }
+
+/* Botão wedge / ângulos */
+#btn-wedge-toggle.active-a11y,
+#btn-show-angles.active-a11y {
+  background: linear-gradient(135deg,#4a1d96,#7c3aed);
+  color: #fff;
+  border-color: #7c3aed;
+  box-shadow: 0 0 8px rgba(124,58,237,.4);
+}
+body.light-mode #btn-wedge-toggle,
+body.light-mode #btn-show-angles {
+  color: #374151;
+  border-color: #9ca3af;
+}
+
+/* ============================================================  PAINEL MOLECULAR  */
+.mol-panel{
+  background: var(--bg-card);
+  border:1px solid var(--accent);border-radius:10px;
+  padding:8px 11px;margin:8px 0;
+}
+.mol-panel-header{font-size:.72rem;font-weight:700;color: var(--accent);margin-bottom:4px;}
+.mol-formula{
+  font-size:1.1rem;font-weight:800;letter-spacing:.5px;
+  color: var(--text-primary);margin-bottom:6px;line-height:1.3;
+}
+.mol-stats{
+  display:flex;flex-wrap:wrap;gap:4px 10px;font-size:.68rem;color: var(--text-dim);
+}
+.mol-stats span{display:flex;align-items:center;gap:3px;}
+.mol-stats b{color: var(--text-primary);}
+
+/* ============================================================  ENERGY PANEL  */
+.energy-panel{
+  background: var(--bg-surface2);border:1px solid var(--border-color);
+  border-radius:9px;padding:7px 9px;margin-bottom:10px;
+}
+.energy-panel strong{font-size:.78rem;color: var(--text-primary);}
+#energy-chart{width:100%;height:auto;display:block;margin-top:4px;}
+.energy-caption{font-size:.67rem;color: var(--text-dim);margin:4px 0 0;text-align:center;}
+.energy-curve{fill:none;stroke: var(--accent);stroke-width:2;}
+.energy-marker{fill:#ffb74d;stroke:#fff;stroke-width:1;}
+.min-marker{stroke:#69f0ae;stroke-width:1;stroke-dasharray:3 3;}
+.min-label{fill:#69f0ae;font-size:8px;}
+.energy-empty{fill: var(--text-dim);font-size:9px;}
+.axis path,.axis line{stroke: var(--border-color);}
+.axis text{fill: var(--text-dim);font-size:7px;}
+.axis-label{fill: var(--text-dim);font-size:8px;text-anchor:middle;}
+
+/* ============================================================  INFO PANEL  */
+.info-panel{
+  background: var(--bg-surface2);border:1px solid var(--border-color);
+  border-radius:9px;padding:7px 9px;margin-bottom:10px;
+}
+.info-panel strong{font-size:.78rem;color: var(--text-primary);}
+#info-text{font-size:.73rem;color: var(--text-primary);margin:5px 0 0;line-height:1.45;}
+.iupac-note{
+  display:block;margin-top:5px;padding:5px 7px;
+  background:rgba(71,182,255,.1);border-left:2px solid var(--accent);
+  border-radius:0 5px 5px 0;font-size:.67rem;color: var(--text-muted);line-height:1.4;
+}
+
+/* ============================================================  CANVAS  */
+.canvas-area{flex:1;position:relative;padding:12px;display:flex;flex-direction:column;min-width:0;}
+#canvas-wrapper{flex:1;position:relative;border-radius:13px;overflow:hidden;}
+#canvas{
+  position:absolute;inset:0;
+  background-color: var(--bg-base);
+  background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);
+  background-size:32px 32px;
+  border:2px dashed transparent;border-radius:13px;overflow:hidden;
+  transition:border-color .25s,background-color .25s;
+}
+body.light-mode #canvas {
+  background-image:linear-gradient(rgba(0,0,0,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.05) 1px,transparent 1px);
+}
+#canvas.drop-active{border-color: var(--accent);background-color:rgba(71,182,255,.08);box-shadow:inset 0 0 40px rgba(71,182,255,.15);}
+#canvas-hint{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  color: var(--text-dim);font-size:.95rem;text-align:center;width:60%;
+  pointer-events:none;font-style:italic;opacity:.6;
+}
+#canvas-hint.hidden{display:none;}
+#bond-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5;}
+
+.bond-edit-hint{
+  font-size:.65rem;color: var(--text-dim);
+  background:rgba(71,182,255,.08);border:1px solid rgba(71,182,255,.25);
+  border-radius:5px;padding:4px 7px;margin-top:5px;line-height:1.4;
+}
+#canvas.bond-edit-mode{cursor:crosshair!important;}
+#canvas.bond-edit-mode .atom{pointer-events:none;}
+
+/* Overlay transparente que captura cliques de ligação no modo edição */
+#bond-edit-overlay{
+  display:none;position:absolute;inset:0;
+  z-index:15;cursor:crosshair;background:transparent;
+}
+
+/* ============================================================  BOND ORDER SELECTOR  */
+.bond-order-selector{
+  margin-top:8px;
+  background: var(--bg-surface3);
+  border:1px solid var(--border-color);
+  border-top:1px solid var(--border-color);
+  border-radius:8px;
+  padding:7px 10px;
+}
+.bond-order-label{
+  font-size:.68rem;
+  color: var(--text-dim);
+  font-weight:600;
+  display:block;
+  margin-bottom:5px;
+  letter-spacing:.3px;
+  padding:0;float:none;width:auto;
+}
+.bond-order-btns{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:4px;
+}
+.bond-order-btn{
+  padding:5px 4px;border-radius:6px;
+  border:1px solid var(--border-color);
+  background: var(--bg-surface2);
+  color: var(--text-dim);
+  font-size:.7rem;font-weight:700;cursor:pointer;transition:all .15s;
+  text-align:center;white-space:nowrap;min-height:36px;
+}
+.bond-order-btn:hover{background: var(--bg-surface);color: var(--text-primary);border-color: var(--accent);}
+.bond-order-btn.active-order{
+  background:linear-gradient(135deg, var(--accent-dark), var(--accent));
+  color:#fff;border-color:transparent;
+  box-shadow:0 0 8px rgba(71,182,255,.4);
+}
+.bond-order-btn[data-order="1"].active-order{background:linear-gradient(135deg,#02bd46,#29f674);}
+.bond-order-btn[data-order="2"].active-order{background:linear-gradient(135deg,#7c3aed,#a78bfa);}
+.bond-order-btn[data-order="3"].active-order{background:linear-gradient(135deg,#b45309,#fbbf24);}
+
+.bond-order-warning{
+  display:none;
+  margin-top:5px;padding:4px 7px;
+  background:rgba(239,68,68,.15);
+  border:1px solid rgba(239,68,68,.4);
+  border-radius:5px;
+  font-size:.65rem;color:#fca5a5;
+  line-height:1.35;
+}
+body.light-mode .bond-order-warning{ color:#B91C1C; }
+
+/* ============================================================  DELETE MODE  */
+#canvas.delete-mode{cursor:crosshair!important;}
+#canvas.delete-mode .atom{cursor:pointer!important;border-color:#ef4444!important;}
+#canvas.delete-mode .atom:hover{
+  box-shadow:0 0 0 3px #ef4444,0 0 20px 6px rgba(239,68,68,.5)!important;
+  transform:translate(-50%,-50%) scale(1.1);
+}
+
+/* × button inside atom */
+.atom-remove-x{
+  position:absolute;top:-8px;right:-8px;
+  width:18px;height:18px;
+  background:#ef4444;color:#fff;
+  border-radius:50%;font-size:.72rem;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .15s;
+  pointer-events:none;
+  box-shadow:0 0 5px rgba(0,0,0,.5);line-height:1;
+}
+.atom:hover .atom-remove-x,
+#canvas.delete-mode .atom .atom-remove-x{opacity:1;}
+
+/* Célula bloqueada pelo modo de ligação ativo */
+.pt-cell.bond-incompatible {
+  opacity: .18 !important;
+  filter: grayscale(1);
+  cursor: not-allowed !important;
+  pointer-events: none;
+}
+/* Mantém a transição suave ao entrar/sair do modo */
+.pt-cell {
+  transition: transform .12s, box-shadow .12s, opacity .2s, filter .2s;
+}
+
+/* ============================================================  SELETOR DE CUNHA ESTEREOQUÍMICA  */
+.wedge-dir-section { margin: 0 0 8px; }
+
+.wedge-selector {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin: 5px 0 4px;
+}
+.wedge-btn {
+  flex: 1;
+  min-width: 52px;
+  padding: 5px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-surface3);
+  color: var(--text-dim);
+  font-size: .65rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: all .15s;
+  white-space: nowrap;
+  font-family: 'Segoe UI', monospace;
+}
+.wedge-btn:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+.wedge-btn.active-wedge {
+  background: rgba(79,195,247,.18);
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(79,195,247,.15);
+}
+.wedge-btn[data-wedge="front"].active-wedge {
+  background: rgba(52,211,153,.15);
+  color: #34d399;
+  border-color: #34d399;
+  box-shadow: 0 0 0 2px rgba(52,211,153,.12);
+}
+.wedge-btn[data-wedge="back"].active-wedge {
+  background: rgba(251,191,36,.15);
+  color: #fbbf24;
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 2px rgba(251,191,36,.12);
+}
+.wedge-btn[data-wedge="plane"].active-wedge {
+  background: rgba(148,163,184,.15);
+  color: #94a3b8;
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 2px rgba(148,163,184,.12);
+}
+body.high-contrast .wedge-btn { border-color: var(--hc-fg) !important; color: var(--hc-fg) !important; }
+body.high-contrast .wedge-btn.active-wedge { background: var(--hc-fg) !important; color: var(--hc-bg) !important; }
+
+/* ============================================================  BOND LINES  */
+.bond-covalent{stroke:#4fc3f7;stroke-width:3;}
+.bond-ionic{stroke:#ffb74d;stroke-width:3;}
+.bond-metallic{stroke:rgba(255,255,255,.18);stroke-width:14;stroke-linecap:round;}
+.bond-label{font-family:'Segoe UI',sans-serif;pointer-events:none;}
+
+/* ── Cunhas (wedge bonds) ── notação estereoquímica da literatura ── */
+/* Linha plana normal — no plano do papel */
+.bond-plane { stroke:#4fc3f7; stroke-width:3; }
+
+/* Cunha sólida — ligação saindo do plano (vem para frente).
+   Desenhada como path preenchido (triângulo), não linha. */
+.bond-wedge-solid { fill:#4fc3f7; stroke:none; }
+
+/* Cunha tracejada — ligação entrando no plano (vai para trás).
+   Série de traços perpendiculares ao eixo da ligação, mais
+   largos na ponta distal (perspectiva). */
+.bond-wedge-dash { stroke:#4fc3f7; stroke-linecap:round; fill:none; }
+
+/* ============================================================  ÂNGULOS DE LIGAÇÃO — visualização rica  */
+/* Grupo contendo arco + pill + textos de cada ângulo medido */
+.bond-angle-group { pointer-events: none; }
+
+/* Fundo "pill" atrás do texto do ângulo — garante legibilidade em qualquer tema */
+.bond-angle-pill {
+  fill: rgba(11,15,23,.88);
+  stroke-width: 1.4;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.5));
+}
+body.light-mode .bond-angle-pill { fill: rgba(255,255,255,.92); }
+body.high-contrast .bond-angle-pill { fill: #000; stroke-width: 2; }
+
+/* Texto principal: ângulo medido em tempo real */
+.bond-angle-label {
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  pointer-events: none;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+/* Texto secundário: valor de referência da literatura */
+.bond-angle-sublabel {
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 7px;
+  font-weight: 600;
+  fill: #94a3b8;
+  pointer-events: none;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  letter-spacing: .2px;
+}
+body.light-mode .bond-angle-sublabel { fill: #64748b; }
+body.high-contrast .bond-angle-sublabel { fill: var(--hc-fg); }
+
+/* ============================================================  BOND CARD  */
+.bond-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:9px;padding:9px 11px;margin-bottom:6px;}
+.bond-card-title{font-size:.83rem;font-weight:800;color:var(--text-primary);margin-bottom:3px;}
+.bond-card-pair{font-size:.7rem;color:var(--text-muted);margin-bottom:5px;}
+.bond-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:.64rem;color:var(--text-muted);margin-bottom:5px;}
+.bond-card-grid b{color:var(--text-primary);}
+.bond-card-desc{font-size:.67rem;color:var(--text-dim);line-height:1.5;border-top:1px solid var(--border-color);padding-top:5px;}
+.bond-transfer{margin-top:4px;font-size:.68rem;color:#fbbf24;background:rgba(251,191,36,.08);border-radius:5px;padding:3px 6px;}
+.bond-order-tag{margin-top:4px;font-size:.68rem;color:#93c5fd;}
+.bond-polar-note{margin-top:3px;font-size:.65rem;color:#fca5a5;padding:3px 5px;background:rgba(239,68,68,.08);border-radius:4px;}
+body.light-mode .bond-transfer{ color:#A16207; }
+body.light-mode .bond-order-tag{ color:#1D4ED8; }
+body.light-mode .bond-polar-note{ color:#B91C1C; }
+
+/* Capacidade iônica restante — exibida no painel de análise */
+.bond-ionic-capacity {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 5px;
+  padding: 5px 7px;
+  background: rgba(255,183,77,.08);
+  border: 1px solid rgba(255,183,77,.25);
+  border-radius: 6px;
+  font-size: .65rem;
+  color: #fcd34d;
+  line-height: 1.5;
+}
+body.light-mode .bond-ionic-capacity { color:#A16207; }
+
+/* ============================================================  ATOMS  */
+.atom{
+  position:absolute;width:54px;height:54px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  transform:translate(-50%,-50%);
+  font-weight:800;font-size:.9rem;cursor:grab;
+  user-select:none;touch-action:none;
+  border:2px solid rgba(255,255,255,.5);
+  box-shadow:0 4px 12px rgba(0,0,0,.5);z-index:10;
+  transition:box-shadow .25s,border-color .25s;
+}
+.atom.dragging{cursor:grabbing;z-index:25;}
+/* Foco visível nos átomos (navegação por teclado) */
+.atom:focus-visible{
+  outline:3px solid #fff !important;
+  outline-offset:5px !important;
+}
+
+@keyframes pulse-glow{
+  0%,100%{box-shadow:0 0 14px 4px var(--glow-color),0 4px 12px rgba(0,0,0,.5);}
+  50%    {box-shadow:0 0 32px 14px var(--glow-color),0 4px 12px rgba(0,0,0,.5);}
+}
+@keyframes near-pulse{
+  0%,100%{box-shadow:0 0 6px 2px var(--glow-color),0 4px 12px rgba(0,0,0,.4);}
+  50%    {box-shadow:0 0 16px 6px var(--glow-color),0 4px 12px rgba(0,0,0,.4);}
+}
+.atom.stable{border-color:#fff;animation:pulse-glow 1.3s ease-in-out infinite;}
+.atom.near-bond{animation:near-pulse 0.8s ease-in-out infinite;}
+
+.charge-label{
+  position:absolute;top:-6px;right:-8px;
+  background:#fff;color:#111;font-size:.6rem;font-weight:800;
+  border-radius:50%;min-width:17px;height:17px;
+  display:flex;align-items:center;justify-content:center;padding:0 2px;
+  box-shadow:0 0 4px rgba(0,0,0,.6);
+}
+.charge-label:empty{display:none;}
+
+/* ============================================================  DIPOLO  */
+.dipole-indicator{
+  position:absolute;transform:translate(-50%,-50%);
+  width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+  font-size:.65rem;font-weight:900;pointer-events:none;z-index:15;
+  text-shadow:0 0 4px rgba(0,0,0,.9);
+  margin-top:-36px;
+}
+
+/* ============================================================  ELECTRONS  */
+.electron-orbit{position:absolute;width:0;height:0;z-index:11;pointer-events:none;}
+.electron-dot{position:absolute;width:6px;height:6px;top:-3px;left:-3px;border-radius:50%;background:#80f0ff;box-shadow:0 0 5px #80f0ff;}
+.electron-particle{position:absolute;top:0;left:0;width:10px;height:10px;border-radius:50%;background:radial-gradient(circle,#fff,#4fc3f7);box-shadow:0 0 10px #4fc3f7;z-index:18;pointer-events:none;}
+.sea-electron{position:absolute;top:0;left:0;width:5px;height:5px;border-radius:50%;background:#ffe082;box-shadow:0 0 8px #ffe082;z-index:4;pointer-events:none;}
+
+/* ============================================================  PARTICLES  */
+.burst-particle{position:absolute;top:0;left:0;width:7px;height:7px;border-radius:50%;z-index:20;pointer-events:none;}
+.break-particle{position:absolute;top:0;left:0;width:5px;height:5px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px #ef4444;z-index:20;pointer-events:none;}
+
+/* ============================================================  3D  */
+#viewer3d{position:absolute;inset:12px;display:none;border-radius:13px;overflow:hidden;background:#060a12;border:1px solid #2a3142;}
+
+/* ============================================================  VLIBRAS — posicionamento do widget  */
+[vw]{
+  /* O VLibras posiciona o widget no canto inferior direito por padrão.
+     Ajuste abaixo para não sobrepor controles críticos da UI. */
+  bottom:20px !important;
+  right:20px !important;
+}
+
+/* ============================================================  MOVIMENTO REDUZIDO  */
+/*
+  Respeita a preferência do sistema operacional por redução de animações.
+  Desativa ou suaviza todas as animações para usuários com vestibular disorders,
+  epilepsia fotossensível ou preferências de acessibilidade.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *,::before,::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+  .atom.stable,
+  .atom.near-bond{
+    animation:none !important;
+    box-shadow:0 0 8px 3px var(--glow-color),0 4px 12px rgba(0,0,0,.5) !important;
+  }
+  .electron-orbit{display:none !important;}
+  .sea-electron{display:none !important;}
+  .burst-particle,.break-particle,.electron-particle{display:none !important;}
+}
+
+/* ============================================================  ALTO CONTRASTE  */
+/*
+  Suporte ao modo de alto contraste do Windows e preferências de contraste forçado.
+  Garante que bordas e textos sejam visíveis em qualquer esquema de cores do sistema.
+*/
+@media (forced-colors: active) {
+  .pt-cell{
+    border:2px solid ButtonText !important;
+    forced-color-adjust:none;
+  }
+  .pt-cell:focus-visible{
+    outline:3px solid Highlight !important;
+  }
+  .atom{
+    border:3px solid ButtonText !important;
+  }
+  .btn{
+    border:2px solid ButtonText !important;
+  }
+  .bond-order-btn.active-order{
+    border:3px solid Highlight !important;
+  }
+  .skip-link{
+    background:Highlight !important;
+    color:HighlightText !important;
+  }
+}
+
+/* ============================================================  SIDEBAR HEADER  */
+.sidebar-header { margin-bottom: 4px; }
+.hint-text{font-size:.7rem;color: var(--text-muted);margin-bottom:6px;line-height:1.4;}
+
+/* ============================================================  ACCORDION UNIFICADO  */
+.accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.panel {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface2);
+  transition: border-color .2s, box-shadow .2s;
+}
+.panel:has(.panel-header[aria-expanded="true"]) {
+  border-color: rgba(71,182,255,.4);
+  box-shadow: 0 0 0 1px rgba(71,182,255,.12);
+}
+
+/* Header do accordion — botão completo */
+.panel-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: .8rem;
+  font-weight: 700;
+  text-align: left;
+  transition: background .15s, color .15s;
+  border-radius: 10px;
+  user-select: none;
+}
+.panel-header:hover {
+  background: rgba(71,182,255,.08);
+  color: var(--accent);
+}
+.panel-header[aria-expanded="true"] {
+  background: linear-gradient(135deg, rgba(71,182,255,.14), rgba(71,182,255,.05));
+  color: var(--accent);
+  border-radius: 10px 10px 0 0;
+  border-bottom: 1px solid rgba(71,182,255,.2);
+}
+.panel-header:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 10px;
+}
+
+/* Ícone emoji do painel */
+.panel-icon {
+  font-size: .95rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* Label do painel */
+.panel-label {
+  flex: 1;
+  letter-spacing: .2px;
+}
+
+/* Badge numérico opcional */
+.panel-badge {
+  font-size: .6rem;
+  font-weight: 700;
+  background: rgba(71,182,255,.2);
+  color: var(--accent);
+  border-radius: 10px;
+  padding: 1px 6px;
+  min-width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.panel-header[aria-expanded="true"] .panel-badge {
+  background: rgba(71,182,255,.35);
+}
+
+/* Chevron SVG — rotaciona suavemente */
+.chevron {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  transition: transform .22s cubic-bezier(.4,0,.2,1);
+  color: var(--text-dim);
+}
+.panel-header[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+/* Body do accordion — animação de altura */
+.panel-body {
+  padding: 0 11px 10px;
+  overflow: hidden;
+  /* Transição de max-height para animação suave */
+  max-height: 2000px;
+  transition: max-height .3s cubic-bezier(.4,0,.2,1),
+              padding .25s ease,
+              opacity .25s ease;
+  opacity: 1;
+}
+.panel-body.collapsed {
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Grupos dentro do painel Controles ── */
+.ctrl-group {
+  margin-top: 10px;
+}
+.ctrl-group:first-child { margin-top: 6px; }
+.ctrl-group-label {
+  font-size: .62rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  margin-bottom: 5px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* ============================================================  PAINEL DE LIGAÇÕES — abas por tipo  */
+
+/* Descrição textual do tipo de ligação */
+.bond-type-desc {
+  font-size: .7rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  background: var(--bg-card);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+}
+.bond-type-desc strong { color: var(--text-primary); }
+
+/* Grid de propriedades (Iônica / Metálica) */
+.bond-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+.bond-info-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  padding: 6px 8px;
+}
+.bond-info-label {
+  font-size: .58rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: 2px;
+}
+.bond-info-value {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Nota educacional no rodapé da aba */
+.bond-type-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: .65rem;
+  color: var(--text-dim);
+  background: rgba(71,182,255,.06);
+  border: 1px solid rgba(71,182,255,.18);
+  border-radius: 6px;
+  padding: 6px 8px;
+  line-height: 1.45;
+  margin-top: 8px;
+}
+.bond-type-note-icon { flex-shrink: 0; font-size: .85rem; }
+
+/* Alto contraste */
+body.high-contrast .bond-info-item { border-color: var(--hc-fg); }
+body.high-contrast .bond-type-note { border-color: var(--hc-fg); background: var(--hc-bg); }
+
+/* Legenda de cores dos ângulos — exibida junto ao botão Ângulos */
+.angle-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: .6rem;
+  color: var(--text-dim);
+}
+.angle-legend-item { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.angle-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* ============================================================  MÓDULOS DE LIGAÇÃO — controles por tipo  */
+
+/* Botão de ativação de modo exclusivo */
+.bond-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  margin: 8px 0 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: .75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .18s;
+  text-align: left;
+}
+.bond-mode-btn:hover {
+  border-color: var(--accent);
+  background: rgba(71,182,255,.08);
+  color: var(--accent);
+}
+.bond-mode-btn[aria-pressed="true"] {
+  background: rgba(71,182,255,.15);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(71,182,255,.2);
+}
+.bond-mode-btn[aria-pressed="true"]::after {
+  content: ' · ativo';
+  font-size: .65rem;
+  font-weight: 600;
+  opacity: .8;
+  margin-left: auto;
+}
+/* Passar o cursor sobre o modo JA ativo avisa que o clique DESATIVA.
+   O clique aqui sempre foi um toggle (setMode / clearMode), mas nada na
+   tela dizia isso — o botao continuava escrito "Ativar" mesmo quando a
+   acao seria desligar. Mesmo aviso usado nos 19 outros simuladores.
+   Nao redefine cor nenhuma: as regras por tipo de ligacao
+   (.panel--covalente/--ionica/--metalica) continuam mandando. */
+.bond-mode-btn[aria-pressed="true"]:hover::after {
+  content: ' · desativar';
+  opacity: 1;
+}
+.bond-mode-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Dot colorido no botão de modo */
+.bond-mode-btn-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.bond-mode-dot--cov { background: #4fc3f7; box-shadow: 0 0 6px #4fc3f7; }
+.bond-mode-dot--ion { background: #ffb74d; box-shadow: 0 0 6px #ffb74d; }
+.bond-mode-dot--met { background: #fde68a; box-shadow: 0 0 6px #fde68a; }
+
+/* Modo ativo por tipo — cor do painel */
+.panel--covalente .bond-mode-btn[aria-pressed="true"] {
+  border-color: #4fc3f7;
+  background: rgba(79,195,247,.12);
+  color: #4fc3f7;
+  box-shadow: 0 0 0 3px rgba(79,195,247,.2);
+}
+.panel--ionica .bond-mode-btn[aria-pressed="true"] {
+  border-color: #ffb74d;
+  background: rgba(255,183,77,.12);
+  color: #ffb74d;
+  box-shadow: 0 0 0 3px rgba(255,183,77,.2);
+}
+.panel--metalica .bond-mode-btn[aria-pressed="true"] {
+  border-color: #fde68a;
+  background: rgba(253,230,138,.12);
+  color: #a87e00;
+  box-shadow: 0 0 0 3px rgba(253,230,138,.2);
+}
+
+/* Seção de interações do canvas */
+.bond-interactions {
+  margin: 10px 0 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.bond-interactions-label {
+  font-size: .6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-dim);
+  padding: 5px 10px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+}
+.bond-interactions .bond-order-selector {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--border-color);
+}
+.bond-interactions .btn {
+  border-radius: 0;
+  border-top: 1px solid var(--border-color);
+  margin: 0 !important;
+}
+
+/* Hint de modo iônico/metálico */
+.bond-ionic-hint {
+  font-size: .68rem;
+  color: var(--text-muted);
+  padding: 8px 10px;
+  line-height: 1.5;
+}
+.bond-ionic-hint strong { color: var(--text-primary); }
+
+/* Grade de pares/metais recomendados */
+.bond-ionic-pairs { padding: 0 10px 10px; }
+.bond-ionic-pair-label {
+  font-size: .58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--text-dim);
+  margin-bottom: 5px;
+}
+.bond-ionic-pairs-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ion-pair-chip {
+  font-size: .68rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: rgba(255,183,77,.12);
+  color: #ffb74d;
+  border: 1px solid rgba(255,183,77,.3);
+  cursor: default;
+}
+.ion-pair-chip--met {
+  background: rgba(253,230,138,.1);
+  color: #a87e00;
+  border-color: rgba(253,230,138,.35);
+}
+.ion-pair-chip--cov {
+  background: rgba(79,195,247,.12);
+  color: #4fc3f7;
+  border-color: rgba(79,195,247,.35);
+}
+/* O chip metalico ja tinha variante clara; o chip base (ionico) nao —
+   ficava #ffb74d a 1.42:1 sobre o fundo claro. */
+body.light-mode .ion-pair-chip      { color: #975a00; }   /* 4.56:1 */
+body.light-mode .ion-pair-chip--met { color: #78590a; }   /* 5.33:1 */
+body.light-mode .ion-pair-chip--cov { color: #076f9e; }   /* 4.56:1 — mesmo tom de .panel-badge--cov */
+
+/* ── Indicador de modo ativo no canvas ── */
+.bond-mode-indicator {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px 5px 10px;
+  border-radius: 20px;
+  font-size: .72rem;
+  font-weight: 700;
+  backdrop-filter: blur(8px);
+  border: 1.5px solid;
+  box-shadow: 0 2px 12px rgba(0,0,0,.4);
+  white-space: nowrap;
+  pointer-events: auto;
+  transition: opacity .2s;
+}
+.bond-mode-indicator.hidden { display: none; }
+.bond-mode-indicator.mode--covalent {
+  background: rgba(79,195,247,.18);
+  border-color: rgba(79,195,247,.6);
+  color: #4fc3f7;
+}
+.bond-mode-indicator.mode--ionic {
+  background: rgba(255,183,77,.18);
+  border-color: rgba(255,183,77,.6);
+  color: #ffb74d;
+}
+.bond-mode-indicator.mode--metallic {
+  background: rgba(253,230,138,.18);
+  border-color: rgba(253,230,138,.6);
+  color: #a87e00;
+}
+body.light-mode .bond-mode-indicator.mode--metallic { color: #78590a; }
+#bond-mode-indicator-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: .75rem;
+  padding: 0 0 0 4px;
+  opacity: .7;
+  line-height: 1;
+  transition: opacity .15s;
+}
+#bond-mode-indicator-clear:hover { opacity: 1; }
+
+/* Borda do canvas muda de acordo com o modo ativo */
+#canvas.mode-covalent  { border-color: rgba(79,195,247,.5) !important; }
+#canvas.mode-ionic     { border-color: rgba(255,183,77,.5) !important; }
+#canvas.mode-metallic  { border-color: rgba(253,230,138,.5) !important; }
+
+/* Cores de destaque por tipo de ligação nos painéis */
+.panel--covalente:has(.panel-header[aria-expanded="true"]) {
+  border-color: rgba(79,195,247,.45);
+  box-shadow: 0 0 0 1px rgba(79,195,247,.15);
+}
+.panel--ionica:has(.panel-header[aria-expanded="true"]) {
+  border-color: rgba(255,183,77,.45);
+  box-shadow: 0 0 0 1px rgba(255,183,77,.15);
+}
+.panel--metalica:has(.panel-header[aria-expanded="true"]) {
+  border-color: rgba(253,230,138,.45);
+  box-shadow: 0 0 0 1px rgba(253,230,138,.15);
+}
+
+/* Badges coloridos por tipo */
+.panel-badge--cov { background: rgba(79,195,247,.2);  color: #4fc3f7; }
+.panel-badge--ion { background: rgba(255,183,77,.2);  color: #ffb74d; }
+.panel-badge--met { background: rgba(253,230,138,.2); color: #fde68a; }
+
+/* TEMA CLARO — os tons acima sao para fundo escuro. Sobre o fundo claro
+   do painel (rgb(216,238,224), medido no Chromium) o contraste era:
+       cov #4fc3f7 -> 1.64:1     ion #ffb74d -> 1.42:1
+       met #fde68a -> 1.02:1  (o "e⁻~" ficava literalmente invisivel)
+   Os tons abaixo mantem o matiz de cada ligacao e cruzam 4.5:1. */
+body.light-mode .panel-badge--cov { color: #076f9e; }   /* 4.56:1 */
+body.light-mode .panel-badge--ion { color: #975a00; }   /* 4.56:1 */
+body.light-mode .panel-badge--met { color: #7e6502; }   /* 4.59:1 */
+
+/* Variante de nota com tom de aviso */
+.bond-type-note--warning {
+  background: rgba(255,183,77,.08);
+  border-color: rgba(255,183,77,.3);
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+
+/* ============================================================  PAINEL DE MOLÉCULAS PRÉ-MONTADAS  */
+
+.mol-preset-search-wrap { margin: 8px 0 6px; }
+
+/* Abas de categoria */
+.mol-cat-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 7px;
+}
+.mol-cat-btn {
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface3);
+  color: var(--text-dim);
+  font-size: .63rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  min-height: 24px;
+}
+.mol-cat-btn:hover { background: var(--bg-surface); color: var(--text-primary); border-color: var(--accent); }
+.mol-cat-btn.active-cat {
+  background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+  color: #fff;
+  border-color: transparent;
+}
+.mol-cat-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Grid de cards de molécula */
+.mol-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.mol-preset-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 5px 5px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: all .15s;
+  min-height: 68px;
+  position: relative;
+  overflow: hidden;
+}
+.mol-preset-card:hover {
+  border-color: var(--accent);
+  background: linear-gradient(135deg,rgba(71,182,255,.12),rgba(71,182,255,.04));
+  transform: scale(1.03);
+  z-index: 2;
+  box-shadow: 0 0 10px rgba(71,182,255,.25);
+}
+.mol-preset-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+.mol-preset-card:active { transform: scale(0.97); }
+
+/* Mini-diagrama SVG dentro do card */
+.mol-card-svg { width: 52px; height: 36px; flex-shrink: 0; }
+.mol-card-formula { font-size: .68rem; font-weight: 800; color: var(--text-primary); text-align: center; line-height: 1.1; letter-spacing: .3px; }
+.mol-card-name { font-size: .55rem; color: var(--text-dim); text-align: center; line-height: 1.2; }
+.mol-card-geo { font-size: .5rem; color: var(--accent); font-weight: 600; text-align: center; opacity: .85; }
+.mol-preset-empty { grid-column: 1/-1; text-align: center; color: var(--text-dim); font-size: .72rem; padding: 16px 0; font-style: italic; }
+
+/* Alto contraste */
+body.high-contrast .mol-preset-card { border: 2px solid var(--hc-fg) !important; }
+body.high-contrast .mol-preset-card:hover { background: #111 !important; }
+body.high-contrast .mol-cat-btn.active-cat { background: var(--hc-fg) !important; color: var(--hc-bg) !important; }
+body.high-contrast .panel { border-color: var(--hc-fg) !important; }
+body.high-contrast .panel-header[aria-expanded="true"] { color: var(--hc-fg) !important; }
+
+
+
+/* Fórmula da molécula */
+.mol-card-formula {
+  font-size: .68rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.1;
+  letter-spacing: .3px;
+}
+
+/* Nome comum */
+.mol-card-name {
+  font-size: .55rem;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Badge de geometria */
+.mol-card-geo {
+  font-size: .5rem;
+  color: var(--accent);
+  font-weight: 600;
+  text-align: center;
+  opacity: .85;
+}
+
+/* Sem resultados */
+.mol-preset-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: .72rem;
+  padding: 16px 0;
+  font-style: italic;
+}
+
+/* Alto contraste */
+body.high-contrast .mol-preset-card { border: 2px solid var(--hc-fg) !important; }
+body.high-contrast .mol-preset-card:hover { background: #111 !important; }
+body.high-contrast .mol-cat-btn.active-cat { background: var(--hc-fg) !important; color: var(--hc-bg) !important; }
+
+/* ============================================================  RESPONSIVE  */
+.mode-tabs-mobile { display: none; }
+@media(max-width:900px){
+  .mobile-menu-btn { display:flex !important; }
+  .sidebar{
+    position:fixed; top:54px; bottom:0; z-index:100;
+    width:min(88vw, 340px); max-width:340px;
+    height:auto; max-height:none;
+    border-right:none; border-left:none; border-bottom:none;
+    transition:transform .25s ease;
+    box-shadow:4px 0 24px rgba(0,0,0,.55);
+    padding:8px 8px 10px;
+  }
+  /* sidebar esquerda (3 tipos de ligação) fica ESCONDIDA no mobile — a
+     barra de modos rolável (.mode-tabs-mobile, logo abaixo do cabeçalho)
+     assume essa função. */
+  .sidebar--left{ display: none; }
+  /* sidebar direita (tabela periódica, moléculas, análise, controles)
+     vira um BOTTOM SHEET: sobe da base da tela em vez de entrar pela
+     lateral. */
+  .sidebar--right{
+    left:0; right:0; top:auto; bottom:0;
+    width:auto; max-width:none; min-width:0;
+    height:auto; max-height:75vh;
+    border-top: 1px solid var(--border-color);
+    border-radius: 16px 16px 0 0;
+    box-shadow:0 -4px 24px rgba(0,0,0,.55);
+    transform:translateY(105%);
+    overflow-y:auto; padding-top:.35rem;
+  }
+  .sidebar--right.mobile-open{ transform:translateY(0); }
+  .sidebar--right::before{
+    content:''; display:block; width:36px; height:4px; border-radius:2px;
+    background:var(--border-color); margin:.5rem auto .25rem;
+  }
+  .canvas-area{width:100%;height:calc(100vh - 54px); height:calc(100dvh - 54px);}
+  .pt-cell .c-name{display:none;}
+  .panel-header { padding: 7px 9px; font-size: .76rem; }
+
+  .mode-tabs-mobile {
+    display: flex; gap: .4rem; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: .5rem .6rem; background: var(--bg-surface); border-bottom: 1px solid var(--border-color);
+    scrollbar-width: thin;
+  }
+  .mode-tab {
+    flex: none; display: flex; align-items: center; gap: .3rem;
+    padding: .4rem .7rem; border-radius: 999px; border: 1px solid var(--border-color);
+    background: transparent; color: var(--text-dim);
+    font-size: .78rem; white-space: nowrap; cursor: pointer; min-height: 36px;
+  }
+  .mode-tab .icon { width: 1em; height: 1em; }
+  .mode-tab[aria-selected="true"] {
+    border-color: var(--accent); color: var(--text-primary);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+}
+
+.mode-info-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.72); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+  opacity: 0; visibility: hidden; transition: opacity .2s, visibility .2s;
+}
+.mode-info-overlay.aberto { opacity: 1; visibility: visible; }
+.mode-info-modal {
+  background: var(--bg-surface2); border: 1px solid var(--border-color); border-radius: 8px;
+  width: min(420px, 94vw); max-height: 80vh; max-height: 80dvh; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 56px rgba(0,0,0,.6);
+  transform: scale(.94) translateY(10px);
+  transition: transform .22s cubic-bezier(.34,1.56,.64,1);
+}
+.mode-info-overlay.aberto .mode-info-modal { transform: scale(1) translateY(0); }
+.mode-info-header {
+  display: flex; align-items: center; gap: .6rem; padding: .9rem 1rem;
+  background: var(--bg-surface); border-bottom: 1px solid var(--border-color); flex-shrink: 0;
+}
+.mode-info-icon { font-size: 1.3rem; color: var(--accent); flex-shrink: 0; display: flex; }
+.mode-info-icon .icon { width: 1.2em; height: 1.2em; }
+.mode-info-title { flex: 1; margin: 0; font-size: 1.02rem; color: var(--text-primary); }
+.mode-info-close {
+  background: transparent; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-dim);
+  min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+.mode-info-close:hover, .mode-info-close:focus-visible {
+  background: var(--bg-surface3); color: var(--text-primary); border-color: var(--accent);
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.mode-info-body { padding: 1rem; overflow-y: auto; font-size: .88rem; color: var(--text-dim); }
+.mode-info-body .mode-define { color: var(--text-primary); margin: 0 0 .6rem; line-height: 1.5; }
+@media (pointer: coarse) { .mode-info-close { min-width: 44px; min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .mode-info-modal { transition: none; } }
+
+/* Touch devices */
+@media (pointer: coarse) {
+  .pt-cell{ min-width:28px; min-height:28px; }
+  .bond-order-btn, .controls-row .btn{ min-height:44px; }
+  .panel-header { min-height: 44px; }
+  .mol-cat-btn { min-height: 34px; }
+}
+/* =====================================================================
+   ACESSIBILIDADE — SILQ (Ligações Químicas)
+   ---------------------------------------------------------------------
+   O SILQ não tem barra de acessibilidade própria — tema, alto
+   contraste, fonte, leitura simples e daltonismo são controlados só
+   pelo menu (Central de Simuladores) e aplicados pelo bloco de
+   acessibilidade no topo de script.js. Aqui ficam as regras visuais
+   de Leitura Simples e Daltonismo (as de tema/contraste/fonte —
+   body.light-mode, body.high-contrast, --font-scale — já estavam
+   nas seções acima deste arquivo).
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. LEITURA SIMPLES (acessibilidade cognitiva)
+   body.simple-read: prioriza clareza nos textos explicativos da
+   sidebar (espaçamento, line-height) sem esconder dados do simulador.
+   --------------------------------------------------------------------- */
+body.simple-read .hint-text,
+body.simple-read .bond-type-desc,
+body.simple-read #info-text,
+body.simple-read .energy-caption,
+body.simple-read .mol-stats,
+body.simple-read .bond-ionic-hint,
+body.simple-read .bond-interactions-label,
+body.simple-read .bond-ionic-pair-label {
+  line-height: 1.85;
+  letter-spacing: .01em;
+}
+
+body.simple-read .panel-label { font-weight: 700; }
+body.simple-read .header-brand h1 { font-size: calc(1.2rem * var(--font-scale)); }
+
+/* Grade de propriedades da ligação fica em 2 colunas largas, mais fácil
+   de ler item por item do que 3-4 colunas estreitas */
+body.simple-read .bond-info-grid { grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+
+/* Faixa de confirmação visível enquanto o modo está ativo */
+body.simple-read .sidebar-header::after {
+  content: "Leitura simples ativa — espaçamento e clareza priorizados";
+  display: block;
+  background: var(--accent);
+  color: #00131a;
+  font-family: inherit;
+  font-size: calc(.68rem * var(--font-scale));
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+body.light-mode.simple-read .sidebar-header::after,
+body.high-contrast.simple-read .sidebar-header::after {
+  color: var(--hc-bg);
+}
+
+/* ---------------------------------------------------------------------
+   2. DALTONISMO
+   O filtro em si (qual matriz aplicar) é decidido no bloco de
+   acessibilidade no topo de script.js e aplicado via
+   document.body.style.filter. Aqui só garantimos uma transição suave
+   ao alternar o tipo, e que ele não vaze para o widget externo do
+   VLibras (que fica fora do fluxo normal do documento).
+   --------------------------------------------------------------------- */
+body { transition: filter .25s ease, background .25s, color .25s; }
+div[vw] { filter: none !important; }
+
+/* ---------------------------------------------------------------------
+   3. Contorno extra em alvos pequenos quando alto contraste + daltonismo
+   estão combinados (reforça separação sem depender só de cor)
+   --------------------------------------------------------------------- */
+body.high-contrast .ion-pair-chip,
+body.high-contrast .pt-legend-dot {
+  border: 1px solid var(--text-primary);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SIDEBARS REDIMENSIONÁVEIS
+   Alça (criada via JS) na borda interna de cada sidebar; arrastar
+   ajusta a variável CSS de largura. Desativada quando a sidebar
+   vira gaveta mobile (breakpoint abaixo) — nesse modo a largura é
+   controlada pelo CSS da gaveta, não pelo usuário.
+════════════════════════════════════════════════════════════════ */
+.sidebar-resizer{
+  position:absolute; top:0; bottom:0; width:7px;
+  cursor:col-resize; z-index:40; background:transparent;
+  transition:background .15s; touch-action:none;
+}
+.sidebar-resizer--left{ right:-3px; }
+.sidebar-resizer--right{ left:-3px; }
+.sidebar-resizer:hover,
+.sidebar-resizer.dragging{ background:rgba(71,182,255,.45); }
+@media(max-width:900px){ .sidebar-resizer{ display:none; } }
+
+
+/* ================================================================
+   PADRONIZAÇÃO SIMA — CABEÇALHO EM TELAS PEQUENAS
+   ================================================================
+   Histórico: havia um bug de inversão de prioridade nas media queries
+   (o SUBTÍTULO decorativo era preservado, encolhido, enquanto o RÓTULO
+   DE NAVEGAÇÃO "1º Ano" — a única forma de voltar dentro da página —
+   era apagado com display:none) e depois um bloco de correção. Nenhum
+   dos dois existe no SIMA: lá, `.header-brand > div { min-width: 0 }`
+   (regra base, sem media query) já deixa o bloco título+subtítulo
+   encolher, e `.header-sub` trunca sozinho com reticências
+   (overflow:hidden + text-overflow:ellipsis + max-width:100%, também
+   na base). O botão de voltar tem flex-shrink:0 e por isso nunca
+   encolhe — não precisa de proteção extra em nenhuma largura.
+   ================================================================ */
+
+/* 5. Alvo de toque de 44x44px em dedo (WCAG 2.5.5).
+      O truque: a área clicável cresce com um ::after invisível e
+      posicionado de forma absoluta, então o botão continua
+      visualmente do mesmo tamanho e o cabeçalho não muda de altura. */
+@media (pointer: coarse) {
+  .header-back { position: relative; }
+  .header-back::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%; min-width: 44px;
+    height: 44px;
+  }
+}
+
+
+/* =====================================================================
+   FOCO NO MODULO ATIVO — os outros modulos ficam ocultos
+   ---------------------------------------------------------------------
+   Regra pedida: ao ATIVAR um modulo, os demais desaparecem da coluna da
+   esquerda. Sem nenhum ativo, todos voltam a aparecer.
+
+   Implementado so em CSS, com :has() — nenhuma linha de JS nova. O
+   seletor le o mesmo aria-pressed que o setMode/clearMode ja mantem:
+
+     1. a coluna CONTEM algum botao Ativar pressionado?
+     2. entao esconde todo painel de modulo que NAO contenha um.
+
+   Quando o modulo e desativado (clique no proprio botao ou no ✕ da
+   pilula do canvas), o aria-pressed volta a "false", a condicao 1 deixa
+   de valer e a regra inteira para de se aplicar — todos reaparecem
+   sozinhos, sem estado extra para sincronizar.
+
+   display:none (e nao visibility/opacity) tira os painteis ocultos
+   tambem do foco por teclado e da leitura de tela — o correto, ja que
+   naquele momento eles nao estao disponiveis.
+   ===================================================================== */
+
+/* No SILQ a coluna da esquerda tem um .sidebar-header antes do acordeao;
+   por isso a regra ancora em #left-accordion, nao na aside inteira. */
+#left-accordion:has(.bond-mode-btn[aria-pressed="true"])
+  .panel:not(:has(.bond-mode-btn[aria-pressed="true"])):not(.is-solo) {
+  display: none;
+}
+
+/* EXCEÇÃO: o card aberto pelo TRILHO (.is-solo) aparece mesmo com outro
+   módulo ativo. Sem isso, o trilho mostrava o ícone do módulo mas abria
+   um card VAZIO (o painel escondido por esta regra) — e não havia como
+   trocar de módulo pela barra recolhida. */
+
+
+/* =====================================================================
+   CLARO + ALTO CONTRASTE — PRECEDENCIA CORRIGIDA
+   ---------------------------------------------------------------------
+   BUG: `body.high-contrast` e `body.light-mode` tem a MESMA
+   especificidade (0,1,1). Quando os dois estao ativos, vence o que
+   aparece por ultimo no arquivo — e neste CSS o bloco do tema claro vem
+   DEPOIS do bloco de alto contraste. Resultado medido no Chromium:
+
+       contraste        body bg = rgb(0,0,0)        -> 0 textos <3:1
+       claro+contraste  body bg = rgb(240,244,248)  -> varios <3:1
+
+   Ou seja: com os dois ligados, o fundo voltava a ser CLARO enquanto os
+   acentos continuavam amarelos (#ff0), que existem para fundo escuro.
+   O modo de acessibilidade piorava a legibilidade.
+
+   CORRECAO: reafirmar a paleta de alto contraste num seletor de
+   especificidade maior (0,2,1). Assim o alto contraste vence o tema
+   claro, que e o comportamento correto — alto contraste e um esquema
+   visual proprio, nao um ajuste sobre o tema.
+   ===================================================================== */
+
+/* Reafirma a paleta de alto contraste com especificidade (0,2,1),
+   para ela vencer body.light-mode (0,1,1), que neste arquivo aparece
+   DEPOIS e por isso ganhava no empate. */
+body.high-contrast.light-mode {
+  --bg-base:       #000000;
+  --bg-surface:    #000000;
+  --bg-surface2:   #111111;
+  --bg-surface3:   #222222;
+  --bg-card:       #111111;
+  --border-color:  #ffffff;
+  --text-primary:  #ffffff;
+  --text-muted:    var(--hc-fg);
+  --text-dim:      var(--hc-fg);
+  --accent:        var(--hc-fg);
+  --accent-dark:   #ffd600;
+  --header-accent: var(--hc-fg);
+}
+
+/* =====================================================================
+   MENU DO MODULO ATIVO — REALCE (padrao replicado do SICQ)
+   ---------------------------------------------------------------------
+   O SILQ ja realcava o painel ABERTO (.panel:has(.panel-header
+   [aria-expanded="true"])), mas nao o painel ATIVO. Aberto e ativo sao
+   estados diferentes: o aluno pode abrir a sanfona para ler a teoria sem
+   ativar o modo no canvas. Sem este bloco, o unico sinal de "este e o
+   modo que esta desenhando" era o proprio botao.
+
+   A cor NAO e o acento do modulo: cada tipo de ligacao tem a sua
+   (covalente azul, ionica ambar, metalica amarelo), as mesmas ja usadas
+   no dot do botao, na pilula do canvas e na borda do #canvas. Trocar por
+   azul-do-card faria os quatro lugares discordarem.
+
+   :has() le o mesmo aria-pressed que setMode/clearMode ja mantem —
+   nenhuma linha de JS nova.
+   ===================================================================== */
+.panel--covalente:has(.bond-mode-btn[aria-pressed="true"]){
+  border-color:#4fc3f7;
+  background:rgba(79,195,247,.06);
+  box-shadow:0 0 0 1px rgba(79,195,247,.18);
+}
+.panel--ionica:has(.bond-mode-btn[aria-pressed="true"]){
+  border-color:#ffb74d;
+  background:rgba(255,183,77,.06);
+  box-shadow:0 0 0 1px rgba(255,183,77,.18);
+}
+.panel--metalica:has(.bond-mode-btn[aria-pressed="true"]){
+  border-color:#fde68a;
+  background:rgba(253,230,138,.06);
+  box-shadow:0 0 0 1px rgba(253,230,138,.18);
+}
+/* tema claro: os tres tons foram calibrados para fundo escuro; sobre
+   superficie clara o fundo tingido precisa de menos opacidade */
+body.light-mode .panel--covalente:has(.bond-mode-btn[aria-pressed="true"]){ background:rgba(3,105,161,.07); border-color:#0369a1; }
+body.light-mode .panel--ionica:has(.bond-mode-btn[aria-pressed="true"]){    background:rgba(154,90,0,.07);  border-color:#975a00; }
+/* #78590a e nao #a87e00: a borda e componente de interface, limiar 3:1
+   (WCAG 1.4.11). Medido sobre a superficie clara do painel (#d8e2ee):
+   #a87e00 da 2,84:1 e reprova; #78590a da 4,96:1. E o mesmo tom que o
+   arquivo ja usa para metalica no tema claro (.ion-pair-chip--met e
+   .bond-mode-indicator.mode--metallic). */
+body.light-mode .panel--metalica:has(.bond-mode-btn[aria-pressed="true"]){  background:rgba(120,89,10,.07); border-color:#78590a; }
+/* alto contraste: tom unico, sem fundo tingido */
+body.high-contrast .panel--covalente:has(.bond-mode-btn[aria-pressed="true"]),
+body.high-contrast .panel--ionica:has(.bond-mode-btn[aria-pressed="true"]),
+body.high-contrast .panel--metalica:has(.bond-mode-btn[aria-pressed="true"]){
+  border-color:var(--hc-fg); background:none; box-shadow:0 0 0 2px var(--hc-fg);
+}
+
+/* =====================================================================
+   REDUCAO DE MOVIMENTO — TOGGLE DO PAINEL DE ACESSIBILIDADE
+   ---------------------------------------------------------------------
+   Este arquivo ja respeitava @media (prefers-reduced-motion: reduce), que
+   le a preferencia do SISTEMA OPERACIONAL. Mas o a11y.js tambem oferece um
+   botao proprio, que liga a classe .reduce-motion no <body> — e nenhuma
+   regra aqui escutava essa classe. Resultado: quem desligasse animacao
+   pelo painel do site continuava vendo tudo animar.
+   Mesmo bloco que os 12 simuladores do 2o e 3o ano ja usam.
+   ===================================================================== */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after{ animation:none!important; transition-duration:.01ms!important; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   COMPONENTE .btn LOCAL — substitui o Bootstrap 5.3.3 removido
+   ─────────────────────────────────────────────────────────────────────
+   POR QUE ISTO EXISTE
+   O SILQ importava 185 KB de bootstrap.min.css só para pintar os botões
+   do painel "Controles" (.btn, .btn-sm, .btn-outline-*). Além do peso,
+   o Bootstrap reescrevia :focus, button e section com especificidade
+   alta, sobrepondo o design system do projeto — e o anel de foco do
+   Bootstrap (box-shadow difuso) não cumpre WCAG 2.4.7/1.4.11, porque
+   não garante 3:1 de contraste contra o fundo adjacente.
+   As mesmas classes foram reconstruídas aqui com os tokens do projeto,
+   então NENHUMA classe do HTML precisou mudar.
+
+   CONTRASTE MEDIDO (WCAG 2.1 AA exige 4.5:1 para texto):
+     tema escuro, fundo --bg-surface2 #101c2b
+       info   #47B6FF -> 7.69:1   (AAA)
+       danger #f87171 -> 6.21:1   (AA+)
+       success#34d399 -> 8.93:1   (AAA)
+       warning#fbbf24 -> 10.29:1  (AAA)
+       neutro #9aa7bd -> 7.06:1   (AAA)
+     tema claro, fundo --bg-surface2 #d8e2ee
+       info 7.9:1 | danger 5.96:1 | success 5.04:1 | warning 5.19:1
+   ═══════════════════════════════════════════════════════════════════════ */
+.btn{
+  --btn-fg: var(--text-primary);
+  --btn-line: var(--border-color);
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  font-family:inherit; font-size:.8rem; font-weight:600; line-height:1.2;
+  padding:6px 10px; min-height:36px;         /* alvo de toque WCAG 2.5.5 */
+  color:var(--btn-fg);
+  background:transparent;
+  border:1px solid var(--btn-line);
+  border-radius:6px;
+  cursor:pointer;
+  text-align:center;
+  transition:background .18s, border-color .18s, color .18s;
+}
+.btn:hover:not(:disabled){ background:var(--bg-surface3); }
+.btn:active:not(:disabled){ transform:translateY(1px); }
+.btn:disabled{ opacity:.5; cursor:not-allowed; }
+.btn-sm{ font-size:.72rem; padding:4px 8px; min-height:32px; }
+
+/* Variantes "outline": cor só na borda e no texto — nunca a cor é o
+   ÚNICO indicador (WCAG 1.4.1): cada botão tem rótulo textual. */
+.btn-outline-info     { --btn-fg:#47B6FF; --btn-line:#47B6FF; }
+.btn-outline-danger   { --btn-fg:#f87171; --btn-line:#f87171; }
+.btn-outline-success  { --btn-fg:#34d399; --btn-line:#34d399; }
+.btn-outline-secondary{ --btn-fg:#9aa7bd; --btn-line:var(--border-color); }
+.btn-warning          { --btn-fg:#1a1205; --btn-line:#fbbf24; background:#fbbf24; }
+.btn-warning:hover:not(:disabled){ background:#f5b000; }
+
+body.light-mode .btn-outline-info     { --btn-fg:#02436E; --btn-line:#02436E; }
+body.light-mode .btn-outline-danger   { --btn-fg:#a3161d; --btn-line:#a3161d; }
+body.light-mode .btn-outline-success  { --btn-fg:#0f6a4a; --btn-line:#0f6a4a; }
+body.light-mode .btn-outline-secondary{ --btn-fg:#3f4a5a; --btn-line:var(--border-color); }
+body.light-mode .btn-warning          { --btn-fg:#2b1a00; --btn-line:#d99400; background:#f2b53c; }
+
+/* Alto contraste e modo de cores forçadas do sistema: a cor da variante
+   é descartada, o que vale é o par ButtonText/Canvas do usuário. */
+body.high-contrast .btn{
+  --btn-fg:var(--hc-fg); --btn-line:var(--hc-fg);
+  background:var(--hc-bg);
+}
+@media (forced-colors: active){
+  .btn{ --btn-fg:ButtonText; --btn-line:ButtonText; background:ButtonFace; }
+}
+@media (prefers-reduced-motion: reduce){
+  .btn{ transition:none; }
+  .btn:active:not(:disabled){ transform:none; }
+}
+
+
+/* ═══ BARRA DE ROLAGEM — estilo consistente (auto-inserido) ═══ */
+/* Troca a barra de rolagem padrão do sistema (cinza, quadrada) por uma
+   fina e na cor do tema — aplicado de forma GERAL (seletor *) pra
+   cobrir sidebars, bottom sheet, barras de aba e qualquer área com
+   rolagem que ainda não tinha estilo próprio. Onde já existe uma regra
+   mais específica em algum lugar do arquivo (ex.: .modal-body::-webkit-
+   scrollbar), ela continua valendo — seletor de classe é mais
+   específico que o universal, então nada muda para quem já tinha
+   estilo. As cores usam var(--border-color)/var(--accent): como essas
+   variáveis já mudam sozinhas por tema (claro/escuro/alto contraste),
+   a barra de rolagem acompanha automaticamente, sem regra extra. */
+* { scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* ════════════════════════════════════════════════════════════════
+   COACHMARK — balão flutuante do tour guiado (ver js/coachmark.js e
+   js/a11y/tour.js). Tokens próprios do SILQ (--bg-card, --accent
+   etc.) — mesma mecânica do coachmark.css da Central, só adaptado
+   aos nomes de variável usados neste arquivo.
+   ════════════════════════════════════════════════════════════════ */
+.coach-overlay{ position:fixed; inset:0; z-index:500; }
+.coach-spot{
+  position:fixed; z-index:501; border-radius:10px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.65);
+  border:2px solid var(--accent);
+  pointer-events:none;
+  transition:top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+}
+.coach-overlay:has(.coach-spot[hidden])::before{
+  content:''; position:fixed; inset:0; z-index:501; background:rgba(0,0,0,.65);
+}
+.coach-balao{
+  position:fixed; z-index:502; width:min(320px, 88vw);
+  background:var(--bg-card); border:1px solid var(--border-color); border-radius:14px;
+  padding:18px 18px 14px; box-shadow:0 20px 48px rgba(0,0,0,.5);
+  transition:top .25s ease, left .25s ease;
+}
+.coach-balao--centro{ position:fixed; top:50% !important; left:50% !important; transform:translate(-50%,-50%); }
+.coach-pular{
+  position:absolute; top:10px; right:12px;
+  background:none; border:none; color:var(--text-muted); font-size:12px; cursor:pointer;
+  padding:4px 6px; border-radius:6px;
+}
+.coach-pular:hover{ color:var(--text-primary); background:var(--bg-surface3); }
+.coach-titulo{ font-weight:700; font-size:16px; color:var(--text-primary); margin:4px 30px 8px 0; }
+.coach-texto{ font-size:13.5px; color:var(--text-muted); line-height:1.55; margin:0 0 16px; }
+.coach-rodape{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.coach-pontos{ display:flex; gap:5px; }
+.coach-ponto{ width:6px; height:6px; border-radius:50%; background:var(--border-color); }
+.coach-ponto--ativo{ background:var(--accent); width:16px; border-radius:3px; }
+.coach-botoes{ display:flex; gap:8px; }
+.coach-btn{ font-weight:600; font-size:13px; padding:8px 14px; border-radius:8px; cursor:pointer; transition:filter .2s, background .2s; }
+.coach-btn--voltar{ background:transparent; border:1px solid var(--border-color); color:var(--text-muted); }
+.coach-btn--voltar:hover{ background:var(--bg-surface3); }
+.coach-btn--avancar{ background:var(--accent); border:1px solid var(--accent); color:#04141A; }
+.coach-btn--avancar:hover{ filter:brightness(1.08); }
+@media (max-width:480px){
+  .coach-balao{ padding:16px 16px 12px; }
+  .coach-rodape{ flex-direction:column; align-items:stretch; gap:12px; }
+  .coach-botoes{ justify-content:space-between; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   MENSAGEM "TUDO TRANCADO" — mesmo padrão do SIEM/SIME/SIMA: cadeado
+   + lista dos modos + o que libera. Só aparece com nenhum modo de
+   ligação ativo.
+   ════════════════════════════════════════════════════════════════ */
+.sidebar-lock-hint{
+  display:none;
+  align-items:flex-start; gap:.5rem;
+  padding:.6rem .65rem; margin-bottom:.4rem;
+  border:1px dashed var(--border-color); border-radius:8px;
+  background:var(--bg-surface2); color:var(--text-dim);
+  font-size:.72rem; line-height:1.55;
+}
+.sidebar-lock-hint svg{ flex-shrink:0; margin-top:.1em; color:var(--accent); }
+.sidebar-lock-hint strong{ color:var(--text-primary); }
+body:not(:has(.bond-mode-btn[aria-pressed="true"])) .sidebar-lock-hint{ display:flex; }
+body.high-contrast .sidebar-lock-hint{ border:2px solid var(--hc-fg) !important; color:var(--hc-fg) !important; }
+
+
+/* ════════════════════════════════════════════════════════════════
+   TRILHO RECOLHÍVEL DAS SIDEBARS  ·  somente desktop (> 900px)
+   ────────────────────────────────────────────────────────────────
+   Bloco acrescentado por ferramenta; nenhuma regra acima foi tocada.
+   Tudo aqui vive dentro de @media (min-width: 901px). Abaixo
+   disso vale o layout mobile que já existia — bottom sheet para os
+   controles, barra de modos rolável no lugar da sidebar esquerda —
+   e nada daqui chega a ser aplicado.
+
+   Três estados por sidebar:
+     (1) fixada    → como sempre foi, no fluxo
+     (2) recolhida → sai do fluxo; um trilho de 56px fica no lugar
+     (3) flutuante → volta por cima do canvas, SEM empurrá-lo
+
+   O estado (3) é position:absolute de propósito: elemento absoluto
+   não participa do flex, então o canvas não muda de largura ao abrir
+   um painel — e nada é remedido nem reconstruído no meio de uma
+   simulação em andamento.
+
+   Cores, raios e sombras saem de variáveis já definidas no topo
+   deste arquivo, então tema claro e leitura simplificada valem sem
+   regra extra. As exceções de alto contraste vêm no fim, no mesmo
+   padrão do resto da folha.
+   ════════════════════════════════════════════════════════════════ */
+@media (min-width: 901px) {
+
+  /* Âncora do flutuante: a classe é posta pelo JS no pai REAL de cada
+     sidebar. Não dá para fixar em .app-main — em parte dos simuladores
+     do 1º ano o #main-content é o próprio canvas e as sidebars são
+     irmãs dele, e num deles não existe container nomeado nenhum. */
+  .rail-host { position: relative; }
+
+  /* ── o trilho ─────────────────────────────────────────────── */
+  .rail {
+    display: flex; flex-direction: column; align-items: center;
+    gap: .3rem; width: 56px; flex-shrink: 0; padding: .5rem 0;
+    background: var(--rail-bg, var(--bg-panel, #0c1520));
+    overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar { width: 0; }
+  .rail[hidden] { display: none; }
+  .rail--left  { border-right: 1px solid var(--rail-borda, var(--border, #1c2e44)); }
+  .rail--right { border-left:  1px solid var(--rail-borda, var(--border, #1c2e44)); }
+  .rail-sep {
+    width: 24px; height: 1px; flex-shrink: 0;
+    background: var(--rail-borda, var(--border, #1c2e44)); margin: .15rem 0 .25rem;
+  }
+
+  /* ── botões ───────────────────────────────────────────────── */
+  .rail-btn {
+    position: relative; width: 40px; height: 40px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid transparent; border-radius: var(--radius, 10px);
+    background: transparent; color: var(--rail-fg-suave, var(--text-secondary, #9ab));
+    cursor: pointer; padding: 0;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .rail-btn[hidden] { display: none; }
+  .rail-btn:hover { background: var(--rail-hover, var(--bg-hover, #16263a)); color: var(--rail-fg, var(--text-primary, #eaf2fb)); }
+  .rail-btn:focus-visible { outline: 2px solid var(--rail-acento, var(--accent-main, #7AE9FF)); outline-offset: 2px; }
+  .rail-btn[aria-expanded="true"] {
+    color: var(--rail-acento, var(--accent-main, #7AE9FF));
+    border-color: var(--rail-acento, var(--border-active, var(--accent-main, #7AE9FF)));
+    background: var(--rail-hover, var(--bg-panel2, #101c2b));
+  }
+  .rail-ico { display: flex; font-size: 1.05rem; }
+  /* reserva para painéis sem desenho de ícone (ver preencherIcone) */
+  .rail-ico--letra {
+    font: 600 .82rem/1 system-ui, sans-serif; letter-spacing: .02em;
+    align-items: center; justify-content: center;
+    width: 1.15em; height: 1.15em;
+  }
+  .rail-ico svg, .rail-ico .icon { width: 1.15em; height: 1.15em; }
+  .rail-btn--expand { color: var(--rail-fg-suave, var(--text-muted, #7a9ab8)); }
+
+  /* ── etiqueta: ícone sozinho não se explica ───────────────── */
+  .rail-tip {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    white-space: nowrap; pointer-events: none;
+    background: var(--rail-bg, var(--bg-panel2, #101c2b)); color: var(--rail-fg, var(--text-primary, #eaf2fb));
+    border: 1px solid var(--rail-borda, var(--border, #1c2e44));
+    border-radius: var(--radius-sm, 6px);
+    padding: .25rem .5rem; font-size: .72rem; line-height: 1.2;
+    box-shadow: 0 4px 14px rgba(0,0,0,.45);
+    opacity: 0; visibility: hidden; transition: opacity .12s ease; z-index: 70;
+  }
+  .rail--left  .rail-tip { left: calc(100% + 6px); }
+  .rail--right .rail-tip { right: calc(100% + 6px); }
+  .rail-btn:hover .rail-tip, .rail-btn:focus-visible .rail-tip {
+    opacity: 1; visibility: visible;
+  }
+
+  /* ── botão de recolher, dentro da sidebar ─────────────────── */
+  .rail-toggle {
+    flex-shrink: 0; width: 26px; height: 26px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--rail-borda, var(--border, #1c2e44)); border-radius: var(--radius-sm, 6px);
+    background: var(--rail-bg, var(--bg-panel2, #101c2b)); color: var(--rail-fg-suave, var(--text-secondary, #9ab));
+    cursor: pointer; transition: background .15s ease, color .15s ease;
+  }
+  .rail-toggle:hover { background: var(--rail-hover, var(--bg-hover, #16263a)); color: var(--rail-fg, var(--text-primary, #eaf2fb)); }
+  .rail-toggle:focus-visible { outline: 2px solid var(--rail-acento, var(--accent-main, #7AE9FF)); outline-offset: 2px; }
+  .sidebar--left  .rail-toggle { align-self: flex-end; }
+  .sidebar--right .rail-toggle { align-self: flex-start; }
+  .sidebar.is-collapsed .rail-toggle { display: none; }
+
+  /* ── recolhida: fora do fluxo, canvas cresce ──────────────────
+     O !important NÃO é enfeite. O sidebar-resizer.js grava
+     `style="position:relative"` INLINE em cada sidebar, para ancorar a
+     alça de arrastar (só quando o CSS base deixa a sidebar static — é o
+     caso de todo o 2º e 3º ano). Inline vence qualquer regra de folha,
+     então sem o !important a sidebar "recolhida" continuava relative,
+     ocupando os 300px dela no fluxo: o trilho aparecia, mas o canvas
+     não crescia. Medido em navegador: 15 dos 23 simuladores. O SIMA
+     escapou no piloto só porque é o único que não carrega o resizer.
+     Vale apenas no estado recolhido; fixada, a sidebar volta a
+     obedecer o inline e a alça continua funcionando. */
+  .sidebar.is-collapsed {
+    position: absolute !important; top: 0; bottom: 0; z-index: 60;
+    width: var(--swl, 300px);
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    visibility: hidden; opacity: 0;
+    transition: opacity .18s ease, transform .18s ease, visibility .18s;
+  }
+  .sidebar--left.is-collapsed {
+    left: 56px; transform: translateX(-10px);
+    border-radius: 0 var(--radius, 10px) var(--radius, 10px) 0;
+  }
+  .sidebar--right.is-collapsed {
+    right: 56px; width: var(--swr, 330px); transform: translateX(10px);
+    border-radius: var(--radius, 10px) 0 0 var(--radius, 10px);
+  }
+  .sidebar.is-collapsed.is-floating {
+    visibility: visible; opacity: 1; transform: translateX(0);
+    border-color: var(--border-active, var(--accent-main, #7AE9FF));
+  }
+
+  /* ── flutuante mostra UM card só ──────────────────────────────
+     POR QUE ESTAS REGRAS DEPENDEM DE .has-solo E NÃO DE .is-floating:
+     ao fechar, o JS tira .is-floating e o opacity leva 180ms até zero.
+     Se o formato compacto dependesse dessa classe, display:none e
+     bottom:auto parariam de valer no PRIMEIRO quadro — todos os cards
+     reapareciam e a sidebar voltava a esticar de topo a base, à vista,
+     desbotando. Era a sidebar inteira piscando ao fechar. Com
+     .has-solo, o compacto sobrevive ao fade; o JS tira a classe só
+     depois que a transição acaba.
+     .rail-oculto é posto pelo JS nos irmãos do card, nível a nível
+     até a raiz da sidebar — funciona tanto com o card solto (1º ano)
+     quanto embrulhado em #model-list (2º/3º ano). */
+  .sidebar.is-collapsed.has-solo .rail-oculto { display: none; }
+  .sidebar.is-collapsed.has-solo {
+    bottom: auto; max-height: calc(100% - 1rem); padding: .5rem; gap: 0;
+  }
+
+  /* ── ícone do modo ATIVO ──────────────────────────────────── */
+  .rail-btn.is-active { color: var(--rail-acento, var(--accent-main, #7AE9FF)); }
+  .rail-btn.is-active::before {
+    content: ''; position: absolute; left: 2px; top: 50%;
+    width: 3px; height: 18px; border-radius: 2px;
+    transform: translateY(-50%); background: var(--rail-acento, var(--accent-main, #7AE9FF));
+  }
+  .rail--right .rail-btn.is-active::before { left: auto; right: 2px; }
+
+  body.reduce-motion .sidebar.is-collapsed,
+  body.reduce-motion .rail-btn,
+  body.reduce-motion .rail-toggle,
+  body.reduce-motion .rail-tip { transition: none !important; }
+
+  /* alto contraste: mesmas variáveis vestidas — a sidebar já está no
+     esquema de alto contraste quando o trilho lê as cores dela, e isso
+     vale também para sie e sitp, cujos esquemas são diferentes */
+  body.high-contrast .rail { background: var(--rail-bg, var(--hc-bg, #000)) !important; }
+  body.high-contrast .rail--left  { border-right: 2px solid var(--rail-acento, var(--hc-fg, #fff)) !important; }
+  body.high-contrast .rail--right { border-left:  2px solid var(--rail-acento, var(--hc-fg, #fff)) !important; }
+  body.high-contrast .rail-btn,
+  body.high-contrast .rail-toggle,
+  body.high-contrast .rail-tip {
+    background: var(--rail-bg, var(--hc-bg, #000)) !important; color: var(--rail-fg, var(--hc-fg, #fff)) !important;
+    border: 2px solid var(--rail-acento, var(--hc-fg, #fff)) !important;
+  }
+  body.high-contrast .rail-btn[aria-expanded="true"] {
+    background: var(--rail-acento, var(--hc-fg, #fff)) !important; color: var(--rail-bg, var(--hc-bg, #000)) !important;
+  }
+  body.high-contrast .rail-btn.is-active::before { background: var(--rail-acento, var(--hc-fg, #fff)); }
+  body.high-contrast .sidebar.is-collapsed.is-floating {
+    border: 2px solid var(--hc-fg, #fff) !important;
+  }
+}
+
+/* ALTO CONTRASTE — o link "Pular para…" usa o acento como fundo, e no
+   alto contraste o acento é amarelo (--hc-fg). O texto precisa ser a cor
+   de FUNDO do esquema (--hc-bg, preto). Especificidade (0,2,2) de
+   propósito: as regras por tema acima — body.light-mode .skip-link e
+   body:not(.light-mode) .skip-link, ambas (0,2,1) — também casam com o
+   alto contraste e, vindo depois, deixavam branco sobre amarelo (1,07:1). */
+body.high-contrast a.skip-link { color: var(--hc-bg, #000); }
+
+/* Título do cabeçalho no ALTO CONTRASTE. O h1 usa var(--header-accent), e
+   os blocos de alto contraste redefinem --accent-main e companhia mas
+   esqueciam este token: no claro + alto contraste o título ficava com o
+   acento do tema claro (vinho, verde-escuro) sobre o fundo PRETO do
+   esquema — medido de 1,67:1 a 3,74:1. Especificidade (0,1,2) para vencer
+   body.light-mode (0,1,1), que também o redefine. */
+html body.high-contrast { --header-accent: var(--hc-fg, #ff0); }
+
+/* ═══ A ÁREA LIVRE (ver js/ui/sidebar-rail.js · Oclusao) ═══════════════
+   Um card flutuante cobre uma faixa da cena sem mudar o tamanho da janela.
+   O editor do SILQ é HTML, então ele ENCOLHE para a parte que se vê: o
+   #main-content ganha padding do lado do card, e tudo o que mede o #canvas
+   ao vivo (a física, o arrasto, o lugar de cada átomo novo e de cada
+   molécula pronta) passa a usar a parte livre. Os átomos que ficariam
+   além da nova parede deslizam juntos para dentro (fisica-tick.js ·
+   acomodarNaAreaLivre). A visão 3D é absoluta (não respeita padding):
+   recebe a mesma faixa em left/right e se remede sozinha a cada quadro.
+   Mesmo deslizamento da cena (280 ms). Sem card, --oc-* valem 0. */
+@media (min-width: 901px) {
+  #main-content { padding-left: max(12px, var(--oc-esq, 0px)); padding-right: max(12px, var(--oc-dir, 0px)); transition: padding .28s ease; }
+  #main-content #viewer3d { left: max(12px, var(--oc-esq, 0px)); right: max(12px, var(--oc-dir, 0px)); transition: left .28s ease, right .28s ease; }
+  body.reduce-motion #main-content, body.reduce-motion #main-content #viewer3d { transition: none; }
+}
