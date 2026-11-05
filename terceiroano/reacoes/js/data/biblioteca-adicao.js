@@ -29,6 +29,9 @@
     { id: 'eteno-br2', nome: 'eteno + Br₂', substrato: 'C=C', nomeSubstrato: 'eteno', modelo: 'halogenacao', reagente: 'Br', sinonimos: ['bromo', 'água de bromo', 'etileno'] },
     { id: 'propeno-cl2', nome: 'propeno + Cl₂', substrato: 'C=CC', nomeSubstrato: 'propeno', modelo: 'halogenacao', reagente: 'Cl', sinonimos: ['cloro'] },
     { id: 'ciclohexeno-br2', nome: 'ciclo-hexeno + Br₂', substrato: 'C1=CCCCC1', nomeSubstrato: 'ciclo-hexeno', modelo: 'halogenacao', reagente: 'Br', sinonimos: ['bromo', 'cicloexeno', 'anel'] },
+    { id: 'buteno1-agua', nome: 'but-1-eno + H₂O (ácido)', substrato: 'C=CCC', nomeSubstrato: 'but-1-eno', modelo: 'hidratacao', catalisadores: true, sinonimos: ['1-buteno', 'água', 'hidratação'] },
+    { id: 'metilbuteno-agua', nome: '2-metilbut-2-eno + H₂O (ácido)', substrato: 'CC=C(C)C', nomeSubstrato: '2-metilbut-2-eno', modelo: 'hidratacao', catalisadores: true, sinonimos: ['água', 'hidratação', 'terciário'] },
+    { id: 'buteno2-br2', nome: 'but-2-eno + Br₂', substrato: 'CC=CC', nomeSubstrato: 'but-2-eno', modelo: 'halogenacao', reagente: 'Br', sinonimos: ['2-buteno', 'bromo', 'água de bromo'] },
     { id: 'propeno-h2', nome: 'propeno + H₂ (Ni)', substrato: 'C=CC', nomeSubstrato: 'propeno', modelo: 'hidrogenacao', sinonimos: ['hidrogênio', 'níquel', 'hidrogenação'] }
   ];
 })();
