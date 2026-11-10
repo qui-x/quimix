@@ -7,9 +7,11 @@
 <meta name="theme-color" content="#0E1320">
 <!-- MEMORIA DE ACESSIBILIDADE: precisa ser o PRIMEIRO script da pagina -->
 <script src="../../a11y.js"></script>
+  <script src="../../relatorio-core.js"></script>
   <meta name="description" content="Desenhe as setas de elétrons de cada passo de uma reação orgânica, confira e veja o intermediário se formar: adição, eliminação, substituição e combustão."/>
   <title>SIRO — Simulador Interativo de Reações Orgânicas</title>
   <link rel="stylesheet" href="css/stylereacoes.css"/>
+  <link rel="stylesheet" href="../../relatorio-core.css"/>
 </head>
 <body>
 
@@ -67,6 +69,12 @@
         <p class="header-sub">Simulador Interativo de Reações Orgânicas</p>
       </div>
     </div>
+
+    <button type="button" class="header-relatorio" id="btn-relatorio" aria-haspopup="dialog"
+      aria-label="Abrir o relatório da sua investigação">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" width="15" height="15"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg>
+      <span>Relatório</span>
+    </button>
 
     <button type="button" class="mobile-menu-btn" id="mobile-menu-btn"
       aria-label="Abrir controles da simulação" aria-expanded="false" aria-controls="sidebar-right"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
@@ -402,6 +410,7 @@
   <script src="js/ui/moldura-cena.js"></script>
   <script src="js/simulation/modulo-mecanismo.js"></script>
   <script src="js/simulation/modulo-combustao.js"></script>
+  <script src="js/simulation/relatorio-siro.js"></script>
   <script src="js/simulation/mecanica.js"></script>
   <script src="js/init/app.js"></script>
   <script src="js/ui/offcanvas-mobile.js"></script>

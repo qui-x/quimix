@@ -1,0 +1,101 @@
+/* ═══════════════════════════════════════════════════════════════
+   relatorio-core.css — visual do relatório compartilhado (QRel)
+   Usa as variáveis de cor do simulador que o carrega (com valores
+   de reserva, para funcionar em qualquer um). Duas partes:
+     1. a JANELA na tela      2. a FOLHA de impressão
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1 · A JANELA ──────────────────────────────────────────────── */
+.qrel-dialog {
+  width: min(940px, 96vw); max-height: 92vh; padding: 0; overflow: hidden;
+  border: 1px solid var(--border, #1c2e44); border-radius: var(--radius, 8px);
+  background: var(--bg-panel, #0c1520); color: var(--text-primary, #ddeaf8);
+  font-family: var(--font-main, system-ui, sans-serif);
+}
+.qrel-dialog[open] { display: flex; flex-direction: column; }
+.qrel-dialog::backdrop { background: rgba(0, 0, 0, .55); }
+.qrel-barra { display: flex; align-items: center; justify-content: space-between; padding: .6rem 1rem; border-bottom: 1px solid var(--border, #1c2e44); }
+.qrel-barra h2 { margin: 0; font-size: 1.05rem; }
+.qrel-ferr { display: flex; flex-wrap: wrap; gap: .45rem; align-items: end; padding: .6rem 1rem; border-bottom: 1px solid var(--border, #1c2e44); background: var(--bg-panel2, #101c2b); }
+.qrel-sel { display: flex; flex-direction: column; gap: .15rem; font-size: .72rem; color: var(--text-secondary, #7a9ab8); min-width: 0; flex: 1 1 220px; }
+.qrel-sel select { max-width: 100%; padding: .35rem .4rem; border-radius: var(--radius-sm, 5px); border: 1px solid var(--border, #1c2e44); background: var(--bg-void, #080c14); color: var(--text-primary, #ddeaf8); font: inherit; font-size: .8rem; }
+.qrel-bt {
+  padding: .4rem .7rem; border-radius: var(--radius-sm, 5px); cursor: pointer; font: inherit; font-size: .8rem; font-weight: 600;
+  border: 1px solid var(--border, #1c2e44); background: var(--bg-panel, #0c1520); color: var(--text-primary, #ddeaf8);
+}
+.qrel-bt:hover { border-color: var(--border-glow, #87EBA8); }
+.qrel-bt:focus-visible, .qrel-area:focus-visible, .qrel-campo input:focus-visible, .qrel-sel select:focus-visible { outline: 2px solid var(--focus, #87EBA8); outline-offset: 2px; }
+.qrel-prim { background: var(--accent-main, #87EBA8); color: var(--bg-void, #080c14); border-color: transparent; }
+.qrel-perigo { color: var(--accent-warn, #f87171); }
+.qrel-fechar { padding: .25rem .55rem; }
+.qrel-estado { margin: 0; padding: .3rem 1rem; min-height: 1.5em; font-size: .78rem; color: var(--text-secondary, #7a9ab8); }
+.qrel-estado.qrel-erro { color: var(--accent-warn, #f87171); font-weight: 600; }
+.qrel-corpo { overflow: auto; padding: 0 1rem 1.2rem; }
+
+/* o documento (igual na tela e no papel; só as cores mudam) */
+.qrel-doc { font-size: .88rem; line-height: 1.5; }
+.qrel-cab { padding: .4rem 0 .2rem; border-bottom: 2px solid var(--accent-main, #87EBA8); margin-bottom: .6rem; }
+.qrel-cab h2 { margin: .1rem 0; font-size: 1.3rem; }
+.qrel-marca { margin: 0; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--text-secondary, #7a9ab8); }
+.qrel-meta { margin: 0; font-size: .75rem; color: var(--text-secondary, #7a9ab8); }
+.qrel-sec { margin: 1rem 0; }
+.qrel-sec h3 { margin: 0 0 .4rem; font-size: 1rem; border-bottom: 1px solid var(--border, #1c2e44); padding-bottom: .2rem; }
+.qrel-sec h4 { margin: .8rem 0 .25rem; font-size: .9rem; }
+.qrel-rot { font-weight: 700; color: var(--text-secondary, #7a9ab8); }
+.qrel-vazio { color: var(--text-muted, #6c8eae); font-style: italic; }
+.qrel-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .5rem; }
+.qrel-campo { display: flex; flex-direction: column; gap: .15rem; font-size: .75rem; color: var(--text-secondary, #7a9ab8); }
+.qrel-campo input, .qrel-area {
+  font: inherit; font-size: .88rem; padding: .4rem .5rem; border-radius: var(--radius-sm, 5px);
+  border: 1px solid var(--border, #1c2e44); background: var(--bg-void, #080c14); color: var(--text-primary, #ddeaf8);
+}
+.qrel-area { width: 100%; box-sizing: border-box; resize: vertical; line-height: 1.5; }
+.qrel-dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .4rem .8rem; margin: 0; }
+.qrel-dl dt { font-size: .72rem; color: var(--text-secondary, #7a9ab8); }
+.qrel-dl dd { margin: 0; min-height: 1.4em; }
+.qrel-risco { display: block; border-bottom: 1px solid currentColor; height: 1.2em; }
+.qrel-texto { white-space: normal; }
+.qrel-linhas { height: calc(1.9em * 5); background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(1.9em - 1px), currentColor calc(1.9em - 1px), currentColor 1.9em); opacity: .5; }
+.qrel-tabela-rolagem { overflow-x: auto; }
+.qrel-tab { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.qrel-tab th, .qrel-tab td { border: 1px solid var(--border, #1c2e44); padding: .3rem .45rem; text-align: left; vertical-align: top; }
+.qrel-tab th { background: var(--bg-panel2, #101c2b); font-weight: 700; }
+.qrel-lista { margin: .2rem 0 .4rem 1.1rem; padding: 0; }
+.qrel-ok { color: var(--accent-ok, #4ade80); font-weight: 600; }
+.qrel-alerta { color: var(--accent-warn, #f87171); font-weight: 600; }
+.qrel-chip { display: inline-block; padding: 0 .4rem; border: 1px solid var(--border, #1c2e44); border-radius: 999px; font-size: .72rem; margin-right: .25rem; }
+
+/* ── 2 · A FOLHA DE IMPRESSÃO ──────────────────────────────────── */
+#qrel-print { display: none; }
+@media print {
+  body.qrel-imprimindo > *:not(#qrel-print) { display: none !important; }
+  body.qrel-imprimindo { background: #fff !important; }
+  body.qrel-imprimindo #qrel-print { display: block !important; position: static; padding: 0; }
+  body.qrel-imprimindo .qrel-dialog { display: none !important; }
+  #qrel-print, #qrel-print * { color: #000 !important; background: transparent !important; box-shadow: none !important; text-shadow: none !important; }
+  #qrel-print .qrel-doc { font-size: 11pt; line-height: 1.45; font-family: 'Segoe UI', system-ui, sans-serif; }
+  #qrel-print .qrel-cab { border-bottom-color: #000; }
+  #qrel-print .qrel-sec { break-inside: avoid; }
+  #qrel-print .qrel-sec h3 { border-bottom-color: #000; }
+  #qrel-print .qrel-tab th, #qrel-print .qrel-tab td { border-color: #000; }
+  #qrel-print .qrel-tabela-rolagem { overflow: visible; }
+  #qrel-print .qrel-linhas { opacity: 1; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(1.9em - 1px), #000 calc(1.9em - 1px), #000 1.9em) !important; }
+  #qrel-print .qrel-risco { border-bottom: 1px solid #000; }
+  @page { margin: 16mm 14mm; }
+}
+
+/* ── 3 · O BOTÃO DO CABEÇALHO (igual em todos os simuladores) ───── */
+.header-relatorio {
+  display: inline-flex; align-items: center; gap: .35rem; margin-left: auto; flex-shrink: 0; cursor: pointer;
+  padding: .3rem .6rem; border-radius: var(--radius-sm, 5px); font: inherit; font-size: .78rem; font-weight: 600;
+  border: 1px solid var(--border, #1c2e44); background: var(--bg-panel2, #101c2b); color: var(--text-secondary, #7a9ab8);
+}
+.header-relatorio:hover { border-color: var(--border-glow, #87EBA8); color: var(--text-primary, #ddeaf8); }
+.header-relatorio:focus-visible { outline: 2px solid var(--focus, #87EBA8); outline-offset: 2px; }
+@media (max-width: 520px) { .header-relatorio span { display: none; } }
+
+/* telas estreitas: a janela inteira rola (a barra de botões não rouba a altura do texto) */
+@media (max-width: 560px) {
+  .qrel-dialog[open] { display: block; overflow: auto; }
+  .qrel-corpo { overflow: visible; }
+}
