@@ -124,6 +124,13 @@
     if (ind) ind.dataset.mode=this.sim.model||'';
   };
 
+  AtomicApp.prototype._syncBohrDirection = function() {
+    const from = Number(document.getElementById('bohr-from-shell').value);
+    const to = Number(document.getElementById('bohr-to-shell').value);
+    document.getElementById('btn-bohr-up').disabled = to <= from;
+    document.getElementById('btn-bohr-down').disabled = to >= from;
+  };
+
   // ── Seletores de camada do Bohr (subir/retornar) ───────────────
   AtomicApp.prototype._updateBohrShellSelectors = function() {
     const ns = this.sim.Z === 1 ? 6 : Math.min(this.sim.electrons.length + 1, 7);
@@ -140,5 +147,6 @@
     const electron = this.sim.selectedBohrElectron || this.sim.bohrElectrons?.[0];
     if (electron) fromSel.value = electron.shell;
     if (ns>1) toSel.value = electron?.shell === 1 ? 0 : 1;
+    this._syncBohrDirection();
   };
 

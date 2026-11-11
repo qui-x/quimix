@@ -290,7 +290,7 @@
     if (!log) return;
     const div=document.createElement('div');
     div.className='photon-entry';
-    div.style.borderLeftColor=color;
+    div.style.borderLeftColor = tipo === 'emissão' ? color : 'currentColor';
     div.textContent=entry.texto;
     log.insertBefore(div, log.firstChild);
     if (log.children.length>8) log.removeChild(log.lastChild);
@@ -329,16 +329,14 @@
       // aconteceu de forma instantânea em _updateBohr, então aqui só
       // lemos o raio correspondente, sem nenhuma interpolação radial.
       const r=radii[e.shell] ?? 60;
-      let ealpha=1, ecol='#93c5fd';
+      let ealpha=1;
+      const ecol='#93c5fd';
 
       if (e.transition && e.transition.phase==='excited') {
-        const { from, to, excitedTimer, excitedDuration } = e.transition;
+        const { excitedTimer, excitedDuration } = e.transition;
         const progress = 1 - excitedTimer/excitedDuration;
         ealpha = 0.65+0.35*Math.sin(progress*Math.PI); // pulsa enquanto excitado, sem mover raio
-        // Cor do elétron durante a excitação = cor real do fóton que será emitido
-        const niPreview=to+1, nfPreview=from+1;
-        const λPreview = photonLambda(this.Z, niPreview, nfPreview);
-        ecol = photonColor(λPreview);
+
       }
 
       const angle=e.angle;

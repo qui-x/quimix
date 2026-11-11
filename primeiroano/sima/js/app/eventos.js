@@ -183,6 +183,8 @@
     // ══ BOHR — excitar / retornar por camada selecionada ══
     const origin = document.getElementById('bohr-from-shell');
     const target = document.getElementById('bohr-to-shell');
+    origin.addEventListener('change', () => this._syncBohrDirection());
+    target.addEventListener('change', () => this._syncBohrDirection());
     const jump = (up) => {
       const from = Number(origin.value), to = Number(target.value);
       if (from === to || (to > from) !== up || !this.sim.moveBohrElectron(from, to)) {
@@ -192,6 +194,7 @@
       this._updateBohrEnergy();
       origin.value = String(to);
       target.value = String(from);
+      this._syncBohrDirection();
     };
     document.getElementById('btn-bohr-up').addEventListener('click', () => jump(true));
     document.getElementById('btn-bohr-down').addEventListener('click', () => jump(false));
@@ -207,6 +210,7 @@
     document.querySelectorAll('[data-shell]').forEach(btn => {
       btn.addEventListener('click', () => {
         if (+btn.dataset.shell < this.sim.bohrShellRadii.length) target.value = btn.dataset.shell;
+        this._syncBohrDirection();
       });
     });
 
@@ -251,6 +255,7 @@
             this._updateBohrEnergy();
             origin.value = String(electron.shell);
           } else if (shellClicked !== null) target.value = String(shellClicked);
+          this._syncBohrDirection();
         } else if (shellClicked !== null) this.sim.exciteBohr(shellClicked);
       }
     });
