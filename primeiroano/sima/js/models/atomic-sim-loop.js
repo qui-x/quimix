@@ -31,7 +31,7 @@
       case 'thomson':    this._updateThomson();     break;
       case 'rutherford': this._updateRutherford();  break;
       case 'bohr':       this._updateBohr();        break;
-      case 'quantum':    this._updateQuantum();     break;
+      // A nuvem quântica muda ao selecionar ou amostrar, não por frame.
     }
   };
 

@@ -76,7 +76,8 @@ AtomicApp.prototype._updateElementUI = function() {
     const sample = document.getElementById('quantum-sample');
     const result = document.getElementById('quantum-result');
     const names = ['s','pₓ','dₓᵧ','fₓᵧ𝓏'];
-    orbital.replaceChildren(new Option('Todas as subcamadas', ''));
+    plane.value = 'projection';
+    orbital.replaceChildren(new Option('Nuvem total', ''));
     subshells.forEach((sub, i) => orbital.add(new Option(
       `${sub.n}${names[sub.l]} · ${sub.count} e⁻ na subcamada`, String(i))));
     const accumulate = () => {
@@ -89,7 +90,7 @@ AtomicApp.prototype._updateElementUI = function() {
       const sub = orbital.value === '' ? null : subshells[Number(orbital.value)];
       plane.disabled = sample.disabled = !sub;
       result.textContent = '';
-      this.sim.qSection = sub ? { l: sub.l, plane: plane.value, points: [] } : null;
+      this.sim.qSection = sub ? { label: sub.n + names[sub.l], l: sub.l, plane: plane.value, points: [] } : null;
       if (sub) accumulate();
     };
     orbital.onchange = plane.onchange = select;
