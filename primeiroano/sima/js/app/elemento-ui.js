@@ -75,6 +75,10 @@ AtomicApp.prototype._updateElementUI = function() {
     const plane = document.getElementById('quantum-plane');
     const sample = document.getElementById('quantum-sample');
     const result = document.getElementById('quantum-result');
+    const composition = document.getElementById('quantum-composition');
+    const total = subshells.reduce((sum, sub) => sum + sub.count, 0);
+    composition.textContent = `${total} e⁻ · ${subshells.length} subcamada(s) ocupada(s). ` +
+      subshells.map(sub => `${sub.label}: ${sub.count} e⁻ (${(100*sub.count/total).toLocaleString('pt-BR',{maximumFractionDigits:1})}%)`).join(' · ');
     const choices = [];
     plane.value = 'projection';
     orbital.replaceChildren(new Option('Nuvem total', ''));
@@ -96,6 +100,7 @@ AtomicApp.prototype._updateElementUI = function() {
     };
     const select = () => {
       const sub = orbital.value === '' ? null : choices[Number(orbital.value)];
+      composition.hidden = !!sub;
       plane.disabled = sample.disabled = !sub;
       result.textContent = '';
       this.sim.qSection = sub ? { ...sub, plane: plane.value, points: [] } : null;

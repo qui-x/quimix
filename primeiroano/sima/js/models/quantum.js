@@ -38,6 +38,37 @@
 
   AtomicSim.prototype._buildQuantum = function() {
     this.qSubshells = fillSubshells(this.Z);
+    this.qCamera ??= new OrbitCamera();
+    this.qComposite = [];
+    this.qCompositeKey = null;
+    const maxN = Math.max(...this.qSubshells.map(sub => sub.n));
+    // Quadratura angular determinística. Orbitais degenerados recebem um
+    // elétron cada antes do pareamento, numa orientação de base ilustrativa.
+    for (const sub of this.qSubshells) {
+      const forms = quantumForms[sub.l];
+      const extent = sub.n / maxN;
+      if (!sub.l) {
+        this.qComposite.push({x:0,y:0,z:0,width:extent,weight:sub.count,l:0});
+        continue;
+      }
+      for (let f=0; f<forms.length && f<sub.count; f++) {
+        const occupation = 1 + Number(f + forms.length < sub.count);
+        const lobes = [];
+        let sum = 0;
+        for (let k=0; k<96; k++) {
+          const z = (2*k+1)/96-1, angle = k*Math.PI*(3-Math.sqrt(5));
+          const ring = Math.sqrt(1-z*z);
+          const x = ring*Math.cos(angle), y = ring*Math.sin(angle);
+          const weight = forms[f][1](x,y,z)**2;
+          sum += weight;
+          lobes.push({x:x*extent*.52,y:y*extent*.52,z:z*extent*.52,width:extent*.46,weight,l:sub.l});
+        }
+        for (const lobe of lobes) {
+          lobe.weight *= occupation/sum;
+          this.qComposite.push(lobe);
+        }
+      }
+    }
   };
 
   function quantumCloudImage(section) {
@@ -99,21 +130,38 @@
       this._legend(ctx,H,`${this.qSection.label} · ${view} · raio esquemático`);
       return;
     }
-    const radius = Math.min(W,H)*0.38;
-    const maxN = Math.max(...this.qSubshells.map(sub => sub.n));
-    // Sobreposição difusa das subcamadas, da mais extensa à mais interna.
-    for (let n=maxN; n>=1; n--) for (const sub of this.qSubshells) {
-      if (sub.n !== n) continue;
-      const extent = radius*n/maxN;
-      const rgb = this._hexToRgbStr(quantumColors[sub.l]);
-      const opacity = 0.35 + 0.6*sub.count/(2*(2*sub.l+1));
-      const g = ctx.createRadialGradient(cx,cy,0,cx,cy,extent);
-      g.addColorStop(0,`rgba(${rgb},${opacity})`);
-      g.addColorStop(0.55,`rgba(${rgb},${opacity*0.5})`);
-      g.addColorStop(1,`rgba(${rgb},0)`);
-      ctx.fillStyle=g; ctx.fillRect(cx-extent,cy-extent,2*extent,2*extent);
+    const camera = this.qCamera;
+    const key = [W,H,camera.yaw,camera.pitch,camera.zoom].join(',');
+    if (key !== this.qCompositeKey) {
+      const size = 256;
+      const layer = this.qLayer ??= document.createElement('canvas');
+      layer.width = layer.height = size;
+      const brush = layer.getContext('2d');
+      const projected = this.qComposite.map(lobe => ({
+        lobe, point: camera.project(lobe.x,lobe.y,lobe.z,size/2,size/2,size*.43)
+      })).sort((a,b) => b.point.depth-a.point.depth);
+      for (const {lobe,point} of projected) {
+        const r = size*.43*lobe.width*point.persp;
+        const rgb = this._hexToRgbStr(quantumColors[lobe.l]);
+        const alpha = 1-Math.exp(-8*lobe.weight/Math.sqrt(this.Z));
+        const g = brush.createRadialGradient(point.sx,point.sy,0,point.sx,point.sy,r);
+        g.addColorStop(0,`rgba(${rgb},${alpha})`);
+        g.addColorStop(0.55,`rgba(${rgb},${alpha*.48})`);
+        g.addColorStop(1,`rgba(${rgb},0)`);
+        brush.fillStyle=g;
+        brush.fillRect(point.sx-r,point.sy-r,2*r,2*r);
+      }
+      this.qCompositeKey = key;
     }
-
+    const side = Math.min(W,H)*.9;
+    ctx.drawImage(this.qLayer,cx-side/2,cy-side/2,side,side);
+    for (const [axis,label] of [[[1,0,0],'x'],[[0,1,0],'y'],[[0,0,1],'z']]) {
+      const x0=cx-side*.38, y0=cy+side*.32;
+      const pt=camera.project(...axis,x0,y0,22);
+      ctx.strokeStyle=ctx.fillStyle=quantumColors[0];
+      ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(pt.sx,pt.sy); ctx.stroke();
+      ctx.fillText(label,pt.sx,pt.sy);
+    }
     // Núcleo — gradiente com a cor REAL do átomo (elData[8], igual ao
     // atomCor do SITP), em vez de um amarelo fixo para todos os elementos.
     const atomColor = this.elData[8] || '#f59e0b';
@@ -126,5 +174,5 @@
     ctx.fillStyle='rgba(255,255,255,.9)'; ctx.font=`bold ${this.sym.length>1?8:10}px Consolas`;
     ctx.fillText(this.sym,cx-this.sym.length*3,cy+3);
 
-    this._legend(ctx,H,'Nuvem total · média angular · raio esquemático');
+    this._legend(ctx,H,'Nuvem total · orbitais sobrepostos · raio esquemático');
   };

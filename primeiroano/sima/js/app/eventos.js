@@ -180,6 +180,29 @@
       });
     });
 
+    const inCloud = () => this.sim.model === 'quantum' && !this.sim.qSection;
+    let drag = null;
+    this.canvas.addEventListener('pointerdown', event => {
+      if (!inCloud() || !event.isPrimary || event.button !== 0) return;
+      drag = { id:event.pointerId, x:event.clientX, y:event.clientY };
+      this.canvas.setPointerCapture(event.pointerId);
+    });
+    this.canvas.addEventListener('pointermove', event => {
+      if (!inCloud() || drag?.id !== event.pointerId) return;
+      this.sim.qCamera.arrastar(event.clientX-drag.x,event.clientY-drag.y);
+      drag.x=event.clientX; drag.y=event.clientY;
+    });
+    this.canvas.addEventListener('lostpointercapture', () => { drag=null; });
+    this.canvas.addEventListener('keydown', event => {
+      if (!inCloud()) return;
+      const step = {ArrowLeft:[-12,0],ArrowRight:[12,0],ArrowUp:[0,-12],ArrowDown:[0,12]}[event.key];
+      if (step) { event.preventDefault(); this.sim.qCamera.arrastar(...step); }
+      if (event.key === 'Home') {
+        event.preventDefault();
+        this.sim.qCamera.definirPadrao(.55,.30);
+      }
+    });
+
     // ══ BOHR — excitar / retornar por camada selecionada ══
     const origin = document.getElementById('bohr-from-shell');
     const target = document.getElementById('bohr-to-shell');
