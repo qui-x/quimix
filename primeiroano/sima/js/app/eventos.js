@@ -183,34 +183,46 @@
     // ══ BOHR — excitar / retornar por camada selecionada ══
     const origin = document.getElementById('bohr-from-shell');
     const target = document.getElementById('bohr-to-shell');
-    origin.addEventListener('change', () => this._syncBohrDirection());
-    target.addEventListener('change', () => this._syncBohrDirection());
+    const useShells = () => {
+      document.getElementById('bohr-photon').value = '';
+      this._syncBohrDirection();
+    };
+    origin.addEventListener('change', useShells);
+    target.addEventListener('change', useShells);
     const jump = (up) => {
       const from = Number(origin.value), to = Number(target.value);
       if (from === to || (to > from) !== up || !this.sim.moveBohrElectron(from, to)) {
         announce('Verifique o elétron na origem e a direção do salto.', 'assertive');
         return;
       }
+      picker.value = '';
       this._updateBohrEnergy();
       origin.value = String(to);
-      target.value = String(this.sim.Z === 1 && from === 0 && to >= 2 ? 1 : from);
+      target.value = String(up ? from : this.sim.selectedBohrElectron.returnPath.at(-1) ?? from);
       this._syncBohrDirection();
     };
     document.getElementById('btn-bohr-up').addEventListener('click', () => jump(true));
     document.getElementById('btn-bohr-down').addEventListener('click', () => jump(false));
+    const picker = document.getElementById('bohr-photon');
+    picker.addEventListener('change', () => {
+      if (picker.value === '') return;
+      const line = bohrMeasuredLines[this.sim.Z][Number(picker.value)];
+      origin.value = String(line[1]-1);
+      target.value = String(line[2]-1);
+      this._syncBohrDirection();
+    });
     document.getElementById('btn-excite').addEventListener('click', () => {
-      const candidates = this.sim.bohrElectrons.filter(e => !e.transition && e.shell + 1 < this.sim.bohrShellRadii.length);
-      if (!candidates.length) return;
-      const electron = candidates[Math.floor(Math.random() * candidates.length)];
-      this.sim.selectedBohrElectron = electron;
-      origin.value = String(electron.shell);
-      target.value = String(electron.shell + 1 + Math.floor(Math.random() * (this.sim.bohrShellRadii.length - electron.shell - 1)));
-      jump(true);
+      const line = picker.value ? bohrMeasuredLines[this.sim.Z]?.[Number(picker.value)] : null;
+      const from = Number(origin.value), to = Number(target.value);
+      const chosen = this.sim.selectedBohrElectron;
+      if (!this.sim.exciteBohr(from, to, chosen?.shell === from ? chosen : null, line)) {
+        announce('Escolha uma camada de origem ocupada e um destino superior, ou prepare o elétron na origem da linha medida.', 'assertive');
+      }
     });
     document.querySelectorAll('[data-shell]').forEach(btn => {
       btn.addEventListener('click', () => {
         if (+btn.dataset.shell < this.sim.bohrShellRadii.length) target.value = btn.dataset.shell;
-        this._syncBohrDirection();
+        useShells();
       });
     });
 
@@ -255,7 +267,7 @@
             this._updateBohrEnergy();
             origin.value = String(electron.shell);
           } else if (shellClicked !== null) target.value = String(shellClicked);
-          this._syncBohrDirection();
+          useShells();
         } else if (shellClicked !== null) this.sim.exciteBohr(shellClicked);
       }
     });

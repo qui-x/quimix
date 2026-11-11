@@ -52,6 +52,7 @@ test('As seis quedas do hidrogênio emitem fótons pelo motor do canvas', () => 
     assert.ok(Math.abs(photon.lambda - nm) <= 1);
     assert.ok(photon.series.includes(band));
     assert.equal(sim.bohrElectrons[0].shell, lower - 1);
+    controls.get('bohr-to-shell').value = String(upper - 1);
     controls.get('btn-bohr-up').dispatchEvent(new Event('click'));
     assert.equal(sim.bohrPhotons.length, 1);
     assert.equal(sim.bohrLog[0].color, photon.color);
@@ -67,14 +68,35 @@ test('As seis quedas do hidrogênio emitem fótons pelo motor do canvas', () => 
   }
   assert.equal(colors.size, 4);
   sim._buildBohr();
-  for (const [nm, color] of [[656, '#e63946'], [486, '#4cc9c0'], [434, '#3a6df0'], [410, '#7b4fe0']]) {
-    assert.ok(sim.exciteBohr(0));
-    for (let frame = 0; frame < 81; frame++) sim._updateBohr();
-    const line = sim.bohrPhotons.at(-1);
-    assert.ok(Math.abs(line.lambda - nm) <= 1);
-    assert.equal(line.color, color);
-    for (let frame = 0; frame < 80; frame++) sim._updateBohr();
-    assert.equal(sim.bohrElectrons[0].shell, 0);
-    assert.ok(sim.bohrPhotons.at(-1).series.includes('UV'));
+  const up = () => controls.get('btn-bohr-up').dispatchEvent(new Event('click'));
+  const down = () => controls.get('btn-bohr-down').dispatchEvent(new Event('click'));
+  const origin = controls.get('bohr-from-shell'), target = controls.get('bohr-to-shell');
+  origin.value = '0'; target.value = '2'; up();
+  target.value = '4'; up(); down();
+  assert.equal(target.value, '0');
+  down();
+  assert.equal(sim.selectedBohrElectron.shell, 0);
+
+  for (const [Z, shells] of [[2,[2]], [11,[2,8,1]], [80,[2,8,18,32,18,2]]]) {
+    Object.assign(sim, { Z, electrons: shells });
+    sim._buildBohr();
+    const lines = vm.runInContext('bohrMeasuredLines[' + Z + ']', context);
+    for (const [index,line] of lines.entries()) {
+      const [nm, lower, upper] = line;
+      if (Z === 2 && !sim.bohrElectrons.some(e => e.shell === lower-1)) sim.moveBohrElectron(0, lower-1);
+      const picker = controls.get('bohr-photon');
+      picker.value = String(index);
+      picker.dispatchEvent(new Event('change'));
+      const electron = sim.bohrElectrons.find(e => e.shell === lower-1);
+      sim.selectedBohrElectron = electron;
+      controls.get('btn-excite').dispatchEvent(new Event('click'));
+      sim._updateBohr();
+      assert.equal(electron.shell, upper-1);
+      for (let tick=0; tick<80; tick++) sim._updateBohr();
+      assert.equal(electron.shell, lower-1);
+      assert.equal(electron.transition, null);
+      assert.equal(sim.bohrPhotons.at(-1).lambda, nm);
+      assert.equal(sim._bohrShellBusy.size, 0);
+    }
   }
 });

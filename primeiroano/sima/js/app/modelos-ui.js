@@ -127,16 +127,26 @@
   AtomicApp.prototype._syncBohrDirection = function() {
     const from = Number(document.getElementById('bohr-from-shell').value);
     const to = Number(document.getElementById('bohr-to-shell').value);
-    document.getElementById('btn-bohr-up').disabled = to <= from;
-    document.getElementById('btn-bohr-down').disabled = to >= from;
+    const selected = this.sim.selectedBohrElectron;
+    const candidates = selected?.shell === from ? [selected] : this.sim.bohrElectrons.filter(e => e.shell === from);
+    const possible = candidates.some(e => to >= e.baseShell);
+    document.getElementById('btn-bohr-up').disabled = !possible || to <= from;
+    document.getElementById('btn-bohr-down').disabled = !possible || to >= from;
   };
 
   // ── Seletores de camada do Bohr (subir/retornar) ───────────────
   AtomicApp.prototype._updateBohrShellSelectors = function() {
-    const ns = this.sim.Z === 1 ? 6 : Math.min(this.sim.electrons.length + 1, 7);
+    const ns = this.sim.bohrShellRadii?.length || 0;
     const fromSel = document.getElementById('bohr-from-shell');
     const toSel   = document.getElementById('bohr-to-shell');
     if (!fromSel || !toSel) return;
+    const picker = document.getElementById('bohr-photon');
+    const lines = bohrMeasuredLines[this.sim.Z] || [];
+    picker.replaceChildren(new Option('Pelas camadas escolhidas', ''));
+    lines.forEach(([nm, lower, upper, states], index) => {
+      picker.add(new Option(`${nm} nm · ${SHELLS[lower-1]} ↔ ${SHELLS[upper-1]} · ${states}`, String(index)));
+    });
+    picker.parentElement.hidden = !lines.length;
     fromSel.innerHTML=''; toSel.innerHTML='';
     for (let s=0;s<ns;s++) {
       const optF=document.createElement('option'); optF.value=s; optF.textContent=SHELLS[s];

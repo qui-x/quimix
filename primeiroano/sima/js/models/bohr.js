@@ -36,10 +36,20 @@
    * vem de Rutherford (1911); Bohr (1913) apenas quantizou a energia
    * dessas camadas, sem mudar sua disposição espacial relativa.
    */
+  // NIST Handbook, Persistent Lines of Neutral He, Na and Hg (air wavelengths in nm).
+  // https://physics.nist.gov/PhysRefData/Handbook/Tables/{helium,sodium,mercury}table3.htm
+  const bohrMeasuredLines = {
+    2: [[667.81517, 2, 3, '2p ¹P°₁ ↔ 3d ¹D₂']],
+    11: [[588.995, 3, 3, '3s ²S½ ↔ 3p ²P°₃⁄₂'], [589.5924, 3, 3, '3s ²S½ ↔ 3p ²P°½'],
+         [330.237, 3, 4, '3s ²S½ ↔ 4p ²P°₃⁄₂']],
+    80: [[404.6563, 6, 7, '6p ³P°₀ ↔ 7s ³S₁'], [435.8328, 6, 7, '6p ³P°₁ ↔ 7s ³S₁'],
+         [546.0735, 6, 7, '6p ³P°₂ ↔ 7s ³S₁']]
+  };
+
   AtomicSim.prototype._buildBohr = function() {
     const W=this.canvas.width||800, H=this.canvas.height||600;
     const shells=this.electrons;
-    const ns=this.Z === 1 ? 6 : Math.min(shells.length + 1, 7);
+    const ns=this.Z === 1 ? 6 : Math.min(Math.max(shells.length + 1, this.Z === 2 ? 3 : 0), 7);
     const maxShellR = Math.min(W,H)*0.46; // mesmo valor usado no Rutherford
     this.bohrShellRadii = Array.from({length:ns}, (_,i) =>
       maxShellR * (0.35 + (i/Math.max(1,ns-1))*0.65)
@@ -66,11 +76,12 @@
           angle:(ei/shells[s])*Math.PI*2,
           omega,
           transition: null,
+          returnPath: [],
         });
       }
     }
     this.bohrPhotons=[];
-    this.nextBalmerShell = 2;
+
     this.bohrLog=[];
     this._bohrShellBusy = new Set();
   };
@@ -84,6 +95,8 @@
     if (!electron || electron.transition || to < electron.baseShell) return false;
     this.selectedBohrElectron = electron;
     electron.angle = this._bohrFarthestAngle(to, electron);
+    if (to > from) electron.returnPath.push(from);
+    else electron.returnPath = electron.returnPath.filter(shell => shell < to);
     electron.shell = to;
     electron.omega = BOHR_OMEGA_K / Math.sqrt(to + 1);
     if (to < from) {
@@ -120,21 +133,21 @@
    *     ocupar o mesmo estado quântico; aqui, evitamos que fiquem
    *     alinhados no mesmo eixo radial).
    */
-  AtomicSim.prototype.exciteBohr = function(from, to) {
+  AtomicSim.prototype.exciteBohr = function(from, to, chosen, line) {
     const shells=this.electrons;
     const ns=this.bohrShellRadii.length;
     if (ns<2) return false;
     if (from===undefined) from = this.Z === 1 ? this.bohrElectrons[0].shell : Math.floor(Math.random()*Math.min(shells.length, ns-1));
-    const cascade = to === undefined && this.Z === 1 && from === 0;
-    if (to === undefined) to = cascade ? this.nextBalmerShell : from + 1;
-    if (from<0||from>=ns||to<0||to>=ns||from>=to) return false;
+    if (to === undefined) to = from + 1;
+    if (line && (!(bohrMeasuredLines[this.Z] || []).includes(line) || from !== line[1]-1 || to !== line[2]-1)) return false;
+    if (from < 0 || to >= ns || to < from || (to === from && !line)) return false;
     if (this._bohrShellBusy.has(from)) return false; // já tem elétron subindo dessa camada
 
     for (const e of this.bohrElectrons) {
-      if (e.shell===from && !e.transition) {
+      if ((!chosen || e === chosen) && e.shell===from && !e.transition) {
         const ni=to+1, nf=from+1;
-        const dE=Math.abs(bohrEnergy(this.Z,ni)-bohrEnergy(this.Z,nf));
-        const λ=photonLambda(this.Z, nf, ni);
+        const dE=line ? PHYS.hc / line[0] : Math.abs(bohrEnergy(this.Z,ni)-bohrEnergy(this.Z,nf));
+        const λ=line ? line[0] : photonLambda(this.Z, nf, ni);
         const arrivalAngle = this._bohrFarthestAngle(to, e);
         // EXCITED_DURATION: tempo fixo no estado excitado (ponto 3) —
         // mantido em 80 frames (já calibrado visualmente antes), mas
@@ -144,19 +157,14 @@
         e.transition = {
           phase: 'leap',          // 'leap' (1 frame) → 'excited' (tempo fixo) → 'fall' (1 frame)
           from, to,
-          arrivalAngle,
+          arrivalAngle, line,
           excitedTimer: 80,
           excitedDuration: 80,
         };
-        if (cascade) {
-          e.transition.from = 1; // Primeira emissão: camada excitada → L.
-          e.transition.finalShell = from;
-          this.nextBalmerShell = to + 1 < ns ? to + 1 : 2;
-        }
         this._bohrShellBusy.add(from);
         playTone(300+from*120, 0.15, 0.07);
         announce(`Absorção: elétron camada ${SHELLS[from]}→${SHELLS[to]}, ΔE=${dE.toFixed(2)} eV.`);
-        this._addBohrLog(nf, ni, λ, photonColor(λ), spectralSeries(nf, λ), 'absorção');
+        this._addBohrLog(nf, ni, λ, photonColor(λ), line ? line[3] : spectralSeries(nf, λ), 'absorção');
         return true;
       }
     }
@@ -217,23 +225,19 @@
   AtomicSim.prototype._emitBohrPhoton = function(e, releaseOrigin = true) {
     const { from, to } = e.transition;
     const ni=to+1, nf=from+1;
-    const λ=photonLambda(this.Z, ni, nf);
+    const line=e.transition.line;
+    const λ=line ? line[0] : photonLambda(this.Z, ni, nf);
     const col=photonColor(λ);
-    const series=spectralSeries(nf, λ);
-    const dE=Math.abs(bohrEnergy(this.Z,nf)-bohrEnergy(this.Z,ni));
+    const series=line ? line[3] : spectralSeries(nf, λ);
+    const dE=PHYS.hc / λ;
     this.bohrPhotons.push({
       x:this.canvas.width/2, y:this.canvas.height/2,
-      r:0, color:col, lambda:Math.round(λ), series, deltaE:dE.toFixed(2), alpha:1,
+      r:0, color:col, lambda:line ? λ : Math.round(λ), series, deltaE:dE.toFixed(2), alpha:1,
     });
     this._addBohrLog(ni, nf, λ, col, series, 'emissão');
     playTone(220 + (λ < 750 ? (750-λ)*1.5 : 0), 0.25, 0.06);
     e.omega = BOHR_OMEGA_K / Math.sqrt(nf);
     announce(`Fóton emitido: λ=${Math.round(λ)} nm, ${series}.`);
-    const finalShell = e.transition.finalShell;
-    if (finalShell !== undefined) {
-      e.transition = { phase: 'excited', from: finalShell, to: from, excitedTimer: 80, excitedDuration: 80 };
-      return;
-    }
     if (releaseOrigin) this._bohrShellBusy.delete(from);
     e.transition = null;
   };
@@ -295,7 +299,7 @@
   };
 
   AtomicSim.prototype._addBohrLog = function(ni, nf, λ, color, series, tipo='emissão') {
-    const entry = { texto: `${tipo} ${SHELLS[ni-1]}→${SHELLS[nf-1]} λ≈${Math.round(λ)} nm (${series})`, color, time: Date.now() };
+    const entry = { texto: `${tipo} ${SHELLS[ni-1]}→${SHELLS[nf-1]} λ≈${(bohrMeasuredLines[this.Z] || []).some(line => line[0] === λ) ? λ : Math.round(λ)} nm (${series})`, color, time: Date.now() };
     this.bohrLog.unshift(entry);
     if (this.bohrLog.length>8) this.bohrLog.pop();
     const log=document.getElementById('photon-log');
