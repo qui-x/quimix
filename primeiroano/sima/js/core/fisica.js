@@ -65,14 +65,14 @@ function photonColor(λ) {
 
 /** Distribui Z elétrons nas subcamadas reais seguindo a ordem de Madelung. */
 function fillSubshells(Z) {
-  let remaining = Z;
+  const remainingByShell = ELEMENTS.find(element => element[0] === Z)[7].slice();
   const result = [];
   for (const [n,l] of ORBITAL_FILL_ORDER) {
-    if (remaining <= 0) break;
+    if (!remainingByShell[n-1]) continue;
     const cap = SUBSHELL_CAPACITY[l];
-    const count = Math.min(cap, remaining);
+    const count = Math.min(cap, remainingByShell[n-1]);
     result.push({ n, l, count, label: `${n}${SUBSHELL_LABEL[l]}` });
-    remaining -= count;
+    remainingByShell[n-1] -= count;
   }
   return result;
 }

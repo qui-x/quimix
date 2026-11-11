@@ -57,8 +57,9 @@ const MOLS_ESCALA = 0.5;
 function renderizarReacaoNoCanvasMols(reactionKey) {
   limparCena();
   const r = REACTIONS[reactionKey];
+  const proporcao = r.coeffsOriginais || r.coeffs;
   const reagentesFormulas = r.reagents.map((rg) => rg.formula);
-  const produtosFormulas = Object.keys(r.coeffs).filter((f) => !reagentesFormulas.includes(f));
+  const produtosFormulas = Object.keys(proporcao).filter((f) => !reagentesFormulas.includes(f));
 
   const area = areaDeJogo();
   const meio = (area.left + area.right) / 2;
@@ -71,7 +72,7 @@ function renderizarReacaoNoCanvasMols(reactionKey) {
 
   const criarSubstancia = (formula, centro, papel) => {
     const contagem = contarAtomos(formula); // átomos por 1 unidade de fórmula
-    const coeficiente = r.coeffs[formula];
+    const coeficiente = proporcao[formula];
 
     // total = porUnidade (não multiplicado pelo coeficiente): clicar
     // conta os átomos DESSA molécula, uma vez — o coeficiente entra na
@@ -168,12 +169,13 @@ function iniciarInvestigacaoReacaoMols(reactionKey) {
   renderizarReacaoNoCanvasMols(reactionKey);
 
   const r = REACTIONS[reactionKey];
+  const proporcao = r.coeffsOriginais || r.coeffs;
   const reagentesFormulas = r.reagents.map((rg) => rg.formula);
-  const todasFormulas = Object.keys(r.coeffs);
+  const todasFormulas = Object.keys(proporcao);
 
   molsSubstanceLegend.innerHTML = todasFormulas.map((formula) => {
     const ehReagente = reagentesFormulas.includes(formula);
-    const coef = r.coeffs[formula];
+    const coef = proporcao[formula];
     const prefixoCoef = coef > 1 ? `${coef} × ` : "";
     return `<span class="mols-substance-chip${ehReagente ? "" : " mols-substance-chip--produto"}">
       <span class="mols-substance-dot" aria-hidden="true"></span>

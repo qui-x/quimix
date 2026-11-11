@@ -126,14 +126,14 @@
 
   // ── Seletores de camada do Bohr (subir/retornar) ───────────────
   AtomicApp.prototype._updateBohrShellSelectors = function() {
-    const ns = Math.min(this.sim.electrons.length, 7);
+    const ns = this.sim.Z === 1 ? 3 : Math.min(this.sim.electrons.length, 7);
     const fromSel = document.getElementById('bohr-from-shell');
     const toSel   = document.getElementById('bohr-to-shell');
     if (!fromSel || !toSel) return;
     fromSel.innerHTML=''; toSel.innerHTML='';
     for (let s=0;s<ns;s++) {
       const optF=document.createElement('option'); optF.value=s; optF.textContent=SHELLS[s];
-      fromSel.appendChild(optF);
+      if (this.sim.electrons[s]) fromSel.appendChild(optF);
       const optT=document.createElement('option'); optT.value=s; optT.textContent=SHELLS[s];
       toSel.appendChild(optT);
     }

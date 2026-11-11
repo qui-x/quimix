@@ -39,7 +39,7 @@
   AtomicSim.prototype._buildBohr = function() {
     const W=this.canvas.width||800, H=this.canvas.height||600;
     const shells=this.electrons;
-    const ns=Math.min(shells.length, 7);
+    const ns=this.Z === 1 ? 3 : Math.min(shells.length, 7);
     const maxShellR = Math.min(W,H)*0.46; // mesmo valor usado no Rutherford
     this.bohrShellRadii = Array.from({length:ns}, (_,i) =>
       maxShellR * (0.35 + (i/Math.max(1,ns-1))*0.65)
@@ -98,9 +98,9 @@
    */
   AtomicSim.prototype.exciteBohr = function(from, to) {
     const shells=this.electrons;
-    const ns=Math.min(shells.length,7);
+    const ns=this.bohrShellRadii.length;
     if (ns<2) return false;
-    if (from===undefined) from = Math.floor(Math.random()*(ns-1));
+    if (from===undefined) from = Math.floor(Math.random()*Math.min(shells.length, ns-1));
     if (to===undefined)   to   = from+1;
     if (from<0||from>=ns||to<0||to>=ns||from===to) return false;
     if (this._bohrShellBusy.has(from)) return false; // já tem elétron subindo dessa camada
@@ -276,7 +276,7 @@
   AtomicSim.prototype._drawBohr = function(ctx,W,H) {
     const cx=W/2, cy=H/2;
     const shells=this.electrons;
-    const ns=Math.min(shells.length,7);
+    const ns=this.bohrShellRadii.length;
     // Raios pré-calculados em _buildBohr, com o MESMO espaçamento
     // linear usado no Rutherford — nunca comprime, independente de Z.
     const radii = this.bohrShellRadii || [];

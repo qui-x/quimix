@@ -15,6 +15,10 @@
 
 // ── Eventos ───────────────────────────────────────────────────
   AtomicApp.prototype._bindEvents = function() {
+    document.getElementById('abrir-espalhamento').addEventListener('click', () => {
+      if (this.sim.model !== 'rutherford') document.querySelector('[data-model="rutherford"]').click();
+      this._toggleRutherfordEgg();
+    });
     window.addEventListener('resize',()=>this._resize());
 
     document.querySelectorAll('.panel-header').forEach(btn=>{
@@ -206,6 +210,12 @@
     this.canvas.addEventListener('click',e=>{
       const v = this._vistaClique || this.sim._vista || { s:1, tx:0, ty:0 }; this._vistaClique = null;
       const mx = (e.offsetX - v.tx) / v.s, my = (e.offsetY - v.ty) / v.s;   // tela → mundo
+      if (this.sim.model === 'thomson') {
+        const index = this.sim.thomsonElectrons.findIndex(el => Math.hypot(el.x-mx, el.y-my) <= 12/v.s);
+        const mensagem = this.sim.alternarEletronThomson(index);
+        if (mensagem) announce(mensagem);
+        return;
+      }
       if (this.sim.model==='rutherford' && this.sim.ruthEggMode) {
         const b = my - this.sim.ruthNucleusY;
         this.sim.fireAlpha(b); playTone(900,.05,.04);
@@ -215,7 +225,7 @@
         const cx=this.canvas.width/2, cy=this.canvas.height/2;
         const d=Math.hypot(mx-cx,my-cy);
         const radii = this.sim.bohrShellRadii || [];
-        const ns=Math.min(this.sim.electrons.length,7);
+        const ns=radii.length;
         let shellClicked=null;
         for (let s=0;s<ns;s++) {
           const r = radii[s] ?? 60;
@@ -227,6 +237,7 @@
     this.canvas.addEventListener('keydown',e=>{
       if (!['Enter',' '].includes(e.key)) return;
       e.preventDefault();
+      if (this.sim.model === 'thomson') { announce(this.sim.alternarEletronThomson(0)); return; }
       if (this.sim.model==='rutherford' && this.sim.ruthEggMode) { this.sim.fireAlpha(); return; }
       if (this.sim.model==='bohr') this.sim.exciteBohr();
     });

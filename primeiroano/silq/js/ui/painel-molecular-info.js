@@ -31,8 +31,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const counts={};
     SILQ.canvasAtoms.forEach(a=>{ counts[a.element]=(counts[a.element]||0)+1; });
     const order=['C','H',...Object.keys(counts).filter(k=>k!=='C'&&k!=='H').sort()];
+    if (SILQ.activeBondFilter === 'ionic') {
+      order.sort((a,b) => Number(SILQ.isMetal(ELEMENTS[b]?.category)) - Number(SILQ.isMetal(ELEMENTS[a]?.category)));
+    }
     const formula=order.filter(k=>counts[k]).map(k=>counts[k]>1?`${k}<sub>${counts[k]}</sub>`:k).join('');
-    SILQ.molFormula.innerHTML = formula || '—';
+    if (SILQ.activeBondFilter === 'metallic') {
+      SILQ.molFormula.textContent = Object.entries(counts).map(([symbol,n]) => n+' × '+symbol).join(' + ');
+    } else {
+      SILQ.molFormula.innerHTML = formula || '—';
+    }
 
     // Estatísticas por tipo
     const bCov  = SILQ.bonds.filter(b=>b.type==='covalent').length;

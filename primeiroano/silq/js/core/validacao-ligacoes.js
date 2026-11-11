@@ -193,6 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Dois metais: sem ligação covalente (é metálica)
     if (SILQ.isMetal(elA.category) && SILQ.isMetal(elB.category)) return false;
 
+    if (SILQ.canFormIonicBondType(symA, symB)) return false;
+
     // Octeto: H aceita apenas 1 ligação; gases nobres zero
     if (symA === 'H' && SILQ.covalentCap('H') - SILQ.bondOrderSum('__check__') <= 0) return false;
 
@@ -208,6 +210,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return `${symB} só forma compostos covalentes com F ou O (ex: ${symB}F₂, ${symB}O₃).`;
     if (SILQ.isMetal(ELEMENTS[symA]?.category) && SILQ.isMetal(ELEMENTS[symB]?.category))
       return `${symA} e ${symB} são ambos metais — formam ligação metálica, não covalente.`;
+    if (SILQ.canFormIonicBondType(symA, symB))
+      return `Neste modelo, o par ${symA}–${symB} é representado no modo iônico.`;
     return `${symA}–${symB}: combinação não suporta ligação covalente.`;
   };
 

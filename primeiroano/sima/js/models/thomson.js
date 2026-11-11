@@ -110,6 +110,7 @@
     const ringCounts = this._thomsonRingLayout(N);
     const numRings = ringCounts.length;
 
+    this.thomsonRemovido = null;
     this.thomsonElectrons = [];
     this.thomsonRings = []; // guarda raio de cada anel para desenho de referência
 
@@ -155,6 +156,17 @@
   // correto — elétrons em anéis concêntricos estáveis, mais elétrons
   // no anel externo — na escala visual pretendida pelo simulador.
   // ════════════════════════════════════════════════════════════════
+  AtomicSim.prototype.alternarEletronThomson = function(index) {
+    if (this.thomsonRemovido) {
+      this.thomsonElectrons.push(this.thomsonRemovido);
+      this.thomsonRemovido = null;
+      return 'Elétron reposto. Carga líquida zero.';
+    }
+    if (!this.thomsonElectrons[index]) return '';
+    this.thomsonRemovido = this.thomsonElectrons.splice(index, 1)[0];
+    return 'Elétron retirado. Carga líquida +1 e.';
+  };
+
   AtomicSim.prototype._updateThomson = function() {
     const W=this.canvas.width, H=this.canvas.height;
     const cx=W/2, cy=H/2;
@@ -286,7 +298,8 @@
       }
     }
 
-    const ringCount = ringRadii.length + (this.thomsonElectrons.some(e=>e.ringR===0)?1:0);
-    this._legend(ctx,H,`Esfera de carga +${this.Z} contínua · ${this.thomsonElectrons.length} e⁻ em ${ringCount||1} anel(éis) concêntrico(s) (Thomson, 1904)`);
+    const total = this.totalE - (this.thomsonRemovido ? 1 : 0);
+    const amostra = total > this.thomsonElectrons.length ? ' (' + this.thomsonElectrons.length + ' visíveis)' : '';
+    this._legend(ctx,H,`Esfera +${this.Z} · ${total} e⁻${amostra} · carga líquida ${this.thomsonRemovido ? '+1 e' : 'zero'}`);
   };
 

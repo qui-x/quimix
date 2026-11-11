@@ -347,36 +347,35 @@ document.addEventListener('DOMContentLoaded', () => {
      de elementos SVG por segundo quando há muitas moléculas juntas. */
   SIFI.desenharLinhasInteracao = function desenharLinhasInteracao(interacoes) {
     if (!SIFI.svgEl) return;
-    SIFI.svgEl.innerHTML = '';
-
     const paraDesenhar = interacoes.length <= SIFI.MAX_LINHAS_DESENHADAS
       ? interacoes
       : interacoes.slice().sort((x, y) => x.dist - y.dist).slice(0, SIFI.MAX_LINHAS_DESENHADAS);
 
-    paraDesenhar.forEach(inter => {
+    while (SIFI.svgEl.childElementCount > paraDesenhar.length) SIFI.svgEl.lastElementChild.remove();
+    paraDesenhar.forEach((inter, index) => {
       const cor = FORCE_TYPES[inter.forceKey].color;
       // Se as duas moléculas têm polo (dipolo-dipolo / ligação de
       // hidrogênio), a linha liga os DOIS POLOS mais próximos de
       // verdade, não os centros — "o δ+ desta encontrou o δ− daquela".
       const parPolos = SIFI.polosMaisProximos(inter.a, inter.b);
       if (parPolos) {
-        SIFI.drawInteractionLine(parPolos.pa.x, parPolos.pa.y, parPolos.pb.x, parPolos.pb.y, cor);
+        SIFI.drawInteractionLine(parPolos.pa.x, parPolos.pa.y, parPolos.pb.x, parPolos.pb.y, cor, index);
       } else {
-        SIFI.drawInteractionLine(inter.cx1, inter.cy1, inter.cx2, inter.cy2, cor);
+        SIFI.drawInteractionLine(inter.cx1, inter.cy1, inter.cx2, inter.cy2, cor, index);
       }
     });
   };
 
-  SIFI.drawInteractionLine = function drawInteractionLine(x1, y1, x2, y2, color) {
+  SIFI.drawInteractionLine = function drawInteractionLine(x1, y1, x2, y2, color, index) {
     if (!SIFI.svgEl) return;
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    const line = SIFI.svgEl.children[index] || document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', x1); line.setAttribute('y1', y1);
     line.setAttribute('x2', x2); line.setAttribute('y2', y2);
     line.setAttribute('stroke', color);
     line.setAttribute('stroke-width', '2.5');
     line.setAttribute('stroke-dasharray', '6 5');
     line.setAttribute('stroke-linecap', 'round');
-    SIFI.svgEl.appendChild(line);
+    if (!line.parentNode) SIFI.svgEl.appendChild(line);
   };
 
   /* ===================================================================
@@ -426,7 +425,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (SIFI.activeModule !== 1) msg = 'Ative o Módulo 1 e coloque compostos no canvas.';
       else if (total < 2) msg = 'Coloque pelo menos dois compostos no canvas.';
       else msg = 'Aproxime dois compostos para ver a interação entre eles.';
-      SIFI._ultimaAssinaturaPainel = ''; // reseta: se voltar a ter interações depois, precisa redesenhar
+      if (SIFI._ultimaAssinaturaPainel === msg) return;
+      SIFI._ultimaAssinaturaPainel = msg;
       lista.innerHTML = `<p class="interacoes-vazio">${msg}</p>`;
       return;
     }

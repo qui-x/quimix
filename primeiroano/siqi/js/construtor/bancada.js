@@ -84,6 +84,13 @@ function mod2CriarSlot(desafio, idx){
 function mod2PreencherPlaceholderSlot(slot, desafio, idx){
   var tipoEsperado = desafio.blocos_corretos[idx].tipo;
   var label = MOD2_TIPO_LABEL[tipoEsperado] || 'bloco';
+  const simples = ['sal', 'base', 'oxido'].includes(desafio.tipo);
+  if (tipoEsperado === 'metal' && (simples || (desafio.tipo === 'cation_complexo' && idx === 0))) {
+    label = desafio.tipo === 'oxido' ? 'óxido' : 'ânion';
+  }
+  if (tipoEsperado === 'ion' && simples) {
+    label = desafio.tipo === 'oxido' ? 'elemento' : 'cátion';
+  }
   slot.innerHTML =
     '<span class="construtor-slot-ph-icon" aria-hidden="true">＋</span>'+
     '<span class="construtor-slot-ph-txt">'+label+'</span>';

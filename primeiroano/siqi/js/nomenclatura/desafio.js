@@ -47,6 +47,25 @@ function _placeholderNomeclatura(formulaIdAtual){
   return 'Ex.: ' + escolha.nome + '…';
 }
 
+// Somente nomes completos. O texto explicativo da ficha também contém
+// exemplos, fórmulas e atributos e por isso não constitui um gabarito.
+var nomesAlternativosPorFormula = {
+  NaHCO3: ['hidrogenocarbonato de sódio'],
+  FeCl2: ['cloreto ferroso'], FeCl3: ['cloreto férrico'],
+  FeSO4: ['sulfato ferroso'], 'Fe(OH)3': ['hidróxido férrico'],
+  CuO: ['óxido cúprico'], CuSO4: ['sulfato cúprico'],
+  SnCl2: ['cloreto estanoso'], NH3: ['azano'],
+  Al2O3: ['trióxido de dialumínio'], N2O5: ['anidrido nítrico'],
+  Fe3O4: ['óxido de ferro(II,III)'], NO: ['óxido nítrico'],
+  Zn: ['zinco'], Al: ['alumínio'], Cu: ['cobre']
+};
+
+function normalizarNomeCompleto(nome) {
+  return nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/\s*\(\s*([ivx]+(?:\s*,\s*[ivx]+)*)\s*\)/g, ' $1')
+    .replace(/\s*,\s*/g, ',').replace(/\s+/g, ' ').trim();
+}
+
 function _mostrarDesafio(formulaId){
   var c = COMPOSTOS[formulaId]; if(!c) return;
   var f = FUNCAO_META[c.funcao] || {};
@@ -58,23 +77,8 @@ function _mostrarDesafio(formulaId){
     _nomHtmlOriginal = painelInfo.innerHTML;
   }
 
-  /* ── Nomes aceitos (normalizado) ── */
-  var nomesAceitos = [normTxt(c.nome)];
-  if(c.nomenclatura){
-    nomesAceitos.push(normTxt(c.nomenclatura.split('(')[0].trim()));
-    nomesAceitos.push(normTxt(c.nomenclatura));
-  }
-  /* variações sem prefixo */
-  var base = nomesAceitos.slice();
-  base.forEach(function(n){
-    nomesAceitos.push(n.replace(/^acido\s+/,'').trim());
-    nomesAceitos.push(n.replace(/^hidroxido de\s+/,'hidroxido ').trim());
-    nomesAceitos.push(n.replace(/^oxido de\s+/,'oxido ').trim());
-  });
-  /* remover duplicatas e strings muito curtas */
-  nomesAceitos = nomesAceitos.filter(function(n,i,a){
-    return n.length > 2 && a.indexOf(n)===i;
-  });
+  var nomesAceitos = [c.nome].concat(nomesAlternativosPorFormula[formulaId] || [])
+    .map(normalizarNomeCompleto);
 
   /* ── Dicas progressivas ── */
   var dicas = [];
@@ -172,7 +176,7 @@ function _mostrarDesafio(formulaId){
     var input    = document.getElementById('nom-input');
     var feedback = document.getElementById('nom-feedback');
     if(!input||!feedback) return;
-    var resposta = normTxt(input.value.trim());
+    var resposta = normalizarNomeCompleto(input.value);
     if(!resposta){
       feedback.className = 'nom-feedback nom-feedback-err';
       feedback.textContent = 'Digite o nome do composto acima.';
@@ -180,14 +184,7 @@ function _mostrarDesafio(formulaId){
     }
     tentativas++;
 
-    /* comparação flexível mas que exige substância */
-    var acertou = nomesAceitos.some(function(n){
-      if(resposta === n) return true;
-      /* aceita se a resposta contém o nome completo ou o nome contém a resposta (min 5 chars) */
-      if(resposta.length >= 5 && n.includes(resposta)) return true;
-      if(n.length >= 5 && resposta.includes(n)) return true;
-      return false;
-    });
+    var acertou = nomesAceitos.includes(resposta);
 
     if(acertou){
       feedback.className = 'nom-feedback nom-feedback-ok';

@@ -16,11 +16,14 @@
 'use strict';
 
 function distribuirEletrons(Z) {
-  let e = Z, dist = {};
-  for (const sub of ORDEM_SUBNIVEIS) {
-    if (e <= 0) break;
-    const fill = Math.min(e, MAX_SUB[sub[sub.length-1]]);
-    if (fill > 0) { dist[sub] = fill; e -= fill; }
+  const gasesNobres = {He: 2, Ne: 10, Ar: 18, Kr: 36, Xe: 54, Rn: 86};
+  const configuracao = CONFIG_EC[Z];
+  if (!configuracao) return {};
+  const nucleo = configuracao.match(/^\[(\w+)\]/);
+  const dist = nucleo ? distribuirEletrons(gasesNobres[nucleo[1]]) : {};
+  for (const termo of configuracao.matchAll(/(\d[spdf])([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g)) {
+    const quantidade = Array.from(termo[2], c => '⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(c)).join('');
+    dist[termo[1]] = Number(quantidade);
   }
   return dist;
 }
