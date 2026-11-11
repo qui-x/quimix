@@ -44,10 +44,16 @@ AtomicApp.prototype._updateElementUI = function() {
     const last = subshells[subshells.length - 1];
     s('d-last-subshell', last ? last.label : '—');
 
-    if (this.sim.model==='bohr') {
-      const energyStr=electrons.map((_,i)=>`${SHELLS[i]}=${bohrEnergy(Z,i+1).toFixed(1)}eV`).join(' ');
-      s('d-bohr-energy',energyStr);
-    }
+    if (this.sim.model === 'bohr') this._updateBohrEnergy();
+  };
+
+  AtomicApp.prototype._updateBohrEnergy = function() {
+    const electron = this.sim.selectedBohrElectron || this.sim.bohrElectrons[0];
+    const field = document.getElementById('d-bohr-energy');
+    if (!field || !electron) return;
+    const level = electron.shell + 1;
+    const energy = bohrEnergy(this.sim.Z, level).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+    field.textContent = `Elétron · ${SHELLS[electron.shell]} (n=${level}) · ${energy} eV`;
   };
 
   /**

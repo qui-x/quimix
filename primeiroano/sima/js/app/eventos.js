@@ -189,6 +189,7 @@
         announce('Verifique o elétron na origem e a direção do salto.', 'assertive');
         return;
       }
+      this._updateBohrEnergy();
       origin.value = String(to);
       target.value = String(from);
     };
@@ -247,6 +248,7 @@
           });
           if (electron) {
             this.sim.selectedBohrElectron = electron;
+            this._updateBohrEnergy();
             origin.value = String(electron.shell);
           } else if (shellClicked !== null) target.value = String(shellClicked);
         } else if (shellClicked !== null) this.sim.exciteBohr(shellClicked);

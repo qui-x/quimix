@@ -22,7 +22,7 @@ test('As seis quedas do hidrogênio emitem fótons pelo motor do canvas', () => 
     SHELLS: 'KLMNOPQ', playTone() {}, announce() {},
     document, window: new EventTarget(), AtomicApp
   });
-  for (const file of ['core/fisica.js', 'models/bohr.js', 'app/eventos.js']) {
+  for (const file of ['core/fisica.js', 'models/bohr.js', 'app/elemento-ui.js', 'app/eventos.js']) {
     vm.runInContext(fs.readFileSync('primeiroano/sima/js/' + file, 'utf8'), context);
   }
   const sim = Object.assign(new AtomicSim(), { Z: 1, electrons: [1], canvas: { width: 800, height: 600 } });
@@ -44,6 +44,7 @@ test('As seis quedas do hidrogênio emitem fótons pelo motor do canvas', () => 
     controls.get('bohr-to-shell').value = String(lower - 1);
     controls.get('btn-bohr-down').dispatchEvent(new Event('click'));
     assert.equal(sim.selectedBohrElectron, electron);
+    assert.ok(controls.get('d-bohr-energy').textContent.includes('n=' + lower + ')'));
     const photon = sim.bohrPhotons.at(-1);
     assert.ok(Math.abs(photon.lambda - nm) <= 1);
     assert.ok(photon.series.includes(band));
