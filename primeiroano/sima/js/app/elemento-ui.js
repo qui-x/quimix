@@ -77,11 +77,12 @@ AtomicApp.prototype._updateElementUI = function() {
     const result = document.getElementById('quantum-result');
     const composition = document.getElementById('quantum-composition');
     const total = subshells.reduce((sum, sub) => sum + sub.count, 0);
-    composition.textContent = `${total} e⁻ · ${subshells.length} subcamada(s) ocupada(s). ` +
+    const totalText = `${total} e⁻ · ${subshells.length} subcamada(s) ocupada(s). ` +
       subshells.map(sub => `${sub.label}: ${sub.count} e⁻ (${(100*sub.count/total).toLocaleString('pt-BR',{maximumFractionDigits:1})}%)`).join(' · ');
     const choices = [];
     plane.value = 'projection';
-    orbital.replaceChildren(new Option('Nuvem total', ''));
+    const last = subshells.at(-1);
+    orbital.replaceChildren(new Option(`Último subnível · ${last?.label || '—'}`, 'last'), new Option('Nuvem total', ''));
     for (const sub of subshells) {
       const group = document.createElement('optgroup');
       group.label = `${sub.label} · ${sub.count} e⁻ na subcamada`;
@@ -99,7 +100,10 @@ AtomicApp.prototype._updateElementUI = function() {
       sample.disabled = !count || count >= quantumSampleLimit;
     };
     const select = () => {
-      const sub = orbital.value === '' ? null : choices[Number(orbital.value)];
+      const focus = orbital.value === 'last' ? last : null;
+      this.sim.qFocus = focus;
+      composition.textContent = focus ? `${focus.label} · ${focus.count} de ${total} elétrons` : totalText;
+      const sub = focus || orbital.value === '' ? null : choices[Number(orbital.value)];
       composition.hidden = !!sub;
       plane.disabled = sample.disabled = !sub;
       result.textContent = '';
@@ -112,7 +116,6 @@ AtomicApp.prototype._updateElementUI = function() {
     orbital.onchange = plane.onchange = select;
     sample.onclick = accumulate;
     select();
-    const last = subshells[subshells.length-1];
     const year = DISCOVERY_YEAR[sym];
     const yearLabel = (year !== undefined && year < 0) ? `~${Math.abs(year)} a.C.` : (year ?? '—');
 

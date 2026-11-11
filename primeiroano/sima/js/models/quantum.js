@@ -38,6 +38,8 @@
 
   AtomicSim.prototype._buildQuantum = function() {
     this.qSubshells = fillSubshells(this.Z);
+    if (this.qElement !== this.Z) this.qFocus = this.qSubshells.at(-1);
+    this.qElement = this.Z;
     this.qCamera ??= new OrbitCamera();
     this.qComposite = [];
     this.qCompositeKey = null;
@@ -48,7 +50,7 @@
       const forms = quantumForms[sub.l];
       const extent = sub.n / maxN;
       if (!sub.l) {
-        this.qComposite.push({x:0,y:0,z:0,width:extent,weight:sub.count,l:0});
+        this.qComposite.push({x:0,y:0,z:0,width:extent,weight:sub.count,l:0,sub:sub.label});
         continue;
       }
       for (let f=0; f<forms.length && f<sub.count; f++) {
@@ -61,7 +63,7 @@
           const x = ring*Math.cos(angle), y = ring*Math.sin(angle);
           const weight = forms[f][1](x,y,z)**2;
           sum += weight;
-          lobes.push({x:x*extent*.52,y:y*extent*.52,z:z*extent*.52,width:extent*.46,weight,l:sub.l});
+          lobes.push({x:x*extent*.52,y:y*extent*.52,z:z*extent*.52,width:extent*.46,weight,l:sub.l,sub:sub.label});
         }
         for (const lobe of lobes) {
           lobe.weight *= occupation/sum;
@@ -131,19 +133,21 @@
       return;
     }
     const camera = this.qCamera;
-    const key = [W,H,camera.yaw,camera.pitch,camera.zoom].join(',');
+    const focus = this.qFocus;
+    const key = [focus?.label,W,H,camera.yaw,camera.pitch,camera.zoom].join(',');
     if (key !== this.qCompositeKey) {
       const size = 256;
       const layer = this.qLayer ??= document.createElement('canvas');
       layer.width = layer.height = size;
       const brush = layer.getContext('2d');
-      const projected = this.qComposite.map(lobe => ({
+      const visible = focus ? this.qComposite.filter(lobe => lobe.sub === focus.label) : this.qComposite;
+      const projected = visible.map(lobe => ({
         lobe, point: camera.project(lobe.x,lobe.y,lobe.z,size/2,size/2,size*.43)
       })).sort((a,b) => b.point.depth-a.point.depth);
       for (const {lobe,point} of projected) {
         const r = size*.43*lobe.width*point.persp;
         const rgb = this._hexToRgbStr(quantumColors[lobe.l]);
-        const alpha = 1-Math.exp(-8*lobe.weight/Math.sqrt(this.Z));
+        const alpha = 1-Math.exp(-8*lobe.weight/Math.sqrt(focus?.count || this.Z));
         const g = brush.createRadialGradient(point.sx,point.sy,0,point.sx,point.sy,r);
         g.addColorStop(0,`rgba(${rgb},${alpha})`);
         g.addColorStop(0.55,`rgba(${rgb},${alpha*.48})`);
@@ -174,5 +178,5 @@
     ctx.fillStyle='rgba(255,255,255,.9)'; ctx.font=`bold ${this.sym.length>1?8:10}px Consolas`;
     ctx.fillText(this.sym,cx-this.sym.length*3,cy+3);
 
-    this._legend(ctx,H,'Nuvem total · orbitais sobrepostos · raio esquemático');
+    this._legend(ctx,H,focus ? `Subnível ${focus.label} · ${focus.count} e⁻ · raio esquemático` : 'Nuvem total · orbitais sobrepostos · raio esquemático');
   };
