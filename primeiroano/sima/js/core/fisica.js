@@ -22,11 +22,10 @@ const photonLambda = (Z, ni, nf) => {
 };
 
 // Série espectral
-const spectralSeries = (nf) => {
-  if (nf === 1) return 'Lyman (UV)';
-  if (nf === 2) return 'Balmer (visível)';
-  if (nf === 3) return 'Paschen (IR)';
-  return `n=${nf}`;
+const spectralSeries = (nf, λ) => {
+  const name = ['Lyman', 'Balmer', 'Paschen'][nf - 1] || `n=${nf}`;
+  const band = λ < 380 ? 'UV · símbolo' : λ > 780 ? 'IR · símbolo' : 'visível';
+  return `${name} (${band})`;
 };
 
 // ══════════════════════════════════════════════════════════════════

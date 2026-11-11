@@ -181,6 +181,17 @@
     });
 
     // ══ BOHR — excitar / retornar por camada selecionada ══
+    document.getElementById('bohr-emit').addEventListener('click', () => {
+      const result = document.getElementById('bohr-result');
+      if (this.sim.model !== 'bohr' || this.sim.Z !== 1) {
+        result.textContent = 'Selecione hidrogênio e ative Bohr.';
+        return;
+      }
+      const [upper, lower] = document.getElementById('bohr-line').value.split(',').map(Number);
+      result.textContent = this.sim.prepareHydrogenEmission(upper, lower)
+        ? `Elétron preparado em n=${upper}. Aguarde a queda para n=${lower}.`
+        : 'Há uma transição em andamento.';
+    });
     document.getElementById('btn-excite')?.addEventListener('click',()=>{
       this.sim.exciteBohr();
     });

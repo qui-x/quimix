@@ -39,7 +39,7 @@
   AtomicSim.prototype._buildBohr = function() {
     const W=this.canvas.width||800, H=this.canvas.height||600;
     const shells=this.electrons;
-    const ns=this.Z === 1 ? 3 : Math.min(shells.length, 7);
+    const ns=this.Z === 1 ? 6 : Math.min(shells.length, 7);
     const maxShellR = Math.min(W,H)*0.46; // mesmo valor usado no Rutherford
     this.bohrShellRadii = Array.from({length:ns}, (_,i) =>
       maxShellR * (0.35 + (i/Math.max(1,ns-1))*0.65)
@@ -73,6 +73,19 @@
     this._bohrShellBusy = new Set();
   };
 
+  AtomicSim.prototype.prepareHydrogenEmission = function(upper, lower) {
+    if (this.Z !== 1 || !Number.isInteger(lower) || !Number.isInteger(upper) ||
+        lower < 1 || upper <= lower || upper > this.bohrShellRadii.length) return false;
+    const electron = this.bohrElectrons[0];
+    if (electron.transition) return false;
+    electron.shell = upper - 1;
+    electron.transition = {
+      from: lower - 1, to: upper - 1, phase: 'excited', excitedTimer: 80, excitedDuration: 80
+    };
+    this._bohrShellBusy.add(lower - 1);
+    return true;
+  };
+
   /**
    * Excita (sobe) um elétron da camada `from` para `to`.
    * Só permite uma transição por camada de origem ao mesmo tempo —
@@ -100,9 +113,9 @@
     const shells=this.electrons;
     const ns=this.bohrShellRadii.length;
     if (ns<2) return false;
-    if (from===undefined) from = Math.floor(Math.random()*Math.min(shells.length, ns-1));
+    if (from===undefined) from = this.Z === 1 ? this.bohrElectrons[0].shell : Math.floor(Math.random()*Math.min(shells.length, ns-1));
     if (to===undefined)   to   = from+1;
-    if (from<0||from>=ns||to<0||to>=ns||from===to) return false;
+    if (from<0||from>=ns||to<0||to>=ns||from>=to) return false;
     if (this._bohrShellBusy.has(from)) return false; // já tem elétron subindo dessa camada
 
     for (const e of this.bohrElectrons) {
@@ -126,7 +139,7 @@
         this._bohrShellBusy.add(from);
         playTone(300+from*120, 0.15, 0.07);
         announce(`Absorção: elétron camada ${SHELLS[from]}→${SHELLS[to]}, ΔE=${dE.toFixed(2)} eV.`);
-        this._addBohrLog(nf, ni, λ, photonColor(λ), spectralSeries(nf), 'absorção');
+        this._addBohrLog(nf, ni, λ, photonColor(λ), spectralSeries(nf, λ), 'absorção');
         return true;
       }
     }
@@ -189,7 +202,7 @@
     const ni=to+1, nf=from+1;
     const λ=photonLambda(this.Z, ni, nf);
     const col=photonColor(λ);
-    const series=spectralSeries(nf);
+    const series=spectralSeries(nf, λ);
     const dE=Math.abs(bohrEnergy(this.Z,nf)-bohrEnergy(this.Z,ni));
     this.bohrPhotons.push({
       x:this.canvas.width/2, y:this.canvas.height/2,
@@ -197,7 +210,12 @@
     });
     this._addBohrLog(ni, nf, λ, col, series, 'emissão');
     playTone(220 + (λ < 750 ? (750-λ)*1.5 : 0), 0.25, 0.06);
-    announce(`Fóton emitido: λ=${Math.round(λ)} nm, ${series}, cor real da literatura.`);
+    e.omega = BOHR_OMEGA_K / Math.sqrt(nf);
+    if (this.Z === 1) {
+      const result = document.getElementById('bohr-result');
+      if (result) result.textContent = `n=${ni} → n=${nf} · ${Math.round(λ)} nm · ${series}`;
+    }
+    announce(`Fóton emitido: λ=${Math.round(λ)} nm, ${series}.`);
     this._bohrShellBusy.delete(from);
     e.transition = null;
   };
@@ -337,6 +355,6 @@
         ctx.fillText(`${ph.lambda}nm`,ph.x+ph.r*.7,ph.y-ph.r*.1);
       }
     }
-    this._legend(ctx,H,`Eₙ=−${(13.6*this.Z*this.Z).toFixed(1)}/n² eV · cores reais de Balmer · use os seletores K/L/M/N`);
+    this._legend(ctx,H,`Eₙ=−${(13.6*this.Z*this.Z).toFixed(1)}/n² eV · ${this.Z === 1 ? "H · cores aproximadas; UV e IR simbólicos" : "aproximação hidrogenoide"}`);
   };
 
