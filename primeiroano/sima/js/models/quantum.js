@@ -6,19 +6,33 @@
   const quantumColors = ['#3585ce','#21906b','#b57a22','#9959b9'];
 
   const quantumSampleLimit = 120;
-  function nodalQuantumView(l, plane) {
-    return (plane === 'yz' && l > 0) || (plane === 'xy' && l === 3);
-  }
+  // Polinômios sólidos reais (conjunto axial para f). Fatores constantes
+  // não alteram a forma, pois cada imagem é normalizada pelo próprio máximo.
+  const quantumForms = [
+    [['s', () => 1, []]],
+    [['pₓ', x => x, ['yz']], ['pᵧ', (x,y) => y, ['xz']], ['p𝓏', (x,y,z) => z, ['xy']]],
+    [['dₓᵧ', (x,y) => x*y, ['xz','yz']], ['dₓ𝓏', (x,y,z) => x*z, ['xy','yz']],
+     ['dᵧ𝓏', (x,y,z) => y*z, ['xy','xz']], ['d(x²−y²)', (x,y) => x*x-y*y, ['diagonal']],
+     ['d(z²)', (x,y,z) => (2*z*z-x*x-y*y)/2, []]],
+    [['fₓᵧ𝓏', (x,y,z) => x*y*z, ['xy','xz','yz']],
+     ['f(z³)', (x,y,z) => z*(2*z*z-3*x*x-3*y*y)/3, ['xy']],
+     ['f(xz²)', (x,y,z) => x*(4*z*z-x*x-y*y)/4, ['yz']],
+     ['f(yz²)', (x,y,z) => y*(4*z*z-x*x-y*y)/4, ['xz']],
+     ['f[z(x²−y²)]', (x,y,z) => z*(x*x-y*y), ['xy','diagonal']],
+     ['f[x(x²−3y²)]', (x,y) => x*(x*x-3*y*y)/3, ['yz']],
+     ['f[y(3x²−y²)]', (x,y) => y*(3*x*x-y*y)/3, ['xz']]]
+  ];
 
   // Mesmo perfil suave para a imagem e a amostragem. A extensão radial é didática.
-  function quantumDensity(l, plane, u, v, depth) {
+  function quantumDensity(form, plane, u, v, depth) {
     let x = u, y = v, z = depth;
     if (plane === 'yz') { x = 0; y = u; z = v; }
+    if (plane === 'xz') { x = u; y = 0; z = v; }
     if (plane === 'diagonal') { x = u / Math.SQRT2; y = x; z = v; }
     const r2 = x*x + y*y + z*z;
     if (r2 >= 1) return 0;
     // Polinômios cartesianos dos orbitais representativos × envelope radial.
-    const amplitude = l === 0 ? 1 : l === 1 ? x : l === 2 ? x*y : x*y*z;
+    const amplitude = form[1](x,y,z);
     return amplitude*amplitude * Math.exp(-4*r2) * (1-r2)**2;
   }
 
@@ -39,7 +53,7 @@
       const index = y*size+x;
       for (let k=0; k<slices; k++) {
         const z = (2*k+1)/slices-1;
-        density[index] += quantumDensity(section.l, section.plane, (2*x+1)/size-1, 1-(2*y+1)/size, z);
+        density[index] += quantumDensity(section.form, section.plane, (2*x+1)/size-1, 1-(2*y+1)/size, z);
       }
       peak = Math.max(peak,density[index]);
     }
@@ -56,14 +70,14 @@
 
   AtomicSim.prototype.sampleQuantumSection = function() {
     const s = this.qSection;
-    if (!s || nodalQuantumView(s.l,s.plane)) return;
+    if (!s || s.form[2].includes(s.plane)) return;
     const end = Math.min(s.points.length+24, quantumSampleLimit);
     // Limites superiores de r^(2l) exp(-4r²) e dos produtos angulares.
-    const maxDensity = [1, 1/(4*Math.E), 1/(16*Math.E**2), 1/(64*Math.E**3)][s.l];
+    const maxDensity = [1, 1/(4*Math.E), 1/(4*Math.E**2), 27/(64*Math.E**3)][s.l];
     while (s.points.length < end) {
       const u = 2*Math.random()-1, v = 2*Math.random()-1;
       const z = s.plane === 'projection' ? 2*Math.random()-1 : 0;
-      if (Math.random()*maxDensity < quantumDensity(s.l,s.plane,u,v,z)) s.points.push([u,v]);
+      if (Math.random()*maxDensity < quantumDensity(s.form,s.plane,u,v,z)) s.points.push([u,v]);
     }
   };
 

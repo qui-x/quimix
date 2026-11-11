@@ -75,11 +75,19 @@ AtomicApp.prototype._updateElementUI = function() {
     const plane = document.getElementById('quantum-plane');
     const sample = document.getElementById('quantum-sample');
     const result = document.getElementById('quantum-result');
-    const names = ['s','pₓ','dₓᵧ','fₓᵧ𝓏'];
+    const choices = [];
     plane.value = 'projection';
     orbital.replaceChildren(new Option('Nuvem total', ''));
-    subshells.forEach((sub, i) => orbital.add(new Option(
-      `${sub.n}${names[sub.l]} · ${sub.count} e⁻ na subcamada`, String(i))));
+    for (const sub of subshells) {
+      const group = document.createElement('optgroup');
+      group.label = `${sub.label} · ${sub.count} e⁻ na subcamada`;
+      for (const form of quantumForms[sub.l]) {
+        const label = sub.n + form[0];
+        group.appendChild(new Option(label, String(choices.length)));
+        choices.push({ form, label, l: sub.l });
+      }
+      orbital.appendChild(group);
+    }
     const accumulate = () => {
       this.sim.sampleQuantumSection();
       const count = this.sim.qSection.points.length;
@@ -87,11 +95,11 @@ AtomicApp.prototype._updateElementUI = function() {
       sample.disabled = !count || count >= quantumSampleLimit;
     };
     const select = () => {
-      const sub = orbital.value === '' ? null : subshells[Number(orbital.value)];
+      const sub = orbital.value === '' ? null : choices[Number(orbital.value)];
       plane.disabled = sample.disabled = !sub;
       result.textContent = '';
-      this.sim.qSection = sub ? { label: sub.n + names[sub.l], l: sub.l, plane: plane.value, points: [] } : null;
-      if (sub && nodalQuantumView(sub.l, plane.value)) {
+      this.sim.qSection = sub ? { ...sub, plane: plane.value, points: [] } : null;
+      if (sub && sub.form[2].includes(plane.value)) {
         result.textContent = 'Plano nodal · densidade nula neste corte';
         sample.disabled = true;
       }
