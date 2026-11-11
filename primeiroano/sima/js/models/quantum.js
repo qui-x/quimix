@@ -5,44 +5,65 @@
 
   const quantumColors = ['#3585ce','#21906b','#b57a22','#9959b9'];
 
-  // Vista de conjunto com média angular. O número de amostras por
-  // subcamada acompanha sua ocupação; os raios são esquemáticos.
+  const quantumSampleLimit = 120;
+  function nodalQuantumView(l, plane) {
+    return (plane === 'yz' && l > 0) || (plane === 'xy' && l === 3);
+  }
+
+  // Mesmo perfil suave para a imagem e a amostragem. A extensão radial é didática.
+  function quantumDensity(l, plane, u, v, depth) {
+    let x = u, y = v, z = depth;
+    if (plane === 'yz') { x = 0; y = u; z = v; }
+    if (plane === 'diagonal') { x = u / Math.SQRT2; y = x; z = v; }
+    const r2 = x*x + y*y + z*z;
+    if (r2 >= 1) return 0;
+    // Polinômios cartesianos dos orbitais representativos × envelope radial.
+    const amplitude = l === 0 ? 1 : l === 1 ? x : l === 2 ? x*y : x*y*z;
+    return amplitude*amplitude * Math.exp(-4*r2) * (1-r2)**2;
+  }
+
   AtomicSim.prototype._buildQuantum = function() {
     this.qSubshells = fillSubshells(this.Z);
-    this.qCloud = [];
-    const outer = Math.max(...this.qSubshells.map(sub => sub.n));
-    const budget = Math.min(3200, Math.max(650, this.Z * 32));
-    for (const sub of this.qSubshells) {
-      const count = Math.round(budget * sub.count / this.Z);
-      for (let i = 0; i < count; i++) {
-        const z = 2 * Math.random() - 1;
-        const angle = 2 * Math.PI * Math.random();
-        const r = sub.n / outer * Math.cbrt(Math.random()) * (1 - 0.55*Math.random());
-        const projected = r * Math.sqrt(1-z*z);
-        this.qCloud.push({ x: projected*Math.cos(angle), y: projected*Math.sin(angle), l: sub.l });
-      }
-    }
   };
 
+  function quantumCloudImage(section) {
+    const size = 144;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const pixels = ctx.createImageData(size,size);
+    const density = new Float32Array(size*size);
+    const slices = section.plane === 'projection' ? 24 : 1;
+    let peak = 0;
+    for (let y=0; y<size; y++) for (let x=0; x<size; x++) {
+      const index = y*size+x;
+      for (let k=0; k<slices; k++) {
+        const z = (2*k+1)/slices-1;
+        density[index] += quantumDensity(section.l, section.plane, (2*x+1)/size-1, 1-(2*y+1)/size, z);
+      }
+      peak = Math.max(peak,density[index]);
+    }
+    const rgb = parseInt(quantumColors[section.l].slice(1),16);
+    for (let i=0; i<density.length; i++) {
+      pixels.data[4*i] = rgb >> 16;
+      pixels.data[4*i+1] = (rgb >> 8) & 255;
+      pixels.data[4*i+2] = rgb & 255;
+      pixels.data[4*i+3] = peak ? 235 * Math.sqrt(density[i]/peak) : 0;
+    }
+    ctx.putImageData(pixels,0,0);
+    return canvas;
+  }
+
   AtomicSim.prototype.sampleQuantumSection = function() {
-    const section = this.qSection;
-    for (let i = 0; i < 800 && section.points.length < 4000; i++) {
-      const angle = Math.random() * 2 * Math.PI;
-      let u = Math.cos(angle), v = Math.sin(angle);
-      let x = u, y = v, z = 0;
-      if (section.plane === 'projection') {
-        z = 2 * Math.random() - 1;
-        const projected = Math.sqrt(1-z*z);
-        u *= projected;
-        v *= projected;
-        x = u;
-        y = v;
-      } else if (section.plane === 'yz') { x = 0; y = u; z = v; }
-      else if (section.plane === 'diagonal') { x = u / Math.SQRT2; y = x; z = v; }
-      const angular = [1, x, 2*x*y, Math.sqrt(27)*x*y*z][section.l];
-      if (Math.random() >= angular * angular) continue;
-      const r = Math.pow(Math.random(), section.plane === 'projection' ? 1/3 : 1/2) * (1 - 0.55*Math.random());
-      section.points.push([r*u, r*v]);
+    const s = this.qSection;
+    if (!s || nodalQuantumView(s.l,s.plane)) return;
+    const end = Math.min(s.points.length+24, quantumSampleLimit);
+    // Limites superiores de r^(2l) exp(-4r²) e dos produtos angulares.
+    const maxDensity = [1, 1/(4*Math.E), 1/(16*Math.E**2), 1/(64*Math.E**3)][s.l];
+    while (s.points.length < end) {
+      const u = 2*Math.random()-1, v = 2*Math.random()-1;
+      const z = s.plane === 'projection' ? 2*Math.random()-1 : 0;
+      if (Math.random()*maxDensity < quantumDensity(s.l,s.plane,u,v,z)) s.points.push([u,v]);
     }
   };
 
@@ -52,9 +73,12 @@
 
     if (this.qSection) {
       const radius = Math.min(W, H) * 0.38;
-      ctx.fillStyle = quantumColors[this.qSection.l];
-      for (const [u,v] of this.qSection.points) {
-        ctx.fillRect(cx + radius*u, cy - radius*v, 2, 2);
+      const section = this.qSection;
+      if (!section.image) section.image = quantumCloudImage(section);
+      ctx.drawImage(section.image,cx-radius,cy-radius,2*radius,2*radius);
+      ctx.fillStyle = quantumColors[section.l];
+      for (const [u,v] of section.points) {
+        ctx.beginPath(); ctx.arc(cx+radius*u,cy-radius*v,1.6,0,Math.PI*2); ctx.fill();
       }
       ctx.fillText('+', cx-3, cy+3);
       const view = this.qSection.plane === 'projection' ? 'Projeção em xy' : 'Corte ' + this.qSection.plane;
@@ -62,12 +86,19 @@
       return;
     }
     const radius = Math.min(W,H)*0.38;
-    ctx.globalAlpha = 0.62;
-    for (const p of this.qCloud) {
-      ctx.fillStyle = quantumColors[p.l];
-      ctx.fillRect(cx + radius*p.x, cy - radius*p.y, 2, 2);
+    const maxN = Math.max(...this.qSubshells.map(sub => sub.n));
+    // Sobreposição difusa das subcamadas, da mais extensa à mais interna.
+    for (let n=maxN; n>=1; n--) for (const sub of this.qSubshells) {
+      if (sub.n !== n) continue;
+      const extent = radius*n/maxN;
+      const rgb = this._hexToRgbStr(quantumColors[sub.l]);
+      const opacity = 0.35 + 0.6*sub.count/(2*(2*sub.l+1));
+      const g = ctx.createRadialGradient(cx,cy,0,cx,cy,extent);
+      g.addColorStop(0,`rgba(${rgb},${opacity})`);
+      g.addColorStop(0.55,`rgba(${rgb},${opacity*0.5})`);
+      g.addColorStop(1,`rgba(${rgb},0)`);
+      ctx.fillStyle=g; ctx.fillRect(cx-extent,cy-extent,2*extent,2*extent);
     }
-    ctx.globalAlpha = 1;
 
     // Núcleo — gradiente com a cor REAL do átomo (elData[8], igual ao
     // atomCor do SITP), em vez de um amarelo fixo para todos os elementos.

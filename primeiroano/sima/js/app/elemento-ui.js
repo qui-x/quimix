@@ -84,14 +84,17 @@ AtomicApp.prototype._updateElementUI = function() {
       this.sim.sampleQuantumSection();
       const count = this.sim.qSection.points.length;
       result.textContent = count ? `${count} posições amostradas` : 'Plano nodal · densidade nula neste corte';
-      sample.disabled = !count || count >= 4000;
+      sample.disabled = !count || count >= quantumSampleLimit;
     };
     const select = () => {
       const sub = orbital.value === '' ? null : subshells[Number(orbital.value)];
       plane.disabled = sample.disabled = !sub;
       result.textContent = '';
       this.sim.qSection = sub ? { label: sub.n + names[sub.l], l: sub.l, plane: plane.value, points: [] } : null;
-      if (sub) accumulate();
+      if (sub && nodalQuantumView(sub.l, plane.value)) {
+        result.textContent = 'Plano nodal · densidade nula neste corte';
+        sample.disabled = true;
+      }
     };
     orbital.onchange = plane.onchange = select;
     sample.onclick = accumulate;
