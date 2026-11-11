@@ -181,39 +181,32 @@
     });
 
     // ══ BOHR — excitar / retornar por camada selecionada ══
-    const observeSelectedLine = () => {
-      const result = document.getElementById('bohr-result');
-      if (this.sim.model !== 'bohr' || this.sim.Z !== 1) {
-        result.textContent = 'Selecione hidrogênio e ative Bohr.';
+    const origin = document.getElementById('bohr-from-shell');
+    const target = document.getElementById('bohr-to-shell');
+    const jump = (up) => {
+      const from = Number(origin.value), to = Number(target.value);
+      if (from === to || (to > from) !== up || !this.sim.moveBohrElectron(from, to)) {
+        announce('Verifique o elétron na origem e a direção do salto.', 'assertive');
         return;
       }
-      const [upper, lower] = document.getElementById('bohr-line').value.split(',').map(Number);
-      result.textContent = this.sim.prepareHydrogenEmission(upper, lower)
-        ? `Elétron preparado em n=${upper}. Aguarde a queda para n=${lower}.`
-        : 'Há uma transição em andamento.';
+      origin.value = String(to);
+      target.value = String(from);
     };
-    const activateBohr = (shell) => {
-      if (this.sim.Z === 1) observeSelectedLine();
-      else this.sim.exciteBohr(shell);
-    };
-    document.getElementById('bohr-emit').addEventListener('click', observeSelectedLine);
-    document.getElementById('btn-excite')?.addEventListener('click',()=>{
-      activateBohr();
+    document.getElementById('btn-bohr-up').addEventListener('click', () => jump(true));
+    document.getElementById('btn-bohr-down').addEventListener('click', () => jump(false));
+    document.getElementById('btn-excite').addEventListener('click', () => {
+      const candidates = this.sim.bohrElectrons.filter(e => !e.transition && e.shell + 1 < this.sim.bohrShellRadii.length);
+      if (!candidates.length) return;
+      const electron = candidates[Math.floor(Math.random() * candidates.length)];
+      this.sim.selectedBohrElectron = electron;
+      origin.value = String(electron.shell);
+      target.value = String(electron.shell + 1 + Math.floor(Math.random() * (this.sim.bohrShellRadii.length - electron.shell - 1)));
+      jump(true);
     });
-    document.getElementById('btn-bohr-up')?.addEventListener('click',()=>{
-      const from=+document.getElementById('bohr-from-shell').value;
-      const to=+document.getElementById('bohr-to-shell').value;
-      const ok=this.sim.exciteBohr(from,to);
-      if (!ok) announce('Essa camada já tem um elétron em transição. Aguarde ou escolha outra.', 'assertive');
-    });
-    document.getElementById('btn-bohr-down')?.addEventListener('click',()=>{
-      const to=+document.getElementById('bohr-to-shell').value;
-      const ok=this.sim.returnBohr(to);
-      if (!ok) announce('Nenhum elétron excitado nessa camada para retornar.', 'assertive');
-      else playTone(420,.12,.06);
-    });
-    document.querySelectorAll('[data-shell]').forEach(btn=>{
-      btn.addEventListener('click',()=>{ this.sim.exciteBohr(+btn.dataset.shell); });
+    document.querySelectorAll('[data-shell]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (+btn.dataset.shell < this.sim.bohrShellRadii.length) target.value = btn.dataset.shell;
+      });
     });
 
     // Canvas — clique trata Bohr (excitação de elétron) e, no modo
@@ -247,7 +240,16 @@
           const r = radii[s] ?? 60;
           if (Math.abs(d-r)<18/v.s) { shellClicked=s; break; }   // 18 px de TELA, em qualquer escala
         }
-        if (this.sim.Z === 1 || shellClicked !== null) activateBohr(shellClicked);
+        if (this.sim.bohrEggMode) {
+          const electron = this.sim.bohrElectrons.find(e => {
+            const r = radii[e.shell];
+            return Math.hypot(mx-cx-r*Math.cos(e.angle), my-cy-r*Math.sin(e.angle)) <= 12/v.s;
+          });
+          if (electron) {
+            this.sim.selectedBohrElectron = electron;
+            origin.value = String(electron.shell);
+          } else if (shellClicked !== null) target.value = String(shellClicked);
+        } else if (shellClicked !== null) this.sim.exciteBohr(shellClicked);
       }
     });
     this.canvas.addEventListener('keydown',e=>{
@@ -255,7 +257,10 @@
       e.preventDefault();
       if (this.sim.model === 'thomson') { announce(this.sim.alternarEletronThomson(0)); return; }
       if (this.sim.model==='rutherford' && this.sim.ruthEggMode) { this.sim.fireAlpha(); return; }
-      if (this.sim.model==='bohr') activateBohr();
+      if (this.sim.model==='bohr') {
+        if (this.sim.bohrEggMode) jump(+target.value > +origin.value);
+        else this.sim.exciteBohr();
+      }
     });
 
     // Atalhos de teclado globais

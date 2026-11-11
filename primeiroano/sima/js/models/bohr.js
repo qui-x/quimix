@@ -39,12 +39,13 @@
   AtomicSim.prototype._buildBohr = function() {
     const W=this.canvas.width||800, H=this.canvas.height||600;
     const shells=this.electrons;
-    const ns=this.Z === 1 ? 6 : Math.min(shells.length, 7);
+    const ns=this.Z === 1 ? 6 : Math.min(shells.length + 1, 7);
     const maxShellR = Math.min(W,H)*0.46; // mesmo valor usado no Rutherford
     this.bohrShellRadii = Array.from({length:ns}, (_,i) =>
       maxShellR * (0.35 + (i/Math.max(1,ns-1))*0.65)
     );
 
+    this.selectedBohrElectron = null;
     this.bohrElectrons=[];
     for (let s=0;s<ns;s++) {
       const n=s+1;
@@ -73,16 +74,25 @@
     this._bohrShellBusy = new Set();
   };
 
-  AtomicSim.prototype.prepareHydrogenEmission = function(upper, lower) {
-    if (this.Z !== 1 || !Number.isInteger(lower) || !Number.isInteger(upper) ||
-        lower < 1 || upper <= lower || upper > this.bohrShellRadii.length) return false;
-    const electron = this.bohrElectrons[0];
-    if (electron.transition) return false;
-    electron.shell = upper - 1;
-    electron.transition = {
-      from: lower - 1, to: upper - 1, phase: 'excited', excitedTimer: 80, excitedDuration: 80
-    };
-    this._bohrShellBusy.add(lower - 1);
+  AtomicSim.prototype.moveBohrElectron = function(from, to) {
+    if (!Number.isInteger(to) || to < 0 || to >= this.bohrShellRadii.length || from === to) return false;
+    let electron = this.selectedBohrElectron;
+    if (!electron || electron.shell !== from) {
+      electron = this.bohrElectrons.find(e => e.shell === from && !e.transition && to >= e.baseShell);
+    }
+    if (!electron || electron.transition || to < electron.baseShell) return false;
+    this.selectedBohrElectron = electron;
+    electron.angle = this._bohrFarthestAngle(to, electron);
+    electron.shell = to;
+    electron.omega = BOHR_OMEGA_K / Math.sqrt(to + 1);
+    if (to < from) {
+      electron.transition = { from: to, to: from };
+      this._emitBohrPhoton(electron, false);
+    } else {
+      const wavelength = photonLambda(this.Z, from + 1, to + 1);
+      this._addBohrLog(from + 1, to + 1, wavelength, photonColor(wavelength),
+        spectralSeries(from + 1, wavelength), 'absorção');
+    }
     return true;
   };
 
@@ -197,7 +207,7 @@
 
   /** Emite o fóton e finaliza a transição — chamado após a fase 'fall'
    * (instantânea) ter colocado o elétron de volta na camada de origem. */
-  AtomicSim.prototype._emitBohrPhoton = function(e) {
+  AtomicSim.prototype._emitBohrPhoton = function(e, releaseOrigin = true) {
     const { from, to } = e.transition;
     const ni=to+1, nf=from+1;
     const λ=photonLambda(this.Z, ni, nf);
@@ -211,12 +221,8 @@
     this._addBohrLog(ni, nf, λ, col, series, 'emissão');
     playTone(220 + (λ < 750 ? (750-λ)*1.5 : 0), 0.25, 0.06);
     e.omega = BOHR_OMEGA_K / Math.sqrt(nf);
-    if (this.Z === 1) {
-      const result = document.getElementById('bohr-result');
-      if (result) result.textContent = `n=${ni} → n=${nf} · ${Math.round(λ)} nm · ${series}`;
-    }
     announce(`Fóton emitido: λ=${Math.round(λ)} nm, ${series}.`);
-    this._bohrShellBusy.delete(from);
+    if (releaseOrigin) this._bohrShellBusy.delete(from);
     e.transition = null;
   };
 
@@ -339,6 +345,11 @@
       const ex=cx+Math.cos(angle)*r, ey=cy+Math.sin(angle)*r;
       ctx.globalAlpha=ealpha;
       ctx.beginPath(); ctx.arc(ex,ey,5.5,0,Math.PI*2);
+      if (this.bohrEggMode && e === this.selectedBohrElectron) {
+        ctx.save(); ctx.beginPath(); ctx.arc(ex,ey,9,0,Math.PI*2);
+        ctx.strokeStyle='#fff'; ctx.stroke(); ctx.restore();
+        ctx.beginPath(); ctx.arc(ex,ey,5.5,0,Math.PI*2);
+      }
       ctx.fillStyle=ecol; ctx.shadowColor=ecol; ctx.shadowBlur=12; ctx.fill(); ctx.shadowBlur=0;
       ctx.globalAlpha=1;
     }

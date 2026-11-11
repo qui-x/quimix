@@ -7,13 +7,14 @@ test('As seis quedas do hidrogênio emitem fótons pelo motor do canvas', () => 
   class AtomicSim {}
   class AtomicApp {}
   const canvas = new EventTarget();
-  const line = {};
+  const controls = new Map();
   const document = Object.assign(new EventTarget(), {
     querySelectorAll: () => [],
     getElementById(id) {
-      if (id === 'bohr-line') return line;
+
       if (id === 'photon-log') return null;
-      return new EventTarget();
+      if (!controls.has(id)) controls.set(id, new EventTarget());
+      return controls.get(id);
     }
   });
   const context = vm.createContext({
@@ -33,14 +34,26 @@ test('As seis quedas do hidrogênio emitem fótons pelo motor do canvas', () => 
     [3, 2, 656, 'visível'], [4, 2, 486, 'visível'], [5, 2, 434, 'visível'],
     [6, 2, 410, 'visível'], [2, 1, 122, 'UV'], [4, 3, 1876, 'IR']
   ]) {
-    line.value = [upper, lower].join(",");
-    canvas.dispatchEvent(new Event("click"));
-    assert.equal(sim.prepareHydrogenEmission(upper, lower), false);
-    for (let frame = 0; frame < 80; frame++) sim._updateBohr();
+    sim._buildBohr();
+    const electron = sim.bohrElectrons[0];
+    controls.get('bohr-from-shell').value = '0';
+    controls.get('bohr-to-shell').value = String(upper - 1);
+    controls.get('btn-bohr-up').dispatchEvent(new Event('click'));
+    for (let frame = 0; frame < 90; frame++) sim._updateBohr();
+    assert.equal(electron.shell, upper - 1);
+    controls.get('bohr-to-shell').value = String(lower - 1);
+    controls.get('btn-bohr-down').dispatchEvent(new Event('click'));
+    assert.equal(sim.selectedBohrElectron, electron);
     const photon = sim.bohrPhotons.at(-1);
     assert.ok(Math.abs(photon.lambda - nm) <= 1);
     assert.ok(photon.series.includes(band));
     assert.equal(sim.bohrElectrons[0].shell, lower - 1);
+    if (lower > 1) {
+      controls.get('bohr-to-shell').value = '0';
+      controls.get('btn-bohr-down').dispatchEvent(new Event('click'));
+      assert.equal(electron.shell, 0);
+      assert.equal(sim.bohrPhotons.length, 2);
+    }
     if (band === 'visível') colors.add(photon.color);
   }
   assert.equal(colors.size, 4);

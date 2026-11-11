@@ -574,9 +574,7 @@
         </button>
         <div class="panel-body" id="body-egg-bohr" role="region" aria-labelledby="hdr-egg-bohr">
           <p class="hint-text" id="bohr-hint">
-            Escolha a camada de origem e destino, depois suba o elétron (absorção)
-            ou retorne-o (emissão). Cada transição emite luz com a cor real
-            calculada pela fórmula de Rydberg-Ritz (cores de Balmer).
+            Selecione o elétron no canvas ou escolha sua camada em De. Em Para, escolha uma camada superior para absorção ou inferior para emissão. Acompanhe os saltos no histórico.
           </p>
           <div class="bohr-shell-select-row">
             <label for="bohr-from-shell" class="hint-text">De</label>
@@ -601,20 +599,7 @@
             <button class="shell-btn" data-shell="2">M</button>
             <button class="shell-btn" data-shell="3">N</button>
           </div>
-          <fieldset>
-            <legend>Espectro de emissão do hidrogênio</legend>
-            <label for="bohr-line">Transição para observar no canvas</label>
-            <select id="bohr-line" class="bohr-select">
-              <option value="3,2">3 → 2 · Hα</option>
-              <option value="4,2">4 → 2 · Hβ</option>
-              <option value="5,2">5 → 2 · Hγ</option>
-              <option value="6,2">6 → 2 · Hδ</option>
-              <option value="2,1">2 → 1 · Lyman</option>
-              <option value="4,3">4 → 3 · Paschen</option>
-            </select>
-            <button type="button" class="action-btn" id="bohr-emit">Preparar estado excitado e observar a queda</button>
-            <output id="bohr-result" class="hint-text" aria-live="polite">Selecione hidrogênio e ative Bohr.</output>
-          </fieldset>
+
 
           <div class="photon-log" id="photon-log" role="log" aria-live="polite"></div>
           <p class="energy-formula" aria-label="Fórmula de Bohr">Eₙ = −13,6 · Z² / n² eV</p>
