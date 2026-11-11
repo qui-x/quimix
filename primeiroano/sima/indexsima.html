@@ -311,21 +311,6 @@
             camadas e observe o fóton emitido na queda.
           </p>
 
-          <fieldset>
-            <legend>Espectro de emissão do hidrogênio</legend>
-            <label for="bohr-line">Transição para observar no canvas</label>
-            <select id="bohr-line">
-              <option value="3,2">3 → 2 · Hα</option>
-              <option value="4,2">4 → 2 · Hβ</option>
-              <option value="5,2">5 → 2 · Hγ</option>
-              <option value="6,2">6 → 2 · Hδ</option>
-              <option value="2,1">2 → 1 · Lyman</option>
-              <option value="4,3">4 → 3 · Paschen</option>
-            </select>
-            <button type="button" class="action-btn" id="bohr-emit">Preparar estado excitado e observar a queda</button>
-            <output id="bohr-result" aria-live="polite">Selecione hidrogênio e ative Bohr.</output>
-          </fieldset>
-
           <div class="fact-grid">
             <div class="fact-cell"><span class="fact-label">Energia</span><span class="fact-value">Quantizada</span></div>
             <div class="fact-cell"><span class="fact-label">Camadas</span><span class="fact-value">K a Q (7)</span></div>
@@ -616,6 +601,21 @@
             <button class="shell-btn" data-shell="2">M</button>
             <button class="shell-btn" data-shell="3">N</button>
           </div>
+          <fieldset>
+            <legend>Espectro de emissão do hidrogênio</legend>
+            <label for="bohr-line">Transição para observar no canvas</label>
+            <select id="bohr-line" class="bohr-select">
+              <option value="3,2">3 → 2 · Hα</option>
+              <option value="4,2">4 → 2 · Hβ</option>
+              <option value="5,2">5 → 2 · Hγ</option>
+              <option value="6,2">6 → 2 · Hδ</option>
+              <option value="2,1">2 → 1 · Lyman</option>
+              <option value="4,3">4 → 3 · Paschen</option>
+            </select>
+            <button type="button" class="action-btn" id="bohr-emit">Preparar estado excitado e observar a queda</button>
+            <output id="bohr-result" class="hint-text" aria-live="polite">Selecione hidrogênio e ative Bohr.</output>
+          </fieldset>
+
           <div class="photon-log" id="photon-log" role="log" aria-live="polite"></div>
           <p class="energy-formula" aria-label="Fórmula de Bohr">Eₙ = −13,6 · Z² / n² eV</p>
           <p class="data-value" id="d-bohr-energy" aria-live="polite">—</p>
