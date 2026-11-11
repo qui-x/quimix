@@ -43,7 +43,7 @@ function photonColor(λ) {
 
   // Demais transições: aproximação padrão de conversão λ(nm) → RGB
   // (modelo de Dan Bruton, amplamente usado em visualização de espectros)
-  if (λ < 380)  return '#9d4edd';  // ultravioleta (visualização convencional violeta)
+  if (λ < 380)  return '#cbd5e1';  // UV: traço neutro, fora do visível
   let r=0,g=0,b=0;
   if (λ>=380 && λ<440) { r=-(λ-440)/(440-380); g=0; b=1; }
   else if (λ>=440 && λ<490) { r=0; g=(λ-440)/(490-440); b=1; }

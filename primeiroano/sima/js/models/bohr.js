@@ -352,7 +352,7 @@
       if (ph.r>20 && ph.r<60) {
         ctx.fillStyle=ph.color+Math.round(ph.alpha*220).toString(16).padStart(2,'0');
         ctx.font='9px Consolas';
-        ctx.fillText(`${ph.lambda}nm`,ph.x+ph.r*.7,ph.y-ph.r*.1);
+        ctx.fillText(`${ph.lambda} nm ${ph.series}`,ph.x+ph.r*.7,ph.y-ph.r*.1);
       }
     }
     this._legend(ctx,H,`Eₙ=−${(13.6*this.Z*this.Z).toFixed(1)}/n² eV · ${this.Z === 1 ? "H · cores aproximadas; UV e IR simbólicos" : "aproximação hidrogenoide"}`);

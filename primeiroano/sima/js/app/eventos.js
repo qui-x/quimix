@@ -181,7 +181,7 @@
     });
 
     // ══ BOHR — excitar / retornar por camada selecionada ══
-    document.getElementById('bohr-emit').addEventListener('click', () => {
+    const observeSelectedLine = () => {
       const result = document.getElementById('bohr-result');
       if (this.sim.model !== 'bohr' || this.sim.Z !== 1) {
         result.textContent = 'Selecione hidrogênio e ative Bohr.';
@@ -191,9 +191,14 @@
       result.textContent = this.sim.prepareHydrogenEmission(upper, lower)
         ? `Elétron preparado em n=${upper}. Aguarde a queda para n=${lower}.`
         : 'Há uma transição em andamento.';
-    });
+    };
+    const activateBohr = (shell) => {
+      if (this.sim.Z === 1) observeSelectedLine();
+      else this.sim.exciteBohr(shell);
+    };
+    document.getElementById('bohr-emit').addEventListener('click', observeSelectedLine);
     document.getElementById('btn-excite')?.addEventListener('click',()=>{
-      this.sim.exciteBohr();
+      activateBohr();
     });
     document.getElementById('btn-bohr-up')?.addEventListener('click',()=>{
       const from=+document.getElementById('bohr-from-shell').value;
@@ -242,7 +247,7 @@
           const r = radii[s] ?? 60;
           if (Math.abs(d-r)<18/v.s) { shellClicked=s; break; }   // 18 px de TELA, em qualquer escala
         }
-        if (shellClicked!==null) this.sim.exciteBohr(shellClicked);
+        if (this.sim.Z === 1 || shellClicked !== null) activateBohr(shellClicked);
       }
     });
     this.canvas.addEventListener('keydown',e=>{
@@ -250,7 +255,7 @@
       e.preventDefault();
       if (this.sim.model === 'thomson') { announce(this.sim.alternarEletronThomson(0)); return; }
       if (this.sim.model==='rutherford' && this.sim.ruthEggMode) { this.sim.fireAlpha(); return; }
-      if (this.sim.model==='bohr') this.sim.exciteBohr();
+      if (this.sim.model==='bohr') activateBohr();
     });
 
     // Atalhos de teclado globais
