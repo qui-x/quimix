@@ -371,7 +371,7 @@
 
           <div class="canvas-interactions">
             <p class="canvas-interactions-title">Interações do canvas</p>
-            <p>A nuvem assume a forma real da subcamada mais externa do elemento escolhido.
+            <p>Explore as subcamadas ocupadas e os cortes de um orbital no painel Projeção Matemática.
                Troque de elemento na tabela periódica para comparar as formas.</p>
           </div>
 
@@ -513,6 +513,13 @@
           <span class="chevron" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
         </button>
         <div class="panel-body" id="body-projection" role="region" aria-labelledby="hdr-projection">
+          <label>Orbital representativo <select id="quantum-orbital" class="bohr-select"></select></label>
+          <label>Plano de corte <select id="quantum-plane" class="bohr-select">
+            <option value="xy">xy</option><option value="yz">yz</option>
+            <option value="diagonal">Diagonal (x = y)</option>
+          </select></label>
+          <button type="button" id="quantum-sample" class="action-btn">Acumular amostras</button>
+          <output id="quantum-result" aria-live="polite"></output>
           <p class="hint-text">
             A configuração eletrônica segue a <strong>regra de Madelung</strong>: subcamadas preenchem na ordem da soma n+l. Foi com base nela que Seaborg propôs, em 1944, a série dos actinídeos — os elementos 89–94 já eram conhecidos; a contribuição foi reposicioná-los como preenchimento 5f, o que guiou a descoberta dos seguintes (até o 103). A regra vale como boa aproximação do hidrogênio (Z=1) ao oganessônio (Z=118), com exceções (Cr, Cu…) e desvios relativísticos nos superpesados — o próprio laurêncio (Lr) é um exemplo.
           </p>
@@ -661,13 +668,13 @@
   <script src="js/models/thomson.js?v=61b534d23e4c"></script>
   <script src="js/models/rutherford.js?v=78a65d3b7fe8"></script>
   <script src="js/models/bohr.js?v=1205f3a14ea1"></script>
-  <script src="js/models/quantum.js?v=2adfd30663fe"></script>
+  <script src="js/models/quantum.js?v=f82e6a936fb1"></script>
   <script src="js/models/atomic-sim-loop.js?v=83f576d1e9c1"></script>
 
   <!-- ═══ APLICAÇÃO (classe AtomicApp) ═══ -->
   <script src="js/app/atomic-app-core.js?v=495846e0556d"></script>
   <script src="js/app/tabela-periodica.js?v=36915a905c29"></script>
-  <script src="js/app/elemento-ui.js?v=1ca870dc62f8"></script>
+  <script src="js/app/elemento-ui.js?v=9558b3bff341"></script>
   <script src="js/app/modelos-ui.js?v=be517385587a"></script>
   <script src="js/app/modo-mobile.js?v=4be3c0da004a"></script>
   <script src="js/app/eventos.js?v=12eb8c41bb7c"></script>

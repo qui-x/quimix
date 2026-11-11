@@ -71,6 +71,30 @@ AtomicApp.prototype._updateElementUI = function() {
   AtomicApp.prototype._updateProjectionPanel = function() {
     const sym = this.sim.elData[1];
     const subshells = this.sim.qSubshells || [];
+    const orbital = document.getElementById('quantum-orbital');
+    const plane = document.getElementById('quantum-plane');
+    const sample = document.getElementById('quantum-sample');
+    const result = document.getElementById('quantum-result');
+    const names = ['s','pₓ','dₓᵧ','fₓᵧ𝓏'];
+    orbital.replaceChildren(new Option('Todas as subcamadas', ''));
+    subshells.forEach((sub, i) => orbital.add(new Option(
+      `${sub.n}${names[sub.l]} · ${sub.count} e⁻ na subcamada`, String(i))));
+    const accumulate = () => {
+      this.sim.sampleQuantumSection();
+      const count = this.sim.qSection.points.length;
+      result.textContent = count ? `${count} posições amostradas` : 'Plano nodal · densidade nula neste corte';
+      sample.disabled = !count || count >= 4000;
+    };
+    const select = () => {
+      const sub = orbital.value === '' ? null : subshells[Number(orbital.value)];
+      plane.disabled = sample.disabled = !sub;
+      result.textContent = '';
+      this.sim.qSection = sub ? { l: sub.l, plane: plane.value, points: [] } : null;
+      if (sub) accumulate();
+    };
+    orbital.onchange = plane.onchange = select;
+    sample.onclick = accumulate;
+    select();
     const last = subshells[subshells.length-1];
     const year = DISCOVERY_YEAR[sym];
     const yearLabel = (year !== undefined && year < 0) ? `~${Math.abs(year)} a.C.` : (year ?? '—');

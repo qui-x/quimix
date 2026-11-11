@@ -130,15 +130,41 @@
     }
   };
 
+  // Seção central em coordenadas normalizadas. Apenas a dependência angular
+  // de |Y|² é representada; o raio é esquemático, sem escala de distância.
+  AtomicSim.prototype.sampleQuantumSection = function() {
+    const section = this.qSection;
+    for (let i = 0; i < 800 && section.points.length < 4000; i++) {
+      const angle = Math.random() * 2 * Math.PI;
+      const u = Math.cos(angle), v = Math.sin(angle);
+      let x = u, y = v, z = 0;
+      if (section.plane === 'yz') { x = 0; y = u; z = v; }
+      if (section.plane === 'diagonal') { x = u / Math.SQRT2; y = x; z = v; }
+      const angular = [1, x, 2*x*y, Math.sqrt(27)*x*y*z][section.l];
+      if (Math.random() >= angular * angular) continue;
+      const r = Math.sqrt(Math.random()) * (1 - 0.45 * Math.random());
+      section.points.push([r*u, r*v]);
+    }
+  };
+
   AtomicSim.prototype._updateQuantum = function() {
     this.qFrame++;
-    if (this.qFrame % 30 === 0) this._buildQuantum();
+    if (!this.qSection && this.qFrame % 30 === 0) this._buildQuantum();
   };
 
   // ── QUÂNTICO ───────────────────────────────────────────────────
   AtomicSim.prototype._drawQuantum = function(ctx,W,H) {
     const cx=W/2, cy=H/2;
 
+    if (this.qSection) {
+      const radius = Math.min(W, H) * 0.38;
+      ctx.fillStyle = ['#3585ce','#21906b','#b57a22','#9959b9'][this.qSection.l];
+      for (const [u,v] of this.qSection.points) {
+        ctx.fillRect(cx + radius*u, cy - radius*v, 2, 2);
+      }
+      this._legend(ctx,H,'Corte central · densidade angular qualitativa · raio esquemático');
+      return;
+    }
     for (const p of this.qCloud) {
       ctx.beginPath();
       ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
