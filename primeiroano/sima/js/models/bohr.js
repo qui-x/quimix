@@ -70,6 +70,7 @@
       }
     }
     this.bohrPhotons=[];
+    this.nextBalmerShell = 2;
     this.bohrLog=[];
     this._bohrShellBusy = new Set();
   };
@@ -124,7 +125,8 @@
     const ns=this.bohrShellRadii.length;
     if (ns<2) return false;
     if (from===undefined) from = this.Z === 1 ? this.bohrElectrons[0].shell : Math.floor(Math.random()*Math.min(shells.length, ns-1));
-    if (to===undefined)   to   = from+1;
+    const cascade = to === undefined && this.Z === 1 && from === 0;
+    if (to === undefined) to = cascade ? this.nextBalmerShell : from + 1;
     if (from<0||from>=ns||to<0||to>=ns||from>=to) return false;
     if (this._bohrShellBusy.has(from)) return false; // já tem elétron subindo dessa camada
 
@@ -146,6 +148,11 @@
           excitedTimer: 80,
           excitedDuration: 80,
         };
+        if (cascade) {
+          e.transition.from = 1; // Primeira emissão: camada excitada → L.
+          e.transition.finalShell = from;
+          this.nextBalmerShell = to + 1 < ns ? to + 1 : 2;
+        }
         this._bohrShellBusy.add(from);
         playTone(300+from*120, 0.15, 0.07);
         announce(`Absorção: elétron camada ${SHELLS[from]}→${SHELLS[to]}, ΔE=${dE.toFixed(2)} eV.`);
@@ -222,6 +229,11 @@
     playTone(220 + (λ < 750 ? (750-λ)*1.5 : 0), 0.25, 0.06);
     e.omega = BOHR_OMEGA_K / Math.sqrt(nf);
     announce(`Fóton emitido: λ=${Math.round(λ)} nm, ${series}.`);
+    const finalShell = e.transition.finalShell;
+    if (finalShell !== undefined) {
+      e.transition = { phase: 'excited', from: finalShell, to: from, excitedTimer: 80, excitedDuration: 80 };
+      return;
+    }
     if (releaseOrigin) this._bohrShellBusy.delete(from);
     e.transition = null;
   };

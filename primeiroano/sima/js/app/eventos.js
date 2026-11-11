@@ -193,7 +193,7 @@
       }
       this._updateBohrEnergy();
       origin.value = String(to);
-      target.value = String(from);
+      target.value = String(this.sim.Z === 1 && from === 0 && to >= 2 ? 1 : from);
       this._syncBohrDirection();
     };
     document.getElementById('btn-bohr-up').addEventListener('click', () => jump(true));

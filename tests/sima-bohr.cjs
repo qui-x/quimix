@@ -66,4 +66,15 @@ test('As seis quedas do hidrogênio emitem fótons pelo motor do canvas', () => 
     if (band === 'visível') colors.add(photon.color);
   }
   assert.equal(colors.size, 4);
+  sim._buildBohr();
+  for (const [nm, color] of [[656, '#e63946'], [486, '#4cc9c0'], [434, '#3a6df0'], [410, '#7b4fe0']]) {
+    assert.ok(sim.exciteBohr(0));
+    for (let frame = 0; frame < 81; frame++) sim._updateBohr();
+    const line = sim.bohrPhotons.at(-1);
+    assert.ok(Math.abs(line.lambda - nm) <= 1);
+    assert.equal(line.color, color);
+    for (let frame = 0; frame < 80; frame++) sim._updateBohr();
+    assert.equal(sim.bohrElectrons[0].shell, 0);
+    assert.ok(sim.bohrPhotons.at(-1).series.includes('UV'));
+  }
 });

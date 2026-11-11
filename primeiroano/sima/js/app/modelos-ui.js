@@ -146,7 +146,9 @@
     }
     const electron = this.sim.selectedBohrElectron || this.sim.bohrElectrons?.[0];
     if (electron) fromSel.value = electron.shell;
-    if (ns>1) toSel.value = electron?.shell === 1 ? 0 : 1;
+    if (ns > 1) {
+      toSel.value = this.sim.Z === 1 && electron?.shell === 0 ? 2 : electron?.shell === 1 ? 0 : 1;
+    }
     this._syncBohrDirection();
   };
 
