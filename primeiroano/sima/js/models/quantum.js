@@ -36,31 +36,6 @@
     return amplitude*amplitude * Math.exp(-4*r2) * (1-r2)**2;
   }
 
-  // Uma posição 3D por amostra. A câmera reprojeta o mesmo conjunto ao girar.
-  function orbitalSamples(form, l, count, extent) {
-    const points = [];
-    // Separação radial/angular da mesma densidade usada nos cortes.
-    // O jacobiano r² entra na distribuição de raios amostrados.
-    const cumulative = [];
-    let mass = 0;
-    for (let i=0; i<128; i++) {
-      const r = (i+.5)/128;
-      mass += r**(2*l+2) * Math.exp(-4*r*r) * (1-r*r)**2;
-      cumulative.push(mass);
-    }
-    while (points.length < count) {
-      const z = 2*Math.random()-1, angle = 2*Math.PI*Math.random();
-      const ring = Math.sqrt(1-z*z);
-      const x = ring*Math.cos(angle), y = ring*Math.sin(angle);
-      if (Math.random() >= form[1](x,y,z)**2) continue;
-      const target = Math.random()*mass;
-      const bin = cumulative.findIndex(value => value >= target);
-      const radius = extent*(bin+Math.random())/128;
-      points.push({x:x*radius, y:y*radius, z:z*radius, l});
-    }
-    return points;
-  }
-
   AtomicSim.prototype._buildQuantum = function() {
     this.qSubshells = fillSubshells(this.Z);
     if (this.qElement !== this.Z) this.qFocus = this.qSubshells.at(-1);
@@ -72,11 +47,11 @@
 
   // Superfície angular esquemática: o raio acompanha |Y| e chega a zero nos nós.
   // Os mesmos pequenos volumes difusos do SIQC compõem lóbulos e anéis.
-  function orbitalSurface(form) {
+  function orbitalSurface(form, samples = 1400) {
     const pieces = [];
     let peak = 0;
-    for (let i=0; i<1400; i++) {
-      const z = (2*i+1)/1400-1, angle = i*Math.PI*(3-Math.sqrt(5));
+    for (let i=0; i<samples; i++) {
+      const z = (2*i+1)/samples-1, angle = i*Math.PI*(3-Math.sqrt(5));
       const ring = Math.sqrt(1-z*z), x = ring*Math.cos(angle), y = ring*Math.sin(angle);
       const radius = Math.abs(form[1](x,y,z));
       peak = Math.max(peak,radius);
@@ -87,36 +62,39 @@
     }));
   }
 
-  AtomicSim.prototype._drawOrbitalForm = function(brush, size, sub, form) {
-    const cor = quantumColors[sub.l], rgb = this._hexToRgbStr(cor);
-    const rgba = (_,alpha) => `rgba(${rgb},${alpha})`;
-    const scale = size*.42;
-    if (!sub.l) {
-      desenharNuvemOrbital(brush,{x:size/2,y:size/2,A:scale,B:scale,ang:0,cor,alfa:1},true,rgba);
-      return;
-    }
-    if (!this.qClouds.has(form)) this.qClouds.set(form,orbitalSurface(form));
-    const patches = this.qClouds.get(form).map(p => {
-      const pt = this.qCamera.project(p.x,p.y,p.z,size/2,size/2,scale);
-      const width = scale*(.034+.073*p.radius)*pt.persp;
-      return {x:pt.sx,y:pt.sy,A:width,B:width,ang:0,depth:pt.depth,cor,alfa:.42};
-    });
-    patches.sort((a,b) => b.depth-a.depth);
-    for (const patch of patches) desenharNuvemOrbital(brush,patch,true,rgba);
-  };
-
-  AtomicSim.prototype._totalPoints = function() {
-    if (this.qClouds.has('total')) return this.qClouds.get('total');
-    const points = [];
-    const maxN = Math.max(...this.qSubshells.map(sub => sub.n));
-    for (const sub of this.qSubshells) {
+  AtomicSim.prototype._drawOrbitalCloud = function(brush, size, section, focus) {
+    const total = !section && !focus;
+    const subs = total ? this.qSubshells : [section?.sub || focus];
+    const maxN = Math.max(...subs.map(sub => sub.n));
+    const patches = [];
+    for (const sub of subs) {
       const forms = quantumForms[sub.l];
-      for (let e=0; e<sub.count; e++) {
-        points.push(...orbitalSamples(forms[e % forms.length], sub.l, Math.ceil(4500/this.Z), sub.n/maxN));
+      const occupied = total ? forms.slice(0, sub.count) :
+        [section?.form || forms[(sub.count-1) % forms.length]];
+      const extent = sub.n/maxN;
+      const scale = size*.42;
+      for (const [i,form] of occupied.entries()) {
+        const weight = total ? (1 + Number(i+forms.length < sub.count))/2 : 1;
+        const cor = quantumColors[sub.l];
+        if (!sub.l) {
+          const pt = this.qCamera.project(0,0,0,size/2,size/2,scale);
+          const width = scale*extent*this.qCamera.zoom*pt.persp;
+          patches.push({x:pt.sx,y:pt.sy,A:width,B:width,ang:0,depth:pt.depth,cor,alfa:weight});
+          continue;
+        }
+        const samples = total && this.Z > 10 ? 180 : 1400;
+        const key = form[0] + samples;
+        if (!this.qClouds.has(key)) this.qClouds.set(key,orbitalSurface(form,samples));
+        for (const p of this.qClouds.get(key)) {
+          const pt = this.qCamera.project(p.x*extent,p.y*extent,p.z*extent,size/2,size/2,scale);
+          const width = scale*extent*(.034+.073*p.radius)*Math.sqrt(1400/samples)*pt.persp*this.qCamera.zoom;
+          patches.push({x:pt.sx,y:pt.sy,A:width,B:width,ang:0,depth:pt.depth,cor,alfa:.42*weight/(total ? Math.sqrt(occupied.length) : 1)});
+        }
       }
     }
-    this.qClouds.set('total', points);
-    return points;
+    const rgba = (color,alpha) => `rgba(${this._hexToRgbStr(color)},${alpha})`;
+    patches.sort((a,b) => b.depth-a.depth);
+    for (const patch of patches) desenharNuvemOrbital(brush,patch,true,rgba);
   };
 
   function quantumCloudImage(section) {
@@ -187,19 +165,7 @@
       const layer = this.qLayer ??= document.createElement('canvas');
       layer.width = layer.height = size;
       const brush = layer.getContext('2d');
-      if (section || focus) {
-        const sub = section?.sub || focus;
-        const forms = quantumForms[sub.l];
-        this._drawOrbitalForm(brush,size,sub,section?.form || forms[(sub.count-1)%forms.length]);
-      } else {
-        const dot = Math.max(1, size*.003);
-        brush.globalAlpha = .72;
-        for (const p of this._totalPoints()) {
-          const pt = camera.project(p.x,p.y,p.z,size/2,size/2,size*.48);
-          brush.fillStyle = quantumColors[p.l];
-          brush.fillRect(pt.sx,pt.sy,dot*pt.persp,dot*pt.persp);
-        }
-      }
+      this._drawOrbitalCloud(brush,size,section,focus);
       this.qCompositeKey = key;
     }
     const side = Math.min(W,H)*.9;

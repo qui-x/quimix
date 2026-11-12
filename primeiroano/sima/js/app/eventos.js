@@ -181,25 +181,43 @@
     });
 
     const inCloud = () => this.sim.model === 'quantum' && (!this.sim.qSection || this.sim.qSection.plane === 'orbital');
-    let drag = null;
+    const pointers = new Map();
+    const zoom = factor => this.sim.qCamera.zoomEm(factor,0,0,1);
+    const distance = () => {
+      const [a,b] = pointers.values();
+      return Math.hypot(a.x-b.x,a.y-b.y);
+    };
     this.canvas.addEventListener('pointerdown', event => {
-      if (!inCloud() || !event.isPrimary || event.button !== 0) return;
-      drag = { id:event.pointerId, x:event.clientX, y:event.clientY };
+      if (!inCloud() || event.button !== 0 || pointers.size >= 2) return;
+      pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
       this.canvas.setPointerCapture(event.pointerId);
     });
     this.canvas.addEventListener('pointermove', event => {
-      if (!inCloud() || drag?.id !== event.pointerId) return;
-      this.sim.qCamera.arrastar(event.clientX-drag.x,event.clientY-drag.y);
-      drag.x=event.clientX; drag.y=event.clientY;
+      const last = pointers.get(event.pointerId);
+      if (!inCloud() || !last) return;
+      const before = pointers.size === 2 ? distance() : null;
+      pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if (before === null) this.sim.qCamera.arrastar(event.clientX-last.x,event.clientY-last.y);
+      else if (before > 0 && distance() > 0) zoom(distance()/before);
     });
-    this.canvas.addEventListener('lostpointercapture', () => { drag=null; });
+    this.canvas.addEventListener('lostpointercapture', event => pointers.delete(event.pointerId));
+    this.canvas.addEventListener('wheel', event => {
+      if (!inCloud()) return;
+      event.preventDefault();
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? this.canvas.clientHeight : 1;
+      zoom(Math.exp(-Math.max(-250,Math.min(250,event.deltaY*unit))*.002));
+    }, {passive:false});
     this.canvas.addEventListener('keydown', event => {
       if (!inCloud()) return;
       const step = {ArrowLeft:[-12,0],ArrowRight:[12,0],ArrowUp:[0,-12],ArrowDown:[0,12]}[event.key];
       if (step) { event.preventDefault(); this.sim.qCamera.arrastar(...step); }
+      if (['+','=','-'].includes(event.key)) {
+        event.preventDefault();
+        zoom(event.key === '-' ? 1/1.2 : 1.2);
+      }
       if (event.key === 'Home') {
         event.preventDefault();
-        this.sim.qCamera.definirPadrao(.55,.30);
+        this.sim.qCamera.animarPara({yaw:.55,pitch:.30,zoom:1,alvo:[0,0,0]},0);
       }
     });
 
