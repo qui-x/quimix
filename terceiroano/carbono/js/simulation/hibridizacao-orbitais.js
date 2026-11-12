@@ -655,14 +655,7 @@ class HibridizacaoOrbitais {
         return;
       }
       // a nuvem: gradiente radial numa elipse — borda difusa, sem contorno
-      ctx.save();
-      ctx.translate(it.x, it.y); ctx.rotate(it.ang); ctx.scale(it.A, it.B);
-      var g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1), base = claro ? 0.92 : 0.82;
-      g.addColorStop(0, orbRgba(it.cor, base * it.alfa));
-      g.addColorStop(0.55, orbRgba(it.cor, base * 0.5 * it.alfa));
-      g.addColorStop(1, orbRgba(it.cor, 0));
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 1, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
+      desenharNuvemOrbital(ctx, it, claro, orbRgba);
       // os elétrons da nuvem: um ponto cada, lado a lado (o s antes da mistura: ao lado do núcleo)
       if (it.eletrons) {
         ctx.save();

@@ -70,24 +70,52 @@
     this.qCompositeKey = null;
   };
 
-  AtomicSim.prototype._orbitalPoints = function(section, focus) {
-    const key = section?.label || (focus ? 'last-' + focus.label : 'total');
-    if (this.qClouds.has(key)) return this.qClouds.get(key);
+  // Superfície angular esquemática: o raio acompanha |Y| e chega a zero nos nós.
+  // Os mesmos pequenos volumes difusos do SIQC compõem lóbulos e anéis.
+  function orbitalSurface(form) {
+    const pieces = [];
+    let peak = 0;
+    for (let i=0; i<1400; i++) {
+      const z = (2*i+1)/1400-1, angle = i*Math.PI*(3-Math.sqrt(5));
+      const ring = Math.sqrt(1-z*z), x = ring*Math.cos(angle), y = ring*Math.sin(angle);
+      const radius = Math.abs(form[1](x,y,z));
+      peak = Math.max(peak,radius);
+      pieces.push({x:x*radius,y:y*radius,z:z*radius,radius});
+    }
+    return pieces.filter(p => p.radius > peak*.06).map(p => ({
+      x:p.x/peak,y:p.y/peak,z:p.z/peak,radius:p.radius/peak
+    }));
+  }
+
+  AtomicSim.prototype._drawOrbitalForm = function(brush, size, sub, form) {
+    const cor = quantumColors[sub.l], rgb = this._hexToRgbStr(cor);
+    const rgba = (_,alpha) => `rgba(${rgb},${alpha})`;
+    const scale = size*.42;
+    if (!sub.l) {
+      desenharNuvemOrbital(brush,{x:size/2,y:size/2,A:scale,B:scale,ang:0,cor,alfa:1},true,rgba);
+      return;
+    }
+    if (!this.qClouds.has(form)) this.qClouds.set(form,orbitalSurface(form));
+    const patches = this.qClouds.get(form).map(p => {
+      const pt = this.qCamera.project(p.x,p.y,p.z,size/2,size/2,scale);
+      const width = scale*(.034+.073*p.radius)*pt.persp;
+      return {x:pt.sx,y:pt.sy,A:width,B:width,ang:0,depth:pt.depth,cor,alfa:.42};
+    });
+    patches.sort((a,b) => b.depth-a.depth);
+    for (const patch of patches) desenharNuvemOrbital(brush,patch,true,rgba);
+  };
+
+  AtomicSim.prototype._totalPoints = function() {
+    if (this.qClouds.has('total')) return this.qClouds.get('total');
     const points = [];
-    if (section || focus) {
-      const sub = section?.sub || focus;
-      const form = section?.form || quantumForms[sub.l][(sub.count-1) % quantumForms[sub.l].length];
-      points.push(...orbitalSamples(form, sub.l, 2600, 1));
-    } else {
-      const maxN = Math.max(...this.qSubshells.map(sub => sub.n));
-      for (const sub of this.qSubshells) {
-        const forms = quantumForms[sub.l];
-        for (let e=0; e<sub.count; e++) {
-          points.push(...orbitalSamples(forms[e % forms.length], sub.l, Math.ceil(4500/this.Z), sub.n/maxN));
-        }
+    const maxN = Math.max(...this.qSubshells.map(sub => sub.n));
+    for (const sub of this.qSubshells) {
+      const forms = quantumForms[sub.l];
+      for (let e=0; e<sub.count; e++) {
+        points.push(...orbitalSamples(forms[e % forms.length], sub.l, Math.ceil(4500/this.Z), sub.n/maxN));
       }
     }
-    this.qClouds.set(key, points);
+    this.qClouds.set('total', points);
     return points;
   };
 
@@ -159,12 +187,18 @@
       const layer = this.qLayer ??= document.createElement('canvas');
       layer.width = layer.height = size;
       const brush = layer.getContext('2d');
-      const dot = Math.max(1, size*.003);
-      brush.globalAlpha = .72;
-      for (const p of this._orbitalPoints(section, focus)) {
-        const pt = camera.project(p.x,p.y,p.z,size/2,size/2,size*.48);
-        brush.fillStyle = quantumColors[p.l];
-        brush.fillRect(pt.sx,pt.sy,dot*pt.persp,dot*pt.persp);
+      if (section || focus) {
+        const sub = section?.sub || focus;
+        const forms = quantumForms[sub.l];
+        this._drawOrbitalForm(brush,size,sub,section?.form || forms[(sub.count-1)%forms.length]);
+      } else {
+        const dot = Math.max(1, size*.003);
+        brush.globalAlpha = .72;
+        for (const p of this._totalPoints()) {
+          const pt = camera.project(p.x,p.y,p.z,size/2,size/2,size*.48);
+          brush.fillStyle = quantumColors[p.l];
+          brush.fillRect(pt.sx,pt.sy,dot*pt.persp,dot*pt.persp);
+        }
       }
       this.qCompositeKey = key;
     }
