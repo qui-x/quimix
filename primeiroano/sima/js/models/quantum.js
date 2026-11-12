@@ -36,23 +36,29 @@
     return amplitude*amplitude * Math.exp(-4*r2) * (1-r2)**2;
   }
 
-  function quantumLobes(sub, form, extent, occupation) {
-    if (!sub.l) return [{x:0,y:0,z:0,width:extent,weight:occupation,l:0,sub:sub.label}];
-    const lobes = [];
-    let sum = 0;
-    for (let k=0; k<96; k++) {
-      const z = (2*k+1)/96-1, angle = k*Math.PI*(3-Math.sqrt(5));
+  // Uma posição 3D por amostra. A câmera reprojeta o mesmo conjunto ao girar.
+  function orbitalSamples(form, l, count, extent) {
+    const points = [];
+    // Separação radial/angular da mesma densidade usada nos cortes.
+    // O jacobiano r² entra na distribuição de raios amostrados.
+    const cumulative = [];
+    let mass = 0;
+    for (let i=0; i<128; i++) {
+      const r = (i+.5)/128;
+      mass += r**(2*l+2) * Math.exp(-4*r*r) * (1-r*r)**2;
+      cumulative.push(mass);
+    }
+    while (points.length < count) {
+      const z = 2*Math.random()-1, angle = 2*Math.PI*Math.random();
       const ring = Math.sqrt(1-z*z);
       const x = ring*Math.cos(angle), y = ring*Math.sin(angle);
-      const weight = form[1](x,y,z)**2;
-      sum += weight;
-      lobes.push({x:x*extent*.52,y:y*extent*.52,z:z*extent*.52,width:extent*.46,weight,l:sub.l,sub:sub.label});
+      if (Math.random() >= form[1](x,y,z)**2) continue;
+      const target = Math.random()*mass;
+      const bin = cumulative.findIndex(value => value >= target);
+      const radius = extent*(bin+Math.random())/128;
+      points.push({x:x*radius, y:y*radius, z:z*radius, l});
     }
-    for (const lobe of lobes) {
-      lobe.weight *= occupation/sum;
-
-    }
-    return lobes;
+    return points;
   }
 
   AtomicSim.prototype._buildQuantum = function() {
@@ -60,19 +66,29 @@
     if (this.qElement !== this.Z) this.qFocus = this.qSubshells.at(-1);
     this.qElement = this.Z;
     this.qCamera ??= new OrbitCamera();
-    this.qComposite = [];
+    this.qClouds = new Map();
     this.qCompositeKey = null;
-    const maxN = Math.max(...this.qSubshells.map(sub => sub.n));
-    // Quadratura angular determinística. Orbitais degenerados recebem um
-    // elétron cada antes do pareamento, numa orientação de base ilustrativa.
-    for (const sub of this.qSubshells) {
-      const forms = quantumForms[sub.l];
-      const extent = sub.n / maxN;
-      for (let f=0; f<forms.length && f<sub.count; f++) {
-        const occupation = 1 + Number(f + forms.length < sub.count);
-        this.qComposite.push(...quantumLobes(sub, forms[f], extent, occupation));
+  };
+
+  AtomicSim.prototype._orbitalPoints = function(section, focus) {
+    const key = section?.label || (focus ? 'last-' + focus.label : 'total');
+    if (this.qClouds.has(key)) return this.qClouds.get(key);
+    const points = [];
+    if (section || focus) {
+      const sub = section?.sub || focus;
+      const form = section?.form || quantumForms[sub.l][(sub.count-1) % quantumForms[sub.l].length];
+      points.push(...orbitalSamples(form, sub.l, 2600, 1));
+    } else {
+      const maxN = Math.max(...this.qSubshells.map(sub => sub.n));
+      for (const sub of this.qSubshells) {
+        const forms = quantumForms[sub.l];
+        for (let e=0; e<sub.count; e++) {
+          points.push(...orbitalSamples(forms[e % forms.length], sub.l, Math.ceil(4500/this.Z), sub.n/maxN));
+        }
       }
     }
+    this.qClouds.set(key, points);
+    return points;
   };
 
   function quantumCloudImage(section) {
@@ -139,24 +155,16 @@
     const focus = this.qFocus;
     const key = [section?.label,focus?.label,W,H,camera.yaw,camera.pitch,camera.zoom].join(',');
     if (key !== this.qCompositeKey) {
-      const size = 256;
+      const size = Math.max(1, Math.round(Math.min(W,H)*.9));
       const layer = this.qLayer ??= document.createElement('canvas');
       layer.width = layer.height = size;
       const brush = layer.getContext('2d');
-      const visible = section ? (section.lobes ??= quantumLobes(section.sub, section.form, 1, 1)) : focus ? this.qComposite.filter(lobe => lobe.sub === focus.label) : this.qComposite;
-      const projected = visible.map(lobe => ({
-        lobe, point: camera.project(lobe.x,lobe.y,lobe.z,size/2,size/2,size*.43)
-      })).sort((a,b) => b.point.depth-a.point.depth);
-      for (const {lobe,point} of projected) {
-        const r = size*.43*lobe.width*point.persp;
-        const rgb = this._hexToRgbStr(quantumColors[lobe.l]);
-        const alpha = 1-Math.exp(-8*lobe.weight/Math.sqrt(section ? 1 : focus?.count || this.Z));
-        const g = brush.createRadialGradient(point.sx,point.sy,0,point.sx,point.sy,r);
-        g.addColorStop(0,`rgba(${rgb},${alpha})`);
-        g.addColorStop(0.55,`rgba(${rgb},${alpha*.48})`);
-        g.addColorStop(1,`rgba(${rgb},0)`);
-        brush.fillStyle=g;
-        brush.fillRect(point.sx-r,point.sy-r,2*r,2*r);
+      const dot = Math.max(1, size*.003);
+      brush.globalAlpha = .72;
+      for (const p of this._orbitalPoints(section, focus)) {
+        const pt = camera.project(p.x,p.y,p.z,size/2,size/2,size*.48);
+        brush.fillStyle = quantumColors[p.l];
+        brush.fillRect(pt.sx,pt.sy,dot*pt.persp,dot*pt.persp);
       }
       this.qCompositeKey = key;
     }
@@ -174,5 +182,5 @@
     ctx.fillStyle='rgba(255,255,255,.9)'; ctx.font=`bold ${this.sym.length>1?8:10}px Consolas`;
     ctx.fillText(this.sym,cx-this.sym.length*3,cy+3);
 
-    this._legend(ctx,H,section ? section.label + " · vista orbital 3D · raio esquemático" : focus ? `Subnível ${focus.label} · ${focus.count} e⁻ · raio esquemático` : 'Nuvem total · orbitais sobrepostos · raio esquemático');
+    this._legend(ctx,H,section ? section.label + " · vista orbital 3D · raio esquemático" : focus ? `Orbital ${focus.n}${quantumForms[focus.l][(focus.count-1) % quantumForms[focus.l].length][0]} · subnível ${focus.label} com ${focus.count} e⁻ · raio esquemático` : 'Nuvem total · orbitais sobrepostos · raio esquemático');
   };
