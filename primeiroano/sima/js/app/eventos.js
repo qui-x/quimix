@@ -180,7 +180,7 @@
       });
     });
 
-    const inCloud = () => this.sim.model === 'quantum' && !this.sim.qSection;
+    const inCloud = () => this.sim.model === 'quantum' && (!this.sim.qSection || this.sim.qSection.plane === 'orbital');
     let drag = null;
     this.canvas.addEventListener('pointerdown', event => {
       if (!inCloud() || !event.isPrimary || event.button !== 0) return;

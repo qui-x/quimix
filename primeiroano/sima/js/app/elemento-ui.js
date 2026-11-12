@@ -80,7 +80,7 @@ AtomicApp.prototype._updateElementUI = function() {
     const totalText = `${total} e⁻ · ${subshells.length} subcamada(s) ocupada(s). ` +
       subshells.map(sub => `${sub.label}: ${sub.count} e⁻ (${(100*sub.count/total).toLocaleString('pt-BR',{maximumFractionDigits:1})}%)`).join(' · ');
     const choices = [];
-    plane.value = 'projection';
+    plane.value = 'orbital';
     const last = subshells.at(-1);
     orbital.replaceChildren(new Option(`Último subnível · ${last?.label || '—'}`, 'last'), new Option('Nuvem total', ''));
     for (const sub of subshells) {
@@ -89,7 +89,7 @@ AtomicApp.prototype._updateElementUI = function() {
       for (const form of quantumForms[sub.l]) {
         const label = sub.n + form[0];
         group.appendChild(new Option(label, String(choices.length)));
-        choices.push({ form, label, l: sub.l });
+        choices.push({ form, label, sub, l: sub.l });
       }
       orbital.appendChild(group);
     }
@@ -105,7 +105,8 @@ AtomicApp.prototype._updateElementUI = function() {
       composition.textContent = focus ? `${focus.label} · ${focus.count} de ${total} elétrons` : totalText;
       const sub = focus || orbital.value === '' ? null : choices[Number(orbital.value)];
       composition.hidden = !!sub;
-      plane.disabled = sample.disabled = !sub;
+      plane.disabled = !sub;
+      sample.disabled = !sub || plane.value === 'orbital';
       result.textContent = '';
       this.sim.qSection = sub ? { ...sub, plane: plane.value, points: [] } : null;
       if (sub && sub.form[2].includes(plane.value)) {
@@ -113,7 +114,11 @@ AtomicApp.prototype._updateElementUI = function() {
         sample.disabled = true;
       }
     };
-    orbital.onchange = plane.onchange = select;
+    plane.onchange = select;
+    orbital.onchange = () => {
+      plane.value = 'orbital';
+      select();
+    };
     sample.onclick = accumulate;
     select();
     const year = DISCOVERY_YEAR[sym];
