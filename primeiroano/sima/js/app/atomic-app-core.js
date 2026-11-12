@@ -41,6 +41,10 @@ class AtomicApp {
     this._modeStartTimer = null;
 
     this._resize();
+    if (typeof ResizeObserver !== 'undefined') {
+      this._canvasObserver = new ResizeObserver(() => this._resize());
+      this._canvasObserver.observe(this.canvas.parentElement);
+    }
     this._buildPeriodicTable();
     this._bindEvents();
     this._buildModeTabsMobile();
@@ -54,9 +58,11 @@ class AtomicApp {
 
   _resize() {
     const wrap=this.canvas.parentElement;
+    if (!wrap.clientWidth || !wrap.clientHeight) return;
+    if (this.canvas.width === wrap.clientWidth && this.canvas.height === wrap.clientHeight) return;
     this.canvas.width=wrap.clientWidth;
     this.canvas.height=wrap.clientHeight;
-    this.sim.rebuild();
+    if (this.sim.model !== 'quantum') this.sim.rebuild();
   }
 }
 

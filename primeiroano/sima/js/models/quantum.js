@@ -62,22 +62,22 @@
     }));
   }
 
-  AtomicSim.prototype._drawOrbitalCloud = function(brush, size, section, focus) {
+  AtomicSim.prototype._drawOrbitalCloud = function(brush, W, H, section, focus) {
     const total = !section && !focus;
     const subs = total ? this.qSubshells : [section?.sub || focus];
     const maxN = Math.max(...subs.map(sub => sub.n));
+    const scale = Math.min(W,H)*.9*.42;
     const patches = [];
     for (const sub of subs) {
       const forms = quantumForms[sub.l];
       const occupied = total ? forms.slice(0, sub.count) :
         [section?.form || forms[(sub.count-1) % forms.length]];
       const extent = sub.n/maxN;
-      const scale = size*.42;
       for (const [i,form] of occupied.entries()) {
         const weight = total ? (1 + Number(i+forms.length < sub.count))/2 : 1;
         const cor = quantumColors[sub.l];
         if (!sub.l) {
-          const pt = this.qCamera.project(0,0,0,size/2,size/2,scale);
+          const pt = this.qCamera.project(0,0,0,W/2,H/2,scale);
           const width = scale*extent*this.qCamera.zoom*pt.persp;
           patches.push({x:pt.sx,y:pt.sy,A:width,B:width,ang:0,depth:pt.depth,cor,alfa:weight});
           continue;
@@ -86,7 +86,7 @@
         const key = form[0] + samples;
         if (!this.qClouds.has(key)) this.qClouds.set(key,orbitalSurface(form,samples));
         for (const p of this.qClouds.get(key)) {
-          const pt = this.qCamera.project(p.x*extent,p.y*extent,p.z*extent,size/2,size/2,scale);
+          const pt = this.qCamera.project(p.x*extent,p.y*extent,p.z*extent,W/2,H/2,scale);
           const width = scale*extent*(.034+.073*p.radius)*Math.sqrt(1400/samples)*pt.persp*this.qCamera.zoom;
           patches.push({x:pt.sx,y:pt.sy,A:width,B:width,ang:0,depth:pt.depth,cor,alfa:.42*weight/(total ? Math.sqrt(occupied.length) : 1)});
         }
@@ -161,15 +161,14 @@
     const focus = this.qFocus;
     const key = [section?.label,focus?.label,W,H,camera.yaw,camera.pitch,camera.zoom].join(',');
     if (key !== this.qCompositeKey) {
-      const size = Math.max(1, Math.round(Math.min(W,H)*.9));
       const layer = this.qLayer ??= document.createElement('canvas');
-      layer.width = layer.height = size;
+      layer.width = Math.ceil(W);
+      layer.height = Math.ceil(H);
       const brush = layer.getContext('2d');
-      this._drawOrbitalCloud(brush,size,section,focus);
+      this._drawOrbitalCloud(brush,W,H,section,focus);
       this.qCompositeKey = key;
     }
-    const side = Math.min(W,H)*.9;
-    ctx.drawImage(this.qLayer,cx-side/2,cy-side/2,side,side);
+    ctx.drawImage(this.qLayer,0,0);
     // Núcleo — gradiente com a cor REAL do átomo (elData[8], igual ao
     // atomCor do SITP), em vez de um amarelo fixo para todos os elementos.
     const atomColor = this.elData[8] || '#f59e0b';
